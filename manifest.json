@@ -1,0 +1,11 @@
+{
+  "name": "IEQ Vila Real",
+  "short_name": "Vila Real",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F5F6FA",
+  "theme_color": "#3D5AFE",
+  "icons": [
+    { "src": "assets/logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

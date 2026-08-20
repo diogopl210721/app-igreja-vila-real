@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>IEQ Vila Real</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3D5AFE">
+<link rel="apple-touch-icon" href="assets/logo.png">
+<link rel="icon" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5A2.5 2.5 0 0 1 20 21.5z"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.1 2.3 4.5 6 4c2-.3 3.7.6 4.8 2.2L12 7.7l1.2-1.5C14.3 4.6 16 3.7 18 4c3.7.5 5.6 4.1 4 7.7C19.5 16.4 12 21 12 21z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="7,4 20,12 7,20"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/></symbol>
+    <symbol id="i-arrowleft" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><path d="M11 18l-6-6 6-6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="14" r="4"/></symbol>
+    <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></symbol>
+    <symbol id="i-mappin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+    <symbol id="i-facebook" viewBox="0 0 24 24"><path d="M14 9h3V6h-3c-2 0-3.5 1.5-3.5 3.5V12H8v3h2.5v6h3v-6H16l.5-3h-3V9.8c0-.5.3-.8.8-.8z"/></symbol>
+    <symbol id="i-whatsapp" viewBox="0 0 24 24"><path d="M4 20l1.3-4.7A8 8 0 1 1 9 18.5z"/><path d="M8.5 9c0 3.5 3 6.5 6.5 6.5"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <!-- ============ BARRA SUPERIOR GLOBAL ============ -->
+  <header class="appbar">
+    <button class="appbar-btn" id="btn-abrir-drawer" aria-label="Menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+    <div class="appbar-brand">
+      <img src="assets/logo.png" alt="logo" id="appbar-logo">
+      <span id="appbar-nome">Igreja</span>
+    </div>
+    <button class="appbar-btn" id="btn-abrir-perfil" aria-label="Perfil"><svg class="icon"><use href="#i-user"/></svg></button>
+  </header>
+
+  <div class="a2hs" style="display:none;" data-close-a2hs>
+    <div class="icn"><svg class="icon" width="14" height="14"><use href="#i-plus"/></svg></div>
+    <div><strong>Adicione à tela inicial</strong><span class="a2hs-texto"></span></div>
+    <button data-close-a2hs aria-label="Fechar">✕</button>
+  </div>
+
+  <!-- ============ MENU LATERAL ============ -->
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+
+  <!-- ============ VISUALIZADOR DE FOTOS (LIGHTBOX) ============ -->
+  <div class="lightbox-overlay" id="lightbox-overlay">
+    <button class="lightbox-fechar" id="lightbox-fechar" aria-label="Fechar">✕</button>
+    <button class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Anterior">‹</button>
+    <img id="lightbox-img" src="" alt="">
+    <button class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Próxima">›</button>
+    <div class="lightbox-rodape">
+      <span id="lightbox-contador"></span>
+      <a id="lightbox-baixar" href="#" download class="btn btn-primary" style="width:auto;padding:9px 18px;font-size:12.5px;">📥 Baixar</a>
+    </div>
+  </div>
+  <nav class="drawer" id="drawer">
+    <div class="drawer-brand">
+      <img src="assets/logo.png" alt="logo">
+      <span id="drawer-nome">Igreja</span>
+    </div>
+    <button class="drawer-item" data-nav="tela-visitante" data-close-drawer><svg class="icon"><use href="#i-home"/></svg>Início</button>
+    <button class="drawer-item" data-nav="tela-login" data-close-drawer><svg class="icon"><use href="#i-user"/></svg>Entrar / Sou membro</button>
+    <button class="drawer-item" data-nav="tela-sobre-igreja" data-close-drawer><svg class="icon"><use href="#i-heart"/></svg>Sobre a igreja</button>
+    <button class="drawer-item" data-nav="tela-admin-login" data-close-drawer><svg class="icon"><use href="#i-settings"/></svg>Acesso do administrador</button>
+  </nav>
+
+  <!-- ============ VISITANTE ============ -->
+  <div class="screen active" id="tela-visitante">
+    <div class="scroll no-nav">
+      <div class="hero-boasvindas">
+        <span class="tag">👋 Área do visitante</span>
+        <h1>Seja muito bem-vindo(a), a gente fica feliz com sua visita!</h1>
+        <p>Fica à vontade pra ver os horários e avisos aqui embaixo. E se quiser receber as novidades da igreja no seu WhatsApp, é só deixar seu contato — leva 10 segundos 💛</p>
+        <a href="#form-visitante" class="cta">Quero deixar meu contato ↓</a>
+      </div>
+
+      <div class="quicklinks">
+        <a href="#secao-cultos" class="quicklink"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Cultos</a>
+        <a href="#secao-avisos" class="quicklink"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Avisos</a>
+        <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
+        <a href="#form-visitante" class="quicklink"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Contato</a>
+        <button class="quicklink" data-nav="tela-login"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Sou membro</button>
+      </div>
+
+      <div class="section-label" id="secao-cultos"><b>Cultos desta semana</b></div>
+      <div id="lista-cultos"><p class="hint"><span class="loading-dot"></span> carregando...</p></div>
+
+      <div class="section-label" id="secao-avisos"><b>Avisos</b></div>
+      <div id="visitante-avisos"><p class="hint"><span class="loading-dot"></span> carregando...</p></div>
+
+      <div class="section-label"><b>Fotos</b><a class="linklike" data-nav="tela-fotos" style="font-size:12px;">Ver todas →</a></div>
+      <div id="visitante-fotos-preview"></div>
+
+      <div class="section-label"><b>Deixe seu contato</b></div>
+      <div class="card">
+        <form id="form-visitante">
+          <div class="field"><label>Seu nome</label><input id="visitante-nome" required placeholder="Como você gosta de ser chamado(a)"></div>
+          <div class="field"><label>WhatsApp</label><input id="visitante-telefone" required placeholder="(41) 9 0000-0000"></div>
+          <div class="field"><label>Data de nascimento</label><input id="visitante-nascimento" type="date" required></div>
+          <div class="field"><label>Gênero</label>
+            <select id="visitante-genero" required>
+              <option value="">Selecione</option>
+              <option value="M">Masculino</option>
+              <option value="F">Feminino</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:6px;"><label>Estado civil</label>
+            <select id="visitante-estado-civil" required>
+              <option value="">Selecione</option>
+              <option value="solteiro">Solteiro(a)</option>
+              <option value="casado">Casado(a)</option>
+            </select>
+          </div>
+          <p class="hint" style="margin:2px 0 14px;">É só pra te encaminhar pro ministério certo (crianças, jovens, etc.) — ninguém mais vê esses dados.</p>
+          <button class="btn btn-primary" id="btn-enviar-visitante" type="submit">Enviar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADMIN: LOGIN ============ -->
+  <div class="screen" id="tela-admin-login">
+    <div class="scroll no-nav">
+      <button class="btn btn-ghost" style="width:auto;padding:8px 12px;margin-bottom:10px;" data-nav="tela-visitante">← Voltar</button>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Acesso do administrador</span>
+      <p class="hint" style="margin-bottom:18px;">Aprove líderes e gerencie conteúdos da igreja.</p>
+      <form id="form-admin-login">
+        <div class="field"><label>Senha de administrador</label><input id="admin-senha" type="password" placeholder="••••••••"></div>
+        <p class="error-msg" id="admin-erro"></p>
+        <button class="btn btn-primary" type="submit">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ ADMIN: PAINEL ============ -->
+  <div class="screen" id="tela-admin-painel">
+    <div class="scroll no-nav">
+      <div class="topbar">
+        <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:18px;" id="admin-titulo-painel">Painel do administrador</span>
+        <button class="navitem" style="width:auto;flex:none;" data-nav="tela-visitante" id="btn-sair-admin"><svg class="icon"><use href="#i-logout"/></svg></button>
+      </div>
+
+      <div class="admin-grid" id="admin-grid">
+        <button class="admin-grid-card" data-secao="lideres" data-papel="geral"><svg class="icon"><use href="#i-user"/></svg>Líderes</button>
+        <button class="admin-grid-card" data-secao="visitantes" data-papel="geral"><svg class="icon"><use href="#i-heart"/></svg>Visitantes</button>
+        <button class="admin-grid-card" data-secao="cultos" data-papel="geral,midia"><svg class="icon"><use href="#i-book"/></svg>Cultos</button>
+        <button class="admin-grid-card" data-secao="avisos" data-papel="geral,midia"><svg class="icon"><use href="#i-bell"/></svg>Avisos</button>
+        <button class="admin-grid-card" data-secao="pastor" data-papel="geral"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
+        <button class="admin-grid-card" data-secao="estudos" data-papel="geral"><svg class="icon"><use href="#i-sparkle"/></svg>Estudos</button>
+        <button class="admin-grid-card" data-secao="fotos" data-papel="geral,midia"><svg class="icon"><use href="#i-camera"/></svg>Fotos</button>
+        <button class="admin-grid-card" data-secao="igreja" data-papel="geral"><svg class="icon"><use href="#i-settings"/></svg>Igreja</button>
+        <button class="admin-grid-card" data-secao="oracao" data-papel="geral"><svg class="icon"><use href="#i-heart"/></svg>Oração</button>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="lideres" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Pedidos de liderança pendentes</b></div>
+        <div id="admin-lideres-pendentes"><p class="hint"><span class="loading-dot"></span></p></div>
+
+        <div class="section-label"><b>Adicionar líder diretamente</b></div>
+        <p class="hint" style="margin-top:-6px;">Pra quando a pessoa ainda não se cadastrou — você cria o acesso e passa o telefone + senha pra ela.</p>
+        <div class="card">
+          <form id="form-admin-novo-lider">
+            <div class="field"><label>Nome completo</label><input id="anl-nome" required placeholder="Nome do líder"></div>
+            <div class="field"><label>Telefone</label><input id="anl-telefone" required placeholder="(41) 9 0000-0000"></div>
+            <div class="field"><label>Grupo/Departamento</label>
+              <select id="anl-grupo" required><option value="">Selecione</option></select>
+            </div>
+            <div class="field" style="margin-bottom:6px;"><label>Senha provisória (4 números)</label><input id="anl-senha" inputmode="numeric" maxlength="4" placeholder="Ex: 1234"></div>
+            <button class="btn btn-primary" type="submit">Criar acesso de líder</button>
+          </form>
+          <div id="anl-resultado" style="display:none;margin-top:12px;padding:12px;border-radius:12px;background:var(--brand-soft);font-size:13px;"></div>
+        </div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="visitantes" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div id="admin-dashboard-visitantes"></div>
+        <div class="section-label"><b>Visitantes</b></div>
+        <div id="admin-visitantes"><p class="hint"><span class="loading-dot"></span></p></div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="cultos" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Novo culto</b></div>
+        <div class="card">
+          <form id="form-admin-culto">
+            <div class="field"><label>Título</label><input id="ac-titulo" required placeholder="Ex: Culto de Celebração"></div>
+            <div class="field"><label>Dia da semana</label><input id="ac-dia" placeholder="Ex: Domingo"></div>
+            <div class="field"><label>Horário</label><input id="ac-horario" required placeholder="Ex: 18:00"></div>
+            <div class="field"><label>Data específica (opcional — só pra culto especial, não recorrente)</label><input id="ac-data" type="date"></div>
+            <p class="hint" style="margin:-4px 0 12px;">Deixe em branco se for um culto normal, que se repete toda semana nesse dia.</p>
+            <div class="field"><label>Local (opcional)</label><input id="ac-local" placeholder="Ex: Templo principal"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Banner (opcional)</label><input id="ac-imagem" type="file" accept="image/*"></div>
+            <button class="btn btn-primary" type="submit">Adicionar culto</button>
+            <button class="btn btn-ghost" type="button" id="ac-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoCulto()">Cancelar edição</button>
+          </form>
+        </div>
+        <div class="section-label"><b>Cultos cadastrados</b></div>
+        <div id="admin-lista-cultos"></div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="avisos" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Novo aviso geral</b></div>
+        <div class="card">
+          <form id="form-admin-aviso">
+            <div class="field"><label>Título</label><input id="aa-titulo" required placeholder="Ex: Retiro de família"></div>
+            <div class="field"><label>Texto</label><input id="aa-texto" placeholder="Detalhes do aviso"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Banner (opcional)</label><input id="aa-imagem" type="file" accept="image/*"></div>
+            <button class="btn btn-primary" type="submit">Publicar aviso</button>
+            <button class="btn btn-ghost" type="button" id="aa-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoAviso()">Cancelar edição</button>
+          </form>
+        </div>
+        <div class="section-label"><b>Avisos publicados</b></div>
+        <div id="admin-lista-avisos"></div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="pastor" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Nova mensagem do pastor</b></div>
+        <div class="card">
+          <form id="form-admin-pastor">
+            <div class="field"><label>Título</label><input id="ap-titulo" required placeholder="Ex: Fé em tempos difíceis"></div>
+            <div class="field"><label>Autor</label><input id="ap-autor" placeholder="Ex: Pr. José"></div>
+            <div class="field"><label>Resumo</label><textarea id="ap-resumo" rows="4" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" required></textarea></div>
+            <div class="field"><label>Link do vídeo (YouTube, opcional)</label><input id="ap-video" placeholder="https://youtube.com/..."></div>
+            <div class="field" style="margin-bottom:6px;"><label>Capa (opcional)</label><input id="ap-capa" type="file" accept="image/*"></div>
+            <button class="btn btn-primary" type="submit">Publicar mensagem</button>
+            <button class="btn btn-ghost" type="button" id="ap-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoPastor()">Cancelar edição</button>
+          </form>
+        </div>
+        <div class="section-label"><b>Mensagens publicadas</b></div>
+        <div id="admin-lista-pastor"></div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="estudos" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Novo esboço de pregação</b></div>
+        <div class="card">
+          <form id="form-admin-esboco">
+            <div class="field"><label>Título</label><input id="ae-titulo" required placeholder="Ex: O Fruto do Espírito"></div>
+            <div class="field"><label>Pregador (opcional)</label><input id="ae-pregador" placeholder="Ex: Pr. José"></div>
+            <div class="field"><label>Capa (opcional)</label><input id="ae-capa" type="file" accept="image/*"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Arquivo do estudo (PDF, opcional)</label><input id="ae-arquivo" type="file" accept="application/pdf,image/*"></div>
+            <button class="btn btn-primary" type="submit">Publicar esboço</button>
+            <button class="btn btn-ghost" type="button" id="ae-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoEsboco()">Cancelar edição</button>
+          </form>
+        </div>
+        <div class="section-label"><b>Esboços publicados</b></div>
+        <div id="admin-lista-esbocos"></div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="fotos" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Novo álbum</b></div>
+        <div class="card">
+          <form id="form-admin-album">
+            <div class="field"><label>Título</label><input id="af-titulo" required placeholder="Ex: Culto de Domingo - 16/08"></div>
+            <div class="field"><label>Data (opcional)</label><input id="af-data" type="date"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Foto de capa (opcional — senão usa a 1ª foto enviada)</label><input id="af-capa" type="file" accept="image/*"></div>
+            <button class="btn btn-primary" type="submit">Criar álbum</button>
+            <button class="btn btn-ghost" type="button" id="af-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoAlbum()">Cancelar edição</button>
+          </form>
+        </div>
+
+        <div class="section-label"><b>Enviar fotos pro álbum</b></div>
+        <div class="card">
+          <div class="field">
+            <label>Álbum</label>
+            <select id="af-album-selecionado"><option value="">Selecione um álbum</option></select>
+          </div>
+          <div class="field" style="margin-bottom:6px;">
+            <label>Fotos (pode selecionar várias)</label>
+            <input id="af-fotos" type="file" accept="image/*" multiple>
+          </div>
+          <p class="hint" style="margin:-4px 0 12px;">A logo da igreja é adicionada automaticamente em cada foto, bem pequena, no canto.</p>
+          <button class="btn btn-primary" type="button" id="btn-enviar-fotos">Enviar fotos</button>
+          <p class="hint" id="af-progresso" style="display:none;margin-top:8px;"></p>
+        </div>
+
+        <div class="section-label"><b>Álbuns cadastrados</b></div>
+        <div id="admin-lista-albuns"></div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="igreja" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Sobre a igreja</b></div>
+        <p class="hint" style="margin-top:-6px;">Aparece na tela "Sobre a igreja" e no rodapé do app.</p>
+        <div class="card">
+          <form id="form-admin-igreja">
+            <div class="field"><label>Resumo / trajetória</label><textarea id="ai-sobre" rows="4" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Conte um pouco da história e do propósito da igreja"></textarea></div>
+            <div class="field"><label>Endereço</label><input id="ai-endereco" placeholder="Rua, número, bairro, cidade"></div>
+            <div class="field"><label>Instagram</label><input id="ai-instagram" placeholder="https://instagram.com/..."></div>
+            <div class="field"><label>Facebook</label><input id="ai-facebook" placeholder="https://facebook.com/..."></div>
+            <div class="field" style="margin-bottom:6px;"><label>WhatsApp de contato</label><input id="ai-whatsapp" placeholder="(41) 9 0000-0000"></div>
+            <button class="btn btn-primary" type="submit">Salvar</button>
+          </form>
+        </div>
+
+        <div class="section-label"><b>Nova liderança (pastor/líder)</b></div>
+        <div class="card">
+          <form id="form-admin-pastor-perfil">
+            <div class="field"><label>Nome</label><input id="app-nome" required placeholder="Ex: Pr. José"></div>
+            <div class="field"><label>Cargo</label><input id="app-cargo" placeholder="Ex: Pastor titular"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Foto</label><input id="app-foto" type="file" accept="image/*"></div>
+            <button class="btn btn-primary" type="submit">Adicionar</button>
+            <button class="btn btn-ghost" type="button" id="app-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoPastorPerfil()">Cancelar edição</button>
+          </form>
+        </div>
+        <div class="section-label"><b>Liderança cadastrada</b></div>
+        <div id="admin-lista-pastores-perfil"></div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="oracao" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Pedidos de oração</b></div>
+        <div class="chip-row">
+          <button class="chip on" data-filtro-oracao="todos">Todos</button>
+          <button class="chip" data-filtro-oracao="novo">Novos</button>
+          <button class="chip" data-filtro-oracao="orando">Orando</button>
+          <button class="chip" data-filtro-oracao="respondido">Respondidos</button>
+        </div>
+        <div id="admin-lista-oracao"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div class="screen" id="tela-login">
+    <div class="center-flow">
+      <div class="wordmark" style="margin-bottom:26px;"><img src="assets/logo.png" alt="logo" style="width:34px;height:34px;"><span>Igreja</span></div>
+      <h2>Entrar como membro</h2>
+      <p class="lead">Seu telefone e uma senha de 4 números. Simples e rápido.</p>
+
+      <form id="login-form-telefone">
+        <div id="login-passo-telefone">
+          <div class="field"><label>Número de telefone</label><input id="login-telefone" required placeholder="(41) 9 0000-0000"></div>
+          <p class="error-msg" id="login-erro-tel"></p>
+          <button class="btn btn-primary" type="submit">Continuar</button>
+        </div>
+      </form>
+
+      <form id="login-form-pin">
+        <div id="login-passo-pin" style="display:none;margin-top:6px;">
+          <div class="field">
+            <label>Sua senha de 4 números</label>
+            <div class="pin-row" data-pin-group="login-senha">
+              <input class="pin-box" inputmode="numeric" maxlength="1">
+              <input class="pin-box" inputmode="numeric" maxlength="1">
+              <input class="pin-box" inputmode="numeric" maxlength="1">
+              <input class="pin-box" inputmode="numeric" maxlength="1">
+            </div>
+            <input type="hidden" id="login-senha">
+          </div>
+          <p class="error-msg" id="login-erro-pin"></p>
+          <button class="btn btn-primary" type="submit">Entrar</button>
+        </div>
+      </form>
+
+      <p class="hint" style="text-align:center;margin-top:16px;">Ainda não é cadastrado? <a class="linklike" data-nav="tela-cadastro">Cadastre-se</a></p>
+      <p class="hint" style="text-align:center;"><a class="linklike" data-nav="tela-visitante">← Voltar</a></p>
+    </div>
+  </div>
+
+  <!-- ============ CADASTRO ============ -->
+  <div class="screen" id="tela-cadastro">
+    <div class="scroll no-nav">
+      <div class="wordmark" style="margin:4px 0 14px;"><img src="assets/logo.png" alt="logo"><span>Igreja</span></div>
+      <div class="stepper"><span class="done"></span><span class="done"></span></div>
+      <h2 style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;margin:0 0 4px;">Seus dados</h2>
+      <p class="hint" style="margin-bottom:16px;">Leva menos de um minuto.</p>
+
+      <form id="form-cadastro">
+        <div class="field"><label>Nome completo</label><input id="cad-nome" required></div>
+        <div class="field"><label>Telefone</label><input id="cad-telefone" required placeholder="(41) 9 0000-0000"></div>
+        <div class="field"><label>Data de nascimento</label><input id="cad-nascimento" type="date"></div>
+        <div class="field"><label>Endereço</label><input id="cad-endereco" placeholder="Rua, número, bairro"></div>
+        <div class="field">
+          <label>Crie uma senha de 4 números</label>
+          <div class="pin-row" data-pin-group="cad-senha">
+            <input class="pin-box" inputmode="numeric" maxlength="1">
+            <input class="pin-box" inputmode="numeric" maxlength="1">
+            <input class="pin-box" inputmode="numeric" maxlength="1">
+            <input class="pin-box" inputmode="numeric" maxlength="1">
+          </div>
+          <input type="hidden" id="cad-senha">
+        </div>
+        <div class="field">
+          <label>Confirmar senha</label>
+          <div class="pin-row" data-pin-group="cad-senha-confirmar">
+            <input class="pin-box" inputmode="numeric" maxlength="1">
+            <input class="pin-box" inputmode="numeric" maxlength="1">
+            <input class="pin-box" inputmode="numeric" maxlength="1">
+            <input class="pin-box" inputmode="numeric" maxlength="1">
+          </div>
+          <input type="hidden" id="cad-senha-confirmar">
+        </div>
+
+        <div class="section-label"><b>Onde você quer servir</b></div>
+        <div class="grouplist" id="lista-grupos-cadastro"></div>
+        <p class="hint" style="margin:10px 0 12px;">Os grupos são definidos pela sua igreja.</p>
+
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:18px;font-size:13.5px;cursor:pointer;">
+          <input type="checkbox" id="cad-quero-lider" style="width:17px;height:17px;">
+          Sou (ou quero ser) líder do grupo que escolhi acima
+        </label>
+
+        <p class="error-msg" id="cad-erro"></p>
+        <button class="btn btn-primary" id="btn-concluir-cadastro" type="submit">Concluir cadastro</button>
+      </form>
+      <p class="hint" style="text-align:center;margin-top:14px;"><a class="linklike" data-nav="tela-visitante">← Voltar</a></p>
+    </div>
+  </div>
+
+  <!-- ============ HOME DO MEMBRO ============ -->
+  <div class="screen" id="tela-membro-home">
+    <div class="scroll">
+      <div class="topbar">
+        <span class="badge membro"><svg class="icon" width="11" height="11"><use href="#i-heart"/></svg>Membro</span>
+        <button class="iconbtn" id="btn-sair" title="Sair"><svg class="icon"><use href="#i-logout"/></svg></button>
+      </div>
+      <p class="greet-name" id="home-saudacao">Bom dia 👋</p>
+      <p class="greet-sub">Que bom te ver por aqui hoje.</p>
+
+      <div class="devo-card" style="margin-top:16px;">
+        <div class="pattern"></div>
+        <span class="devo-eyebrow"><svg class="icon" width="12" height="12" style="stroke:rgba(255,255,255,.8)"><use href="#i-sparkle"/></svg> DEVOCIONAL DE HOJE</span>
+        <h3 id="home-devo-titulo">Carregando...</h3>
+        <p id="home-devo-resumo"></p>
+        <button class="btn" id="btn-ler-devocional">Ler agora</button>
+      </div>
+
+      <div class="card" id="checkin-diario-box" style="margin-top:16px;">
+        <p class="checkin-pergunta" style="font-weight:700;font-size:14.5px;margin:0 0 12px;">Como você está hoje?</p>
+        <div class="reacao-row">
+          <button class="reacao-btn" data-reacao="grato">🙏<span>Grato</span></button>
+          <button class="reacao-btn" data-reacao="esperancoso">✨<span>Esperançoso</span></button>
+          <button class="reacao-btn" data-reacao="em_paz">🕊️<span>Em paz</span></button>
+          <button class="reacao-btn" data-reacao="fortalecido">💪<span>Fortalecido</span></button>
+          <button class="reacao-btn" data-reacao="cansado">😔<span>Cansado</span></button>
+          <button class="reacao-btn" data-reacao="ansioso">😟<span>Ansioso</span></button>
+        </div>
+      </div>
+
+      <div class="card" id="push-ativar-box" style="margin-top:16px;display:none;border:1.5px dashed var(--brand);">
+        <p style="font-weight:700;font-size:13.5px;margin:0 0 6px;">🔔 Ativar notificações</p>
+        <p class="hint" style="margin:0 0 12px;">Receba avisos, novos estudos e lembretes da escala direto no celular.</p>
+        <button class="btn btn-primary" id="btn-ativar-push">Ativar</button>
+      </div>
+
+      <div class="section-label"><b>Aniversariantes do mês</b></div>
+      <div class="bday-row" id="home-aniversariantes"><p class="hint"><span class="loading-dot"></span></p></div>
+
+      <div class="section-label"><b>Avisos</b></div>
+      <div id="home-avisos"></div>
+
+      <button class="btn btn-ghost" id="btn-meu-grupo" style="display:none;margin:6px 0 4px;">📁 Ver meu grupo</button>
+
+      <div class="card" id="lider-postar-box" style="display:none;border:1.5px dashed var(--brand);">
+        <h3>Postar aviso do seu grupo</h3>
+        <form id="form-lider-aviso">
+          <div class="field"><label>Título</label><input id="lider-aviso-titulo" required placeholder="Ex: Convocação, reunião, ensaio..."></div>
+          <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="lider-aviso-texto" placeholder="Data, horário, local..."></div>
+          <button class="btn btn-primary" id="btn-lider-postar" type="submit">Publicar para o grupo</button>
+        </form>
+      </div>
+
+      <div id="lider-visitantes-box" style="display:none;">
+        <div class="section-label"><b>Seus novos visitantes</b></div>
+        <div id="lider-visitantes-lista"></div>
+      </div>
+
+      <div class="section-label"><b>Pedidos de oração</b></div>
+
+      <form id="form-novo-pedido" style="margin-bottom:14px;">
+        <div class="field" style="margin-bottom:8px;">
+          <textarea id="novo-pedido-texto" rows="3" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);font-family:'Inter',sans-serif;font-size:14.5px;" placeholder="Escreva aqui o seu pedido de oração..."></textarea>
+        </div>
+        <button class="btn btn-primary" id="btn-enviar-pedido" type="submit">Enviar pedido</button>
+      </form>
+
+      <div id="lista-pedidos-oracao"></div>
+    </div>
+
+    <div class="bottomnav" id="bottomnav" style="display:none;">
+      <button class="navitem on" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
+      <button class="navitem" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
+      <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
+      <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-mappin"/></svg>Contatos</button>
+      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
+    </div>
+  </div>
+
+  <!-- ============ DEVOCIONAL DETALHE ============ -->
+  <div class="screen" id="tela-devocional-detalhe">
+    <div class="scroll">
+      <div style="margin:6px 0 14px;display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;cursor:pointer;" data-nav="tela-membro-home">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <span class="devo-eyebrow" style="color:var(--brand);">DEVOCIONAL DE HOJE</span>
+      <h2 id="devo-titulo-detalhe" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:20px;margin:6px 0 2px;"></h2>
+      <p class="hint" id="devo-tema-detalhe" style="margin-bottom:12px;"></p>
+      <div class="verse-block">
+        <p id="devo-versiculo"></p>
+        <span id="devo-referencia"></span>
+      </div>
+      <p class="reflect" id="devo-texto-completo"></p>
+
+      <div class="section-label"><b>Como esse devocional tocou você?</b></div>
+      <div class="reacao-row" id="devo-reacoes">
+        <button class="reacao-btn" data-reacao="grato">🙏<span>Grato</span></button>
+        <button class="reacao-btn" data-reacao="esperancoso">✨<span>Esperançoso</span></button>
+        <button class="reacao-btn" data-reacao="em_paz">🕊️<span>Em paz</span></button>
+        <button class="reacao-btn" data-reacao="fortalecido">💪<span>Fortalecido</span></button>
+        <button class="reacao-btn" data-reacao="cansado">😔<span>Cansado</span></button>
+        <button class="reacao-btn" data-reacao="ansioso">😟<span>Ansioso</span></button>
+      </div>
+      <p class="hint" id="devo-reacao-msg" style="display:none;"></p>
+    </div>
+  </div>
+
+  <!-- ============ FOTOS: ÁLBUNS ============ -->
+  <div class="screen" id="tela-fotos">
+    <div class="scroll no-nav">
+      <div id="fotos-voltar" style="margin:6px 0 14px;display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;cursor:pointer;">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Fotos</span>
+      <p class="hint" style="margin-bottom:16px;">Confira e baixe as fotos dos nossos cultos e eventos.</p>
+      <div id="lista-albuns"><p class="hint"><span class="loading-dot"></span> carregando...</p></div>
+    </div>
+  </div>
+
+  <!-- ============ FOTOS: ÁLBUM ============ -->
+  <div class="screen" id="tela-fotos-album">
+    <div class="scroll no-nav">
+      <div style="margin:6px 0 14px;display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;cursor:pointer;" data-nav="tela-fotos">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar pros álbuns
+      </div>
+      <span id="album-titulo-detalhe" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;"></span>
+      <p class="hint" id="album-data-detalhe" style="margin-bottom:16px;"></p>
+      <div class="fotos-grid" id="grid-fotos-album"></div>
+    </div>
+  </div>
+
+  <!-- ============ ESTUDOS ============ -->
+  <div class="screen" id="tela-membro-estudos">
+    <div class="scroll">
+      <div style="margin:6px 0 14px;display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;cursor:pointer;" data-nav="tela-membro-home">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:14px;">Esboços de pregação</span>
+      <div id="lista-esbocos"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+    <div class="bottomnav" style="display:flex;">
+      <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
+      <button class="navitem on" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
+      <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
+      <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-mappin"/></svg>Contatos</button>
+      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
+    </div>
+  </div>
+
+  <!-- ============ PALAVRA DO PASTOR ============ -->
+  <div class="screen" id="tela-membro-pastor">
+    <div class="scroll">
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin:6px 0 14px;">Palavra do Pastor</span>
+      <div id="lista-mensagens-pastor"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+    <div class="bottomnav" style="display:flex;">
+      <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
+      <button class="navitem" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
+      <button class="navitem on" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
+      <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-mappin"/></svg>Contatos</button>
+      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
+    </div>
+  </div>
+
+  <!-- ============ MINISTÉRIO DE LOUVOR ============ -->
+  <div class="screen" id="tela-membro-louvor">
+    <div class="scroll">
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin:6px 0 4px;">Ministério de Louvor</span>
+      <p class="hint" style="margin-bottom:16px;">Escala, repertório e ensaios do ministério.</p>
+
+      <div class="section-label"><b>Próxima escala</b></div>
+      <div id="louvor-escala"><p class="hint"><span class="loading-dot"></span></p></div>
+
+      <div class="section-label"><b>Repertório</b></div>
+      <div id="louvor-musicas"></div>
+
+      <div class="section-label"><b>Ensaios e eventos</b></div>
+      <div id="louvor-eventos"></div>
+
+      <div id="louvor-gerenciar-box" style="display:none;">
+        <div class="section-label"><b>Gerenciar (líder)</b></div>
+
+        <div class="card" style="border:1.5px dashed var(--brand);">
+          <h3>Nova escala de culto</h3>
+          <form id="form-louvor-escala">
+            <div class="field"><label>Data</label><input id="le-data" type="date" required></div>
+            <div class="field"><label>Título do culto</label><input id="le-titulo" required placeholder="Ex: Culto de Domingo"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Observações (opcional)</label><input id="le-obs" placeholder="Ex: chegar 1h antes"></div>
+            <button class="btn btn-primary" type="submit">Criar escala</button>
+          </form>
+        </div>
+
+        <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
+          <h3>Adicionar participante à escala mais recente</h3>
+          <form id="form-louvor-participante">
+            <div class="field"><label>Membro do grupo (pra poder avisar por notificação)</label>
+              <select id="lp-membro"><option value="">— Sem vincular a um membro —</option></select>
+            </div>
+            <div class="field"><label>Nome (se não for um membro cadastrado)</label><input id="lp-nome" placeholder="Nome do participante"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Função</label><input id="lp-funcao" required placeholder="Ex: Vocal, Violão, Bateria..."></div>
+            <button class="btn btn-primary" type="submit">Adicionar</button>
+          </form>
+        </div>
+
+        <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
+          <h3>Adicionar música ao repertório mais recente</h3>
+          <form id="form-louvor-musica">
+            <div class="field"><label>Título</label><input id="lm-titulo" required placeholder="Nome da música"></div>
+            <div class="field"><label>Artista</label><input id="lm-artista" placeholder="Artista original"></div>
+            <div class="field"><label>Tom</label><input id="lm-tom" placeholder="Ex: G"></div>
+            <div class="field"><label>Link da cifra (site)</label><input id="lm-link" placeholder="https://cifraclub.com.br/..."></div>
+            <div class="field"><label>Ou envie o PDF da cifra</label><input id="lm-cifra-arquivo" type="file" accept="application/pdf,image/*"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Link do YouTube</label><input id="lm-youtube" placeholder="https://youtube.com/..."></div>
+            <button class="btn btn-primary" type="submit">Adicionar música</button>
+          </form>
+        </div>
+
+        <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
+          <h3>Novo ensaio ou evento</h3>
+          <form id="form-louvor-evento">
+            <div class="field"><label>Título</label><input id="lev-titulo" required placeholder="Ex: Ensaio geral"></div>
+            <div class="field"><label>Data</label><input id="lev-data" type="date" required></div>
+            <div class="field"><label>Horário</label><input id="lev-horario" placeholder="Ex: 19:30"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Local</label><input id="lev-local" placeholder="Ex: Salão de ensaios"></div>
+            <button class="btn btn-primary" type="submit">Adicionar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="bottomnav" style="display:flex;">
+      <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
+      <button class="navitem" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem on" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
+      <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
+      <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-mappin"/></svg>Contatos</button>
+      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
+    </div>
+  </div>
+
+  <!-- ============ GRUPOS: LISTA ============ -->
+  <div class="screen" id="tela-grupos-lista">
+    <div class="scroll no-nav">
+      <div style="margin:6px 0 14px;display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;cursor:pointer;" data-nav="tela-visitante">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Grupos e Departamentos</span>
+      <p class="hint" style="margin-bottom:16px;">Conheça e acompanhe cada área da igreja.</p>
+
+      <div class="section-label"><b>Grupos</b></div>
+      <div class="albuns-lista" id="lista-grupos-tipo-grupo"></div>
+
+      <div class="section-label"><b>Departamentos</b></div>
+      <div class="albuns-lista" id="lista-grupos-tipo-departamento"></div>
+    </div>
+  </div>
+
+  <!-- ============ GRUPO: DETALHE ============ -->
+  <div class="screen" id="tela-grupo-detalhe">
+    <div class="scroll no-nav">
+      <div style="margin:6px 0 14px;display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;cursor:pointer;" data-nav="tela-grupos-lista">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <img id="grupo-detalhe-capa" src="" alt="" style="width:100%;height:150px;object-fit:cover;border-radius:16px;margin-bottom:14px;display:none;">
+      <span id="grupo-detalhe-nome" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:20px;display:block;margin-bottom:6px;"></span>
+      <p class="reflect" id="grupo-detalhe-descricao" style="margin-bottom:6px;"></p>
+
+      <div class="section-label"><b>Avisos do grupo</b></div>
+      <div id="grupo-detalhe-avisos"></div>
+
+      <div id="grupo-detalhe-gerenciar" style="display:none;">
+        <div class="section-label"><b>Gerenciar (líder)</b></div>
+        <div class="card" style="border:1.5px dashed var(--brand);">
+          <h3>Informações do grupo</h3>
+          <form id="form-grupo-info">
+            <div class="field"><label>Descrição</label><textarea id="gi-descricao" rows="3" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Conte sobre esse grupo"></textarea></div>
+            <div class="field" style="margin-bottom:6px;"><label>Capa (opcional)</label><input id="gi-capa" type="file" accept="image/*"></div>
+            <button class="btn btn-primary" type="submit">Salvar informações</button>
+          </form>
+        </div>
+        <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
+          <h3>Postar aviso do grupo</h3>
+          <form id="form-grupo-aviso">
+            <div class="field"><label>Título</label><input id="ga-titulo" required placeholder="Ex: Reunião de sexta"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="ga-texto" placeholder="Data, horário, local..."></div>
+            <button class="btn btn-primary" type="submit">Publicar para o grupo</button>
+          </form>
+        </div>
+        <div class="section-label"><b>Pedidos de oração do grupo</b></div>
+        <div id="grupo-detalhe-oracao"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SOBRE A IGREJA ============ -->
+  <div class="screen" id="tela-sobre-igreja">
+    <div class="scroll no-nav">
+      <div style="margin:6px 0 14px;display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;cursor:pointer;" data-nav="tela-visitante">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+
+      <div class="wordmark" style="justify-content:center;flex-direction:column;gap:8px;margin-bottom:18px;">
+        <img src="assets/logo.png" alt="logo" style="width:64px;height:64px;border-radius:16px;">
+        <span id="sobre-nome-igreja" style="font-size:19px;"></span>
+      </div>
+
+      <p class="reflect" id="sobre-texto" style="margin-bottom:6px;"></p>
+
+      <div class="card" id="sobre-proximo-culto" style="display:none;margin-top:14px;"></div>
+
+      <div class="section-label"><b>Liderança</b></div>
+      <div class="fotos-grid" id="sobre-pastores" style="grid-template-columns:1fr 1fr;"></div>
+
+      <div class="section-label"><b>Contato</b></div>
+      <div id="sobre-contatos"></div>
+
+      <div class="card" style="margin-top:18px;background:var(--brand);text-align:center;padding:24px 18px;">
+        <p style="color:#fff;font-weight:700;font-size:16px;margin:0 0 6px;">Quer fazer parte dessa comunidade?</p>
+        <p style="color:rgba(255,255,255,.85);font-size:13px;margin:0 0 16px;">Vem com a gente — o primeiro passo é rapidinho.</p>
+        <button class="btn" style="background:#fff;color:var(--brand);" data-nav="tela-cadastro">Quero fazer parte 💛</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CONTATOS ============ -->
+  <div class="screen" id="tela-contatos">
+    <div class="scroll">
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin:6px 0 4px;">Contatos</span>
+      <p class="hint" style="margin-bottom:18px;">Fale com a gente ou venha nos visitar.</p>
+      <div id="lista-contatos"></div>
+    </div>
+    <div class="bottomnav" style="display:flex;">
+      <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
+      <button class="navitem" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
+      <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
+      <button class="navitem on" data-nav="tela-contatos"><svg class="icon"><use href="#i-mappin"/></svg>Contatos</button>
+      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
