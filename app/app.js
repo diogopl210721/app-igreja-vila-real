@@ -1,0 +1,3283 @@
+// ============================================================
+// App Igreja — lógica principal
+// ============================================================
+const sb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+const state = {
+  igreja: null,
+  grupos: [],
+  membro: JSON.parse(localStorage.getItem("igr_membro") || "null"),
+  grupoSelecionado: null,
+  editando: {},
+};
+
+// ---------- utilidades ----------
+async function sha256(texto) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function limparTelefone(v) {
+  return (v || "").replace(/\D/g, "");
+}
+
+// Upload de arquivo (imagem/pdf) pro Storage do Supabase, retorna a URL pública
+// deixa todos os campos de arquivo do sistema com a cara do app, em português
+// deixa todos os campos de data no padrão dd/mm/aaaa, digitável com barra automática + ícone de calendário
+function isoParaBr(iso) {
+  if (!iso || !iso.includes("-")) return "";
+  const [aaaa, mm, dd] = iso.split("-");
+  return `${dd}/${mm}/${aaaa}`;
+}
+function estilizarInputsData() {
+  document.querySelectorAll('input[type="date"]').forEach(input => {
+    if (input.dataset.estilizado) return;
+    input.dataset.estilizado = "1";
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "data-input-wrapper";
+    input.parentNode.insertBefore(wrapper, input);
+
+    const textInput = document.createElement("input");
+    textInput.type = "text";
+    textInput.inputMode = "numeric";
+    textInput.placeholder = "dd/mm/aaaa";
+    textInput.maxLength = 10;
+    textInput.className = "data-input-texto";
+    if (input.value) textInput.value = isoParaBr(input.value);
+
+    const btnCal = document.createElement("button");
+    btnCal.type = "button";
+    btnCal.className = "data-input-icone";
+    btnCal.setAttribute("aria-label", "Abrir calendário");
+    btnCal.innerHTML = '<svg class="icon"><use href="#i-calendar"/></svg>';
+
+    wrapper.appendChild(textInput);
+    wrapper.appendChild(btnCal);
+    wrapper.appendChild(input);
+    input.style.cssText = "position:absolute;opacity:0;width:0;height:0;pointer-events:none;";
+
+    textInput.addEventListener("input", () => {
+      let v = textInput.value.replace(/\D/g, "").slice(0, 8);
+      if (v.length >= 5) v = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4);
+      else if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+      textInput.value = v;
+      if (v.length === 10) {
+        const [dd, mm, aaaa] = v.split("/");
+        const iso = `${aaaa}-${mm}-${dd}`;
+        const d = new Date(iso + "T00:00:00");
+        if (!isNaN(d) && d.getDate() === parseInt(dd, 10) && d.getMonth() + 1 === parseInt(mm, 10)) {
+          input.value = iso;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      } else {
+        input.value = "";
+      }
+    });
+
+    btnCal.addEventListener("click", () => {
+      if (input.showPicker) { try { input.showPicker(); return; } catch (e) {} }
+      input.style.pointerEvents = "auto";
+      input.style.opacity = "0";
+      input.focus();
+      input.click();
+    });
+    input.addEventListener("change", () => {
+      textInput.value = input.value ? isoParaBr(input.value) : "";
+      input.style.cssText = "position:absolute;opacity:0;width:0;height:0;pointer-events:none;";
+    });
+  });
+}
+
+function definirValorData(id, isoValue) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  input.value = isoValue || "";
+  const textInput = input.previousElementSibling?.previousElementSibling;
+  if (textInput && textInput.classList.contains("data-input-texto")) {
+    textInput.value = isoValue ? isoParaBr(isoValue) : "";
+  }
+}
+
+function estilizarInputsArquivo() {
+  document.querySelectorAll('input[type="file"]').forEach(input => {
+    if (input.dataset.estilizado) return;
+    input.dataset.estilizado = "1";
+    if (!input.id) input.id = "file-" + Math.random().toString(36).slice(2);
+    input.style.display = "none";
+
+    const label = document.createElement("label");
+    label.className = "file-upload-btn";
+    label.setAttribute("for", input.id);
+    label.textContent = input.multiple ? "📷 Escolher fotos" : "📷 Escolher arquivo";
+
+    const nomeSpan = document.createElement("span");
+    nomeSpan.className = "hint file-upload-nome";
+    nomeSpan.textContent = "Nenhum arquivo selecionado";
+
+    input.insertAdjacentElement("afterend", nomeSpan);
+    input.insertAdjacentElement("afterend", label);
+
+    input.addEventListener("change", () => {
+      const arquivos = input.files;
+      if (!arquivos || !arquivos.length) { nomeSpan.textContent = "Nenhum arquivo selecionado"; return; }
+      nomeSpan.textContent = arquivos.length > 1 ? `${arquivos.length} fotos selecionadas` : arquivos[0].name;
+    });
+  });
+}
+
+// recorta uma imagem em quadrado, centralizada, antes do upload (foto de perfil)
+// ---------- editor interativo de foto de perfil (arrastar + zoom) ----------
+const fotoEditor = { img: null, naturalW: 0, naturalH: 0, baseScale: 1, offsetX: 0, offsetY: 0, arrastando: false, inicioX: 0, inicioY: 0, resolver: null };
+const FOTO_EDITOR_TAMANHO = 240;
+
+function abrirEditorFoto(fonteImagem) {
+  return new Promise((resolve) => {
+    fotoEditor.resolver = resolve;
+    const imgEl = document.getElementById("foto-editor-img");
+    imgEl.crossOrigin = "anonymous";
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      fotoEditor.naturalW = img.naturalWidth;
+      fotoEditor.naturalH = img.naturalHeight;
+      fotoEditor.baseScale = FOTO_EDITOR_TAMANHO / Math.min(img.naturalWidth, img.naturalHeight);
+      document.getElementById("foto-editor-zoom").value = 100;
+      posicionarImagemEditor(true);
+      document.getElementById("foto-editor-overlay").classList.add("open");
+    };
+    img.onerror = () => {
+      alert("Não deu pra carregar essa foto pra editar. Tente escolher o arquivo de novo.");
+      if (fotoEditor.resolver) fotoEditor.resolver(null);
+      fotoEditor.resolver = null;
+    };
+    img.src = fonteImagem;
+    imgEl.src = fonteImagem;
+    fotoEditor.img = imgEl;
+  });
+}
+
+function posicionarImagemEditor(centralizar) {
+  const zoomMult = document.getElementById("foto-editor-zoom").value / 100;
+  const escala = fotoEditor.baseScale * zoomMult;
+  const largura = fotoEditor.naturalW * escala;
+  const altura = fotoEditor.naturalH * escala;
+  if (centralizar) {
+    fotoEditor.offsetX = (FOTO_EDITOR_TAMANHO - largura) / 2;
+    fotoEditor.offsetY = (FOTO_EDITOR_TAMANHO - altura) / 2;
+  }
+  fotoEditor.img.style.width = largura + "px";
+  fotoEditor.img.style.height = altura + "px";
+  fotoEditor.img.style.left = fotoEditor.offsetX + "px";
+  fotoEditor.img.style.top = fotoEditor.offsetY + "px";
+}
+
+function fecharEditorFoto() {
+  document.getElementById("foto-editor-overlay").classList.remove("open");
+  fotoEditor.resolver = null;
+}
+
+function salvarEditorFoto() {
+  const btnSalvar = document.getElementById("foto-editor-salvar");
+  try {
+    const zoomMult = document.getElementById("foto-editor-zoom").value / 100;
+    const escala = fotoEditor.baseScale * zoomMult;
+    const sx = -fotoEditor.offsetX / escala;
+    const sy = -fotoEditor.offsetY / escala;
+    const sLado = FOTO_EDITOR_TAMANHO / escala;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 500; canvas.height = 500;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(fotoEditor.img, sx, sy, sLado, sLado, 0, 0, 500, 500);
+    canvas.toBlob(blob => {
+      if (!blob) {
+        alert("Não deu pra salvar o recorte agora. Tente escolher a foto de novo pelo botão \"Escolher arquivo\".");
+        fecharEditorFoto();
+        return;
+      }
+      const arquivo = new File([blob], "perfil.jpg", { type: "image/jpeg" });
+      if (fotoEditor.resolver) fotoEditor.resolver(arquivo);
+      fecharEditorFoto();
+    }, "image/jpeg", 0.9);
+  } catch (e) {
+    console.error("Erro ao salvar recorte da foto:", e);
+    alert("Não deu pra salvar o recorte agora. Tente escolher a foto de novo pelo botão \"Escolher arquivo\".");
+    fecharEditorFoto();
+  } finally {
+    btnSalvar.disabled = false;
+  }
+}
+
+function configurarEditorFoto() {
+  const viewport = document.getElementById("foto-editor-viewport");
+  const zoomSlider = document.getElementById("foto-editor-zoom");
+
+  const iniciarArrasto = (x, y) => {
+    fotoEditor.arrastando = true;
+    fotoEditor.inicioX = x - fotoEditor.offsetX;
+    fotoEditor.inicioY = y - fotoEditor.offsetY;
+  };
+  const moverArrasto = (x, y) => {
+    if (!fotoEditor.arrastando) return;
+    fotoEditor.offsetX = x - fotoEditor.inicioX;
+    fotoEditor.offsetY = y - fotoEditor.inicioY;
+    fotoEditor.img.style.left = fotoEditor.offsetX + "px";
+    fotoEditor.img.style.top = fotoEditor.offsetY + "px";
+  };
+  const pararArrasto = () => { fotoEditor.arrastando = false; };
+
+  viewport.addEventListener("pointerdown", (ev) => { viewport.setPointerCapture(ev.pointerId); iniciarArrasto(ev.clientX, ev.clientY); });
+  viewport.addEventListener("pointermove", (ev) => moverArrasto(ev.clientX, ev.clientY));
+  viewport.addEventListener("pointerup", pararArrasto);
+  viewport.addEventListener("pointercancel", pararArrasto);
+
+  zoomSlider.addEventListener("input", () => posicionarImagemEditor(false));
+  document.getElementById("foto-editor-cancelar").addEventListener("click", () => {
+    if (fotoEditor.resolver) fotoEditor.resolver(null);
+    fecharEditorFoto();
+  });
+  document.getElementById("foto-editor-salvar").addEventListener("click", salvarEditorFoto);
+}
+
+async function uploadArquivo(file, pasta) {
+  if (!file) return null;
+  try {
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+    const path = `${pasta}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await sb.storage.from("igreja-arquivos").upload(path, file);
+    if (error) { console.error("Erro no upload:", error); return null; }
+    const { data } = sb.storage.from("igreja-arquivos").getPublicUrl(path);
+    return data?.publicUrl || null;
+  } catch (e) {
+    console.error("Erro no upload:", e);
+    return null;
+  }
+}
+
+// Aplica uma marca d'água pequena (logo da igreja) no canto inferior direito de uma foto, via Canvas
+function aplicarMarcaDagua(file, logoUrl) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith("image/")) { resolve(file); return; }
+    const imgUrl = URL.createObjectURL(file);
+    const foto = new Image();
+    foto.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = foto.naturalWidth;
+      canvas.height = foto.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(foto, 0, 0);
+      URL.revokeObjectURL(imgUrl);
+
+      const finalizar = () => {
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return; }
+          const nomeComExtensao = (file.name || "foto.jpg").replace(/\.[^.]+$/, "") + "-marcado.jpg";
+          resolve(new File([blob], nomeComExtensao, { type: "image/jpeg" }));
+        }, "image/jpeg", 0.9);
+      };
+
+      if (!logoUrl) { finalizar(); return; }
+      const logo = new Image();
+      logo.crossOrigin = "anonymous";
+      logo.onload = () => {
+        const larguraLogo = canvas.width * 0.13;
+        const alturaLogo = larguraLogo * (logo.naturalHeight / logo.naturalWidth);
+        const margem = canvas.width * 0.025;
+        const x = canvas.width - larguraLogo - margem;
+        const y = canvas.height - alturaLogo - margem;
+        ctx.globalAlpha = 0.85;
+        ctx.drawImage(logo, x, y, larguraLogo, alturaLogo);
+        ctx.globalAlpha = 1;
+        finalizar();
+      };
+      logo.onerror = finalizar;
+      logo.src = logoUrl;
+    };
+    foto.onerror = () => resolve(file);
+    foto.src = imgUrl;
+  });
+}
+
+// Avatar circular com iniciais, cores alternadas (padrão visual do Stitch)
+const AVATAR_CORES = ["#0026B7", "#F9BD00", "#15C08A", "#FF6A5C", "#8B5CF6", "#0EA5E9"];
+function avatarIniciais(nome, idx) {
+  const partes = (nome || "?").trim().split(/\s+/);
+  const iniciais = ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase() || "?";
+  const cor = AVATAR_CORES[Math.abs(hashStr(nome || "")) % AVATAR_CORES.length];
+  return `<span class="avatar-ini" style="background:${cor}22;color:${cor};">${iniciais}</span>`;
+}
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
+  return h;
+}
+
+// ---------- adicionar à agenda (.ics) ----------
+const DIAS_SEMANA_MAP = {
+  "domingo": 0, "segunda": 1, "segunda-feira": 1, "terça": 2, "terca": 2, "terça-feira": 2, "terca-feira": 2,
+  "quarta": 3, "quarta-feira": 3, "quinta": 4, "quinta-feira": 4, "sexta": 5, "sexta-feira": 5,
+  "sábado": 6, "sabado": 6,
+};
+function proximaOcorrencia(diaSemanaTexto, horarioTexto) {
+  const alvo = DIAS_SEMANA_MAP[(diaSemanaTexto || "").toLowerCase().trim()];
+  const [h, m] = (horarioTexto || "00:00").split(":").map(n => parseInt(n, 10) || 0);
+  const d = new Date();
+  if (alvo === undefined) { d.setHours(h, m, 0, 0); return d; }
+  let diff = (alvo - d.getDay() + 7) % 7;
+  if (diff === 0 && (d.getHours() > h || (d.getHours() === h && d.getMinutes() >= m))) diff = 7;
+  d.setDate(d.getDate() + diff);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+function gerarICS({ titulo, descricao, local, inicio, duracaoMin, semanal }) {
+  const pad = n => String(n).padStart(2, "0");
+  const fmt = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const fim = new Date(inicio.getTime() + (duracaoMin || 60) * 60000);
+  const linhas = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+    `UID:${Date.now()}-${Math.random().toString(36).slice(2)}@app-igreja`,
+    `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(inicio)}`, `DTEND:${fmt(fim)}`,
+    `SUMMARY:${(titulo || "").replace(/\n/g, " ")}`,
+  ];
+  if (descricao) linhas.push(`DESCRIPTION:${descricao.replace(/\n/g, " ")}`);
+  if (local) linhas.push(`LOCATION:${local.replace(/\n/g, " ")}`);
+  if (semanal) linhas.push("RRULE:FREQ=WEEKLY");
+  linhas.push("END:VEVENT", "END:VCALENDAR");
+  return linhas.join("\r\n");
+}
+function baixarICS(ics, nomeArquivo) {
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nomeArquivo; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function adicionarCultoAgenda(titulo, diaSemana, horario, local) {
+  const inicio = proximaOcorrencia(diaSemana, horario);
+  const ics = gerarICS({ titulo, local, inicio, duracaoMin: 90, semanal: true });
+  baixarICS(ics, `${titulo.replace(/\s+/g, "-")}.ics`);
+}
+function adicionarEventoAgenda(titulo, dataStr, horario, local, descricao) {
+  const [h, m] = (horario || "00:00").split(":").map(n => parseInt(n, 10) || 0);
+  const inicio = new Date(dataStr + "T00:00:00");
+  inicio.setHours(h, m, 0, 0);
+  const ics = gerarICS({ titulo, local, descricao, inicio, duracaoMin: 90 });
+  baixarICS(ics, `${titulo.replace(/\s+/g, "-")}.ics`);
+}
+
+// Selo de data (mês abreviado + dia), padrão visual do Stitch pros avisos/eventos
+function seloData(dataStr) {
+  if (!dataStr) return `<span class="date-badge"><b>—</b>—</span>`;
+  const d = new Date(dataStr + (dataStr.length <= 10 ? "T00:00:00" : ""));
+  const meses = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  return `<span class="date-badge">${meses[d.getMonth()]}<b>${d.getDate()}</b></span>`;
+}
+
+// Caixinhas de PIN (login/cadastro) — sincroniza com o input oculto e avança o foco
+function configurarPinBoxes() {
+  document.querySelectorAll("[data-pin-group]").forEach(grupo => {
+    const hidden = document.getElementById(grupo.dataset.pinGroup);
+    const boxes = Array.from(grupo.querySelectorAll(".pin-box"));
+    const sync = () => { if (hidden) hidden.value = boxes.map(b => b.value).join(""); };
+    boxes.forEach((box, i) => {
+      box.addEventListener("input", () => {
+        box.value = box.value.replace(/\D/g, "").slice(0, 1);
+        if (box.value && boxes[i + 1]) boxes[i + 1].focus();
+        sync();
+      });
+      box.addEventListener("keydown", (ev) => {
+        if (ev.key === "Backspace" && !box.value && boxes[i - 1]) boxes[i - 1].focus();
+      });
+    });
+  });
+}
+
+function linkWhatsapp(telefone, mensagem) {
+  const numero = limparTelefone(telefone);
+  const comDDI = numero.startsWith("55") ? numero : "55" + numero;
+  return `https://wa.me/${comDDI}?text=${encodeURIComponent(mensagem)}`;
+}
+
+function formatarData(dataIso) {
+  if (!dataIso) return "";
+  const d = new Date(dataIso + "T00:00:00");
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+}
+
+function formatarPeriodo(inicio, fim) {
+  if (!inicio) return "";
+  if (!fim || fim === inicio) return formatarData(inicio);
+  return `${formatarData(inicio)} a ${formatarData(fim)}`;
+}
+
+function tempoRelativo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const dias = Math.floor(diffMs / 86400000);
+  if (dias <= 0) return "Enviado hoje";
+  if (dias === 1) return "Enviado ontem";
+  return `Enviado há ${dias} dias`;
+}
+
+function mostrarTela(id) {
+  fecharLightbox();
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.getElementById("bottomnav").style.display =
+    (state.membro && id.startsWith("tela-membro-")) ? "flex" : "none";
+  document.querySelectorAll(".navitem").forEach(n => n.classList.remove("on"));
+  const nav = document.querySelector(`.navitem[data-target="${id}"]`);
+  if (nav) nav.classList.add("on");
+  window.scrollTo(0, 0);
+}
+
+function aplicarMarca(igreja) {
+  document.documentElement.style.setProperty("--brand", igreja.cor_primaria || "#3D5AFE");
+  document.documentElement.style.setProperty("--coral", igreja.cor_secundaria || "#FF6A5C");
+  document.querySelectorAll(".wordmark span").forEach(el => el.textContent = igreja.nome);
+  document.querySelectorAll(".wordmark img").forEach(el => el.src = igreja.logo_url || "assets/logo.png");
+  document.getElementById("appbar-nome").textContent = igreja.nome;
+  document.getElementById("appbar-logo").src = igreja.logo_url || "assets/logo.png";
+  document.getElementById("drawer-nome").textContent = igreja.nome;
+  document.querySelector(".drawer-brand img").src = igreja.logo_url || "assets/logo.png";
+  document.title = igreja.nome;
+}
+
+// ---------- carregamento inicial ----------
+async function carregarIgreja() {
+  const { data, error } = await sb.from("igr_igrejas").select("*").eq("slug", window.IGREJA_SLUG).single();
+  if (error || !data) {
+    document.getElementById("app").innerHTML = `<div class="empty" style="padding:60px 24px;">Não encontramos os dados da igreja. Verifique a configuração (slug "${window.IGREJA_SLUG}").</div>`;
+    throw error;
+  }
+  state.igreja = data;
+  aplicarMarca(data);
+
+  const { data: grupos } = await sb.from("igr_grupos").select("*").eq("igreja_id", data.id).order("created_at");
+  state.grupos = grupos || [];
+  document.querySelectorAll(".termo-grupo").forEach(el => el.textContent = data.termo_grupo || "Grupo");
+}
+
+async function carregarCultos() {
+  const { data } = await sb.from("igr_cultos").select("*").eq("igreja_id", state.igreja.id).order("ordem");
+  const el = document.getElementById("lista-cultos");
+  el.innerHTML = (data || []).map(c => `
+    <div class="card">
+      ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
+      <h3>${c.titulo}</h3>
+      <p>${c.data ? formatarData(c.data) + " (especial)" : (c.dia_semana || "")} · ${c.horario || ""} · ${c.local || ""}</p>
+      <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-top:8px;" data-add-agenda-culto="${c.id}">📅 Adicionar à agenda</button>
+    </div>
+  `).join("") || `<div class="empty">Nenhum culto cadastrado ainda.</div>`;
+  el.querySelectorAll("[data-add-agenda-culto]").forEach(btn => {
+    const c = (data || []).find(x => x.id === btn.dataset.addAgendaCulto);
+    if (!c) return;
+    btn.addEventListener("click", () => {
+      if (c.data) adicionarEventoAgenda(c.titulo, c.data, c.horario, c.local, "");
+      else adicionarCultoAgenda(c.titulo, c.dia_semana, c.horario, c.local);
+    });
+  });
+}
+
+async function carregarAvisos(targetId) {
+  const { data } = await sb.from("igr_avisos").select("*").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false }).limit(8);
+  const grupoMembro = state.membro?.grupo_id || null;
+  const visiveis = (data || []).filter(a => !a.grupo_id || a.grupo_id === grupoMembro);
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  el.innerHTML = visiveis.slice(0, 5).map(a => `
+    <div class="card">
+      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      <div class="row-avatar" style="align-items:flex-start;">
+        ${seloData(a.publicado_em)}
+        <div class="row-info">
+          <b>${a.titulo}</b>
+          <span class="badge-inline">${a.grupo_id ? "Aviso do grupo" : "Aviso"}</span>
+          <p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum aviso no momento.</div>`;
+}
+
+// ---------- visitante ----------
+function calcularIdade(dataNascStr) {
+  const nasc = new Date(dataNascStr + "T00:00:00");
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  const aindaNaoFezAniversario = (hoje.getMonth() < nasc.getMonth()) ||
+    (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate());
+  if (aindaNaoFezAniversario) idade--;
+  return idade;
+}
+
+function classificarVisitante(dataNasc, genero, estadoCivil) {
+  const idade = calcularIdade(dataNasc);
+  let categoria;
+  if (idade >= 4 && idade <= 10) categoria = "crianca";
+  else if (idade >= 11 && idade <= 13) categoria = "juniores";
+  else if (idade >= 14 && idade <= 32 && (estadoCivil === "solteiro" || idade <= 17)) categoria = "jovem";
+  else if (genero === "M") categoria = "homens";
+  else if (genero === "F") categoria = "mulheres";
+  else return { idade, grupo: null };
+  const grupo = state.grupos.find(g => g.categoria === categoria) || null;
+  return { idade, grupo };
+}
+
+async function enviarContatoVisitante(ev) {
+  ev.preventDefault();
+  const nome = document.getElementById("visitante-nome").value.trim();
+  const telefone = limparTelefone(document.getElementById("visitante-telefone").value);
+  const data_nascimento = document.getElementById("visitante-nascimento").value;
+  const genero = document.getElementById("visitante-genero").value;
+  const estado_civil = document.getElementById("visitante-estado-civil").value;
+  if (!nome || !telefone || !data_nascimento || !genero || !estado_civil) return;
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e toque em Enviar de novo."); return; }
+  const btn = document.getElementById("btn-enviar-visitante");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const { grupo } = classificarVisitante(data_nascimento, genero, estado_civil);
+    const { error } = await sb.from("igr_visitantes").insert({
+      igreja_id: state.igreja.id, nome, telefone, data_nascimento, genero, estado_civil,
+      grupo_id: grupo?.id || null,
+    });
+    if (error) { alert("Não deu pra enviar agora. Tente de novo em instantes."); return; }
+    const msgGrupo = grupo ? ` Já te encaminhamos pro <b>${grupo.nome}</b> — em breve alguém de lá te chama no WhatsApp!` : " Alguém da nossa equipe vai entrar em contato.";
+    document.getElementById("form-visitante").innerHTML = `<div class="empty">Obrigado, ${nome.split(" ")[0]}! 💛${msgGrupo}</div>`;
+  } catch (e) {
+    console.error("Erro ao enviar contato de visitante:", e);
+    alert("Não deu pra enviar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Enviar";
+  }
+}
+
+// ---------- cadastro de membro ----------
+async function concluirCadastro(ev) {
+  ev.preventDefault();
+  const nome_completo = document.getElementById("cad-nome").value.trim();
+  const data_nascimento = document.getElementById("cad-nascimento").value;
+  const endereco = document.getElementById("cad-endereco").value.trim();
+  const telefone = limparTelefone(document.getElementById("cad-telefone").value);
+  const pin = document.getElementById("cad-senha").value.trim();
+  const pinConfirmar = document.getElementById("cad-senha-confirmar").value.trim();
+  const errEl = document.getElementById("cad-erro");
+  errEl.classList.remove("show");
+
+  if (!nome_completo || !telefone || !/^\d{4}$/.test(pin)) {
+    errEl.textContent = "Preencha nome, telefone e uma senha de 4 números.";
+    errEl.classList.add("show");
+    return;
+  }
+  if (!endereco) {
+    errEl.textContent = "O endereço é obrigatório.";
+    errEl.classList.add("show");
+    return;
+  }
+  if (pin !== pinConfirmar) {
+    errEl.textContent = "As senhas não coincidem. Digite a mesma senha nos dois campos.";
+    errEl.classList.add("show");
+    return;
+  }
+  if (!state.igreja) {
+    errEl.textContent = "Ainda carregando os dados da igreja. Aguarde um instante e toque em Concluir de novo.";
+    errEl.classList.add("show");
+    return;
+  }
+
+  const btn = document.getElementById("btn-concluir-cadastro");
+  btn.disabled = true; btn.textContent = "Enviando...";
+
+  try {
+    const pin_hash = await sha256(pin + ":" + telefone);
+    const batizadoResp = document.getElementById("cad-batizado").value;
+    const batizado = batizadoResp === "sim" ? true : batizadoResp === "nao" ? false : null;
+    const data_batismo = document.getElementById("cad-data-batismo").value || null;
+    const pastor_batismo = document.getElementById("cad-pastor-batismo").value.trim() || null;
+    const interesses = coletarInteresses("cad-interesses-lista", "cad-interesse-outro");
+
+    const { data, error } = await sb.from("igr_membros").insert({
+      igreja_id: state.igreja.id, nome_completo, telefone, endereco,
+      data_nascimento: data_nascimento || null,
+      pin_hash,
+      lider_status: "nenhum",
+      batizado, data_batismo, pastor_batismo, interesses,
+      perfil_completo: true,
+    }).select().single();
+
+    if (error) {
+      errEl.textContent = error.code === "23505"
+        ? "Já existe um cadastro com esse telefone. Tente entrar em vez de cadastrar."
+        : "Não deu pra concluir agora. Tente de novo em instantes.";
+      errEl.classList.add("show");
+      return;
+    }
+
+    if (state.parentesSelecionados?.length) {
+      await salvarVinculosParentes(data.id, state.parentesSelecionados, nome_completo);
+    }
+
+    entrarComoMembro(data);
+  } catch (e) {
+    console.error("Erro ao concluir cadastro:", e);
+    errEl.textContent = "Não deu pra concluir agora. Verifique sua conexão e tente de novo.";
+    errEl.classList.add("show");
+  } finally {
+    btn.disabled = false; btn.textContent = "Concluir cadastro";
+  }
+}
+
+// ---------- interesses / talentos (checklist reutilizável) ----------
+const OPCOES_INTERESSES = [
+  "Louvor e Música", "Recepção e Acolhimento", "Trabalho com Crianças", "Mídia e Tecnologia",
+  "Oração e Intercessão", "Ensino e Estudos Bíblicos", "Organização de Eventos",
+  "Redes Sociais", "Cozinha", "Limpeza e Manutenção",
+];
+function renderInteresses(containerId, jaSelecionados) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const selecionados = jaSelecionados || [];
+  el.innerHTML = OPCOES_INTERESSES.map((op, i) => `
+    <label class="interesse-item">
+      <input type="checkbox" value="${op}" ${selecionados.includes(op) ? "checked" : ""}>
+      ${op}
+    </label>
+  `).join("");
+}
+function coletarInteresses(containerId, outroInputId) {
+  const el = document.getElementById(containerId);
+  const marcados = Array.from(el.querySelectorAll("input:checked")).map(i => i.value);
+  const outro = document.getElementById(outroInputId)?.value.trim();
+  if (outro) marcados.push(outro);
+  return marcados;
+}
+
+const INVERSO_PARENTESCO = {
+  "Cônjuge": "Cônjuge", "Pai": "Filho(a)", "Mãe": "Filho(a)", "Filho(a)": "Pai/Mãe",
+  "Irmão(ã)": "Irmão(ã)", "Avô/Avó": "Neto(a)", "Neto(a)": "Avô/Avó",
+  "Tio(a)": "Sobrinho(a)", "Sobrinho(a)": "Tio(a)", "Primo(a)": "Primo(a)", "Outro": "Outro",
+};
+
+async function salvarVinculosParentes(membroId, parentesIds, nomeQuemConecta) {
+  const linhas = [];
+  parentesIds.forEach(pid => {
+    const grau = state.parentescosPorId?.[pid] || null;
+    linhas.push({ membro_id: membroId, parente_id: pid, parentesco: grau });
+    linhas.push({ membro_id: pid, parente_id: membroId, parentesco: grau ? (INVERSO_PARENTESCO[grau] || grau) : null });
+  });
+  // ignora vínculos que já existem, pra não dar erro ao salvar de novo sem mudar nada
+  await sb.from("igr_membros_parentes").upsert(linhas, { onConflict: "membro_id,parente_id", ignoreDuplicates: true });
+  // avisa cada parente já cadastrado de que houve uma conexão
+  const nomeQuemConectou = (nomeQuemConecta || state.membro?.nome_completo || "Alguém").split(" ")[0];
+  enviarPush({ tipo: "membros", membro_ids: parentesIds }, "Nova conexão familiar 💛", `${nomeQuemConectou} te adicionou como parente no app da igreja.`);
+}
+async function removerVinculosParentes(membroId, parentesIds) {
+  await sb.from("igr_membros_parentes").delete().eq("membro_id", membroId).in("parente_id", parentesIds);
+  await sb.from("igr_membros_parentes").delete().in("membro_id", parentesIds).eq("parente_id", membroId);
+}
+
+// ---------- meu perfil (editar dados / trocar senha) ----------
+function abrirEditarPerfil() {
+  const m = state.membro;
+  if (!m) return;
+  document.getElementById("ep-nome").value = m.nome_completo || "";
+  document.getElementById("ep-telefone").value = m.telefone || "";
+  document.getElementById("ep-email").value = m.email || "";
+  definirValorData("ep-nascimento", m.data_nascimento);
+  document.getElementById("ep-endereco").value = m.endereco || "";
+  document.getElementById("ep-profissao").value = m.profissao || "";
+  document.getElementById("ep-foto-preview").src = m.foto_url || "assets/logo.png";
+  state.fotoPerfilRecortada = null;
+  renderInteresses("ep-interesses-lista", m.interesses || []);
+  document.getElementById("ep-interesse-outro").value = "";
+
+  document.getElementById("ep-batizado").value = m.batizado === true ? "sim" : m.batizado === false ? "nao" : "";
+  definirValorData("ep-data-batismo", m.data_batismo);
+  document.getElementById("ep-pastor-batismo").value = m.pastor_batismo || "";
+  document.getElementById("ep-batismo-detalhes").style.display = m.batizado === true ? "block" : "none";
+
+  document.getElementById("ep-tem-parentes").value = "";
+  document.getElementById("ep-parentes-detalhes").style.display = "none";
+  state.parentesSelecionadosPerfil = [];
+  state.parentesOriginaisPerfil = [];
+  document.getElementById("ep-parentes-selecionados").innerHTML = "";
+  carregarParentesExistentes(m.id);
+
+  document.getElementById("ep-erro").classList.remove("show");
+  document.getElementById("ep-senha-erro").classList.remove("show");
+  document.getElementById("form-trocar-senha").style.display = "none";
+  mostrarTela("tela-editar-perfil");
+}
+
+async function carregarParentesExistentes(membroId) {
+  const { data } = await sb.from("igr_membros_parentes").select("parente_id, parentesco, igr_membros!igr_membros_parentes_parente_id_fkey(nome_completo)").eq("membro_id", membroId);
+  state.parentesOriginaisPerfil = (data || []).map(r => r.parente_id);
+  if (!data || !data.length) return;
+  state.parentesSelecionadosPerfil = [...state.parentesOriginaisPerfil];
+  state.nomesParentesCache = state.nomesParentesCache || {};
+  state.parentescosPorId = state.parentescosPorId || {};
+  data.forEach(r => {
+    state.nomesParentesCache[r.parente_id] = r.igr_membros?.nome_completo || "…";
+    state.parentescosPorId[r.parente_id] = r.parentesco || "";
+  });
+  document.getElementById("ep-tem-parentes").value = "sim";
+  document.getElementById("ep-parentes-detalhes").style.display = "block";
+  renderPillsParentes("ep-parentes-selecionados", "parentesSelecionadosPerfil", "ep-busca-parente", "ep-parente-sugestoes");
+}
+
+async function enviarEditarPerfil(ev) {
+  ev.preventDefault();
+  const nome_completo = document.getElementById("ep-nome").value.trim();
+  const telefone = limparTelefone(document.getElementById("ep-telefone").value);
+  const email = document.getElementById("ep-email").value.trim() || null;
+  const data_nascimento = document.getElementById("ep-nascimento").value || null;
+  const endereco = document.getElementById("ep-endereco").value.trim();
+  const profissao = document.getElementById("ep-profissao").value.trim() || null;
+  const interesses = coletarInteresses("ep-interesses-lista", "ep-interesse-outro");
+  const batizadoResp = document.getElementById("ep-batizado").value;
+  const batizado = batizadoResp === "sim" ? true : batizadoResp === "nao" ? false : null;
+  const data_batismo = document.getElementById("ep-data-batismo").value || null;
+  const pastor_batismo = document.getElementById("ep-pastor-batismo").value.trim() || null;
+  const errEl = document.getElementById("ep-erro");
+  errEl.classList.remove("show");
+
+  if (!nome_completo || !telefone) {
+    errEl.textContent = "Preencha ao menos nome e telefone.";
+    errEl.classList.add("show");
+    return;
+  }
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  try {
+    const arquivoFoto = state.fotoPerfilRecortada || document.getElementById("ep-foto").files[0];
+    const novaFoto = await uploadArquivo(arquivoFoto, "membros");
+    const foto_url = novaFoto || state.membro.foto_url || null;
+    const { error } = await sb.from("igr_membros").update({
+      nome_completo, telefone, email, data_nascimento, endereco, interesses, profissao, foto_url,
+      batizado, data_batismo, pastor_batismo, perfil_completo: true,
+    }).eq("id", state.membro.id);
+    if (error) {
+      errEl.textContent = error.code === "23505" ? "Esse telefone já está em uso por outro cadastro." : "Não deu pra salvar: " + error.message;
+      errEl.classList.add("show");
+      return;
+    }
+
+    const atuais = state.parentesSelecionadosPerfil || [];
+    const originais = state.parentesOriginaisPerfil || [];
+    const adicionados = atuais.filter(id => !originais.includes(id));
+    const removidos = originais.filter(id => !atuais.includes(id));
+    if (adicionados.length) await salvarVinculosParentes(state.membro.id, adicionados);
+    if (removidos.length) await removerVinculosParentes(state.membro.id, removidos);
+
+    Object.assign(state.membro, { nome_completo, telefone, email, data_nascimento, endereco, interesses, profissao, foto_url, batizado, data_batismo, pastor_batismo, perfil_completo: true });
+    localStorage.setItem("igr_membro", JSON.stringify(state.membro));
+    document.getElementById("perfil-lembrete-box").style.display = "none";
+    alert("Perfil atualizado com sucesso 💛");
+    mostrarTela("tela-membro-home");
+    montarHomeMembro();
+  } catch (e) {
+    console.error("Erro ao salvar perfil:", e);
+    errEl.textContent = "Não deu pra salvar agora. Verifique sua conexão e tente de novo.";
+    errEl.classList.add("show");
+  } finally {
+    btn.disabled = false; btn.textContent = "Salvar alterações";
+  }
+}
+
+async function enviarTrocarSenha(ev) {
+  ev.preventDefault();
+  const novaSenha = document.getElementById("ep-nova-senha").value;
+  const confirmar = document.getElementById("ep-nova-senha-confirmar").value;
+  const errEl = document.getElementById("ep-senha-erro");
+  errEl.classList.remove("show");
+
+  if (!/^\d{4}$/.test(novaSenha)) {
+    errEl.textContent = "Digite uma senha de 4 números.";
+    errEl.classList.add("show");
+    return;
+  }
+  if (novaSenha !== confirmar) {
+    errEl.textContent = "As senhas não coincidem.";
+    errEl.classList.add("show");
+    return;
+  }
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  try {
+    const pin_hash = await sha256(novaSenha + ":" + state.membro.telefone);
+    const { error } = await sb.from("igr_membros").update({ pin_hash }).eq("id", state.membro.id);
+    if (error) { errEl.textContent = "Não deu pra trocar a senha: " + error.message; errEl.classList.add("show"); return; }
+    ev.target.reset();
+    document.querySelectorAll('#form-trocar-senha .pin-box').forEach(b => b.value = "");
+    alert("Senha alterada com sucesso 💛");
+    document.getElementById("form-trocar-senha").style.display = "none";
+  } catch (e) {
+    console.error("Erro ao trocar senha:", e);
+    errEl.textContent = "Não deu pra trocar agora. Verifique sua conexão e tente de novo.";
+    errEl.classList.add("show");
+  } finally {
+    btn.disabled = false; btn.textContent = "Trocar senha";
+  }
+}
+
+// ---------- busca de parentes (autocomplete) ----------
+const GRAUS_PARENTESCO = ["Cônjuge", "Pai", "Mãe", "Filho(a)", "Irmão(ã)", "Avô/Avó", "Neto(a)", "Tio(a)", "Sobrinho(a)", "Primo(a)", "Outro"];
+
+function configurarBuscaParentes(inputId, sugestoesId, pillsContainerId, selecionadosKey) {
+  const input = document.getElementById(inputId);
+  const sugestoesEl = document.getElementById(sugestoesId);
+  if (!input) return;
+  state[selecionadosKey] = state[selecionadosKey] || [];
+  state.parentescosPorId = state.parentescosPorId || {};
+
+  let timeoutId = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timeoutId);
+    const termo = input.value.trim();
+    if (termo.length < 2) { sugestoesEl.style.display = "none"; return; }
+    timeoutId = setTimeout(async () => {
+      const { data } = await sb.from("igr_membros").select("id, nome_completo")
+        .eq("igreja_id", state.igreja.id).ilike("nome_completo", `%${termo}%`).limit(6);
+      const resultados = (data || []).filter(m => !state[selecionadosKey].includes(m.id) && m.id !== state.membro?.id);
+      sugestoesEl.innerHTML = resultados.map(m => `<div class="autocomplete-item" data-id="${m.id}" data-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
+      sugestoesEl.style.display = resultados.length ? "block" : "none";
+      sugestoesEl.querySelectorAll("[data-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          state[selecionadosKey].push(item.dataset.id);
+          state.nomesParentesCache = state.nomesParentesCache || {};
+          state.nomesParentesCache[item.dataset.id] = item.dataset.nome;
+          renderPillsParentes(pillsContainerId, selecionadosKey, inputId, sugestoesId);
+          input.value = "";
+          sugestoesEl.style.display = "none";
+          // permite adicionar mais um em seguida, sem precisar reabrir nada
+          input.focus();
+        });
+      });
+    }, 300);
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+function renderPillsParentes(pillsContainerId, selecionadosKey, inputId, sugestoesId) {
+  const container = document.getElementById(pillsContainerId);
+  state.parentescosPorId = state.parentescosPorId || {};
+  container.innerHTML = (state[selecionadosKey] || []).map(id => {
+    const nome = state.nomesParentesCache?.[id] || "…";
+    const atual = state.parentescosPorId[id] || "";
+    return `
+      <div class="parente-linha">
+        <b>${nome}</b>
+        <select data-grau-parente="${id}">
+          <option value="">Grau de parentesco</option>
+          ${GRAUS_PARENTESCO.map(g => `<option value="${g}" ${atual === g ? "selected" : ""}>${g}</option>`).join("")}
+        </select>
+        <button type="button" data-remover-parente="${id}">✕</button>
+      </div>`;
+  }).join("") || "";
+  container.querySelectorAll("[data-remover-parente]").forEach(b => {
+    b.addEventListener("click", () => {
+      state[selecionadosKey] = state[selecionadosKey].filter(id => id !== b.dataset.removerParente);
+      renderPillsParentes(pillsContainerId, selecionadosKey, inputId, sugestoesId);
+    });
+  });
+  container.querySelectorAll("[data-grau-parente]").forEach(sel => {
+    sel.addEventListener("change", () => { state.parentescosPorId[sel.dataset.grauParente] = sel.value; });
+  });
+}
+
+// ---------- login de membro ----------
+async function enviarLoginTelefone(ev) {
+  ev.preventDefault();
+  const telefone = limparTelefone(document.getElementById("login-telefone").value);
+  if (!telefone) return;
+  if (!state.igreja) { document.getElementById("login-erro-tel").textContent = "Ainda carregando os dados da igreja. Tente de novo em instantes."; document.getElementById("login-erro-tel").classList.add("show"); return; }
+  const { data } = await sb.from("igr_membros").select("id").eq("igreja_id", state.igreja.id).eq("telefone", telefone).maybeSingle();
+  const errEl = document.getElementById("login-erro-tel");
+  errEl.classList.remove("show");
+  if (!data) {
+    errEl.textContent = "Não achamos esse telefone. Quer se cadastrar?";
+    errEl.classList.add("show");
+    return;
+  }
+  document.getElementById("login-passo-telefone").style.display = "none";
+  document.getElementById("login-passo-pin").style.display = "block";
+  document.getElementById("login-form-pin").dataset.telefone = telefone;
+  document.querySelector('[data-pin-group="login-senha"] .pin-box')?.focus();
+}
+
+async function enviarLoginPin(ev) {
+  ev.preventDefault();
+  const telefone = ev.target.dataset.telefone;
+  const pin = document.getElementById("login-senha").value.trim();
+  const errEl = document.getElementById("login-erro-pin");
+  errEl.classList.remove("show");
+  if (!/^\d{4}$/.test(pin)) return;
+
+  const pin_hash = await sha256(pin + ":" + telefone);
+  const { data, error } = await sb.from("igr_membros").select("*")
+    .eq("igreja_id", state.igreja.id).eq("telefone", telefone).eq("pin_hash", pin_hash).maybeSingle();
+
+  if (error || !data) {
+    errEl.textContent = "Senha incorreta. Tente de novo.";
+    errEl.classList.add("show");
+    const grupo = document.querySelector('[data-pin-group="login-senha"]');
+    grupo.querySelectorAll(".pin-box").forEach(b => b.value = "");
+    document.getElementById("login-senha").value = "";
+    grupo.querySelector(".pin-box").focus();
+    return;
+  }
+  sb.from("igr_membros").update({ ultimo_acesso: new Date().toISOString() }).eq("id", data.id).then(() => {});
+  entrarComoMembro(data);
+}
+
+function entrarComoMembro(membro) {
+  state.membro = membro;
+  localStorage.setItem("igr_membro", JSON.stringify(membro));
+  atualizarVisibilidadeLouvor();
+  if (state.eventoAtual && document.getElementById("evento-card-login-necessario").style.display === "block") {
+    abrirEventoDetalhe(state.eventoAtual.id).then(() => escolherSouMembro());
+    return;
+  }
+  montarHomeMembro();
+  mostrarTela("tela-membro-home");
+}
+
+function atualizarVisibilidadeLouvor() {
+  const grupo = state.grupos.find(g => g.id === state.membro?.grupo_id);
+  const ehLouvor = !!(grupo && /louvor/i.test(grupo.nome || ""));
+  document.querySelectorAll("[data-louvor-only]").forEach(el => {
+    el.style.display = ehLouvor ? "flex" : "none";
+  });
+}
+
+function sair() {
+  state.membro = null;
+  localStorage.removeItem("igr_membro");
+  mostrarTela("tela-visitante");
+}
+
+// ---------- home do membro ----------
+async function montarHomeMembro() {
+  const m = state.membro;
+  const primeiroNome = m.nome_completo.split(" ")[0];
+  const hora = new Date().getHours();
+  const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
+  document.getElementById("home-saudacao").textContent = `${saudacao}, ${primeiroNome} 👋`;
+
+  // devocional de hoje — gerado inteiramente pela IA, conforme o temperamento da pessoa
+  document.getElementById("home-devo-titulo").textContent = "Seu devocional de hoje";
+  document.getElementById("home-devo-resumo").textContent = "Preparando algo especial pra você...";
+  document.getElementById("btn-ler-devocional").onclick = () => abrirDevocional();
+  gerarDevocionalDoDia().then(d => {
+    state.devocionalGerado = d;
+    if (!d) { document.getElementById("home-devo-resumo").textContent = "Não deu pra preparar seu devocional agora. Tente de novo em instantes."; return; }
+    document.getElementById("home-devo-titulo").textContent = `${saudacao}, ${primeiroNome}!`;
+    const textoBase = d.texto || "";
+    document.getElementById("home-devo-resumo").textContent = textoBase.slice(0, 110) + (textoBase.length > 110 ? "..." : "");
+  });
+
+  configurarCheckinDiario();
+  configurarCaixaPush();
+
+  const lembreteBox = document.getElementById("perfil-lembrete-box");
+  if (lembreteBox) {
+    const perfilIncompleto = !m.perfil_completo || !m.endereco || !m.interesses?.length;
+    lembreteBox.style.display = perfilIncompleto ? "flex" : "none";
+    lembreteBox.onclick = () => abrirEditarPerfil();
+  }
+
+  const btnMeuGrupo = document.getElementById("btn-meu-grupo");
+  if (btnMeuGrupo) {
+    if (m.grupo_id) {
+      btnMeuGrupo.style.display = "block";
+      btnMeuGrupo.onclick = () => abrirGrupoDetalhe(m.grupo_id);
+    } else {
+      btnMeuGrupo.style.display = "none";
+    }
+  }
+
+  // aniversariantes do mês
+  const mesAtual = new Date().getMonth() + 1;
+  const { data: membros } = await sb.from("igr_membros").select("nome_completo,data_nascimento")
+    .eq("igreja_id", state.igreja.id).not("data_nascimento", "is", null);
+  const aniversariantes = (membros || [])
+    .filter(x => x.data_nascimento && (new Date(x.data_nascimento + "T00:00:00").getMonth() + 1) === mesAtual)
+    .sort((a, b) => new Date(a.data_nascimento).getDate() - new Date(b.data_nascimento).getDate());
+  const bdayEl = document.getElementById("home-aniversariantes");
+  bdayEl.innerHTML = aniversariantes.map(a => {
+    const iniciais = a.nome_completo.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase();
+    const dia = new Date(a.data_nascimento + "T00:00:00").getDate();
+    const primeiro = a.nome_completo.split(" ")[0];
+    return `<div class="bday"><div class="circle">${iniciais}</div><span>${primeiro} · ${dia}</span></div>`;
+  }).join("") || `<div class="empty" style="padding:14px;">Ninguém faz aniversário este mês.</div>`;
+
+  await carregarAvisos("home-avisos");
+  await carregarPedidosOracao();
+
+  const liderBox = document.getElementById("lider-postar-box");
+  if (liderBox) liderBox.style.display = m.eh_lider ? "block" : "none";
+  const liderVisitantesBox = document.getElementById("lider-visitantes-box");
+  if (liderVisitantesBox) {
+    liderVisitantesBox.style.display = m.eh_lider ? "block" : "none";
+    if (m.eh_lider) await carregarVisitantesLider();
+  }
+}
+
+async function carregarVisitantesLider() {
+  const { data } = await sb.from("igr_visitantes").select("*, igr_grupos(nome)")
+    .eq("grupo_id", state.membro.grupo_id).order("created_at", { ascending: false }).limit(15);
+  const el = document.getElementById("lider-visitantes-lista");
+  const nomeLider = (state.membro.nome_completo || "").split(" ")[0];
+  el.innerHTML = (data || []).map(v => {
+    const idade = v.data_nascimento ? calcularIdade(v.data_nascimento) : null;
+    const nomeGrupo = v.igr_grupos?.nome || "nossa igreja";
+    const msg = `Oi ${v.nome.split(" ")[0]}! Aqui é ${nomeLider}, do ${nomeGrupo} da ${state.igreja.nome}. Que alegria que você nos visitou! 💛`;
+    return `
+    <div class="card">
+      <div class="row-avatar">
+        ${avatarIniciais(v.nome)}
+        <div class="row-info"><b>${v.nome}${idade ? " · " + idade + " anos" : ""}</b><span>${tempoRelativo(v.created_at)}${v.contatado ? " · já contatado" : ""}</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <a class="btn btn-primary" style="width:auto;padding:9px 16px;font-size:12.5px;" href="${linkWhatsapp(v.telefone, msg)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>
+        ${!v.contatado ? `<button class="btn btn-ghost" style="width:auto;padding:9px 16px;font-size:12.5px;" data-marcar-contatado="${v.id}">Marcar contatado</button>` : ""}
+      </div>
+    </div>`;
+  }).join("") || `<div class="empty">Nenhum visitante novo por aqui ainda.</div>`;
+
+  el.querySelectorAll("[data-marcar-contatado]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      await sb.from("igr_visitantes").update({ contatado: true }).eq("id", btn.dataset.marcarContatado);
+      await carregarVisitantesLider();
+    });
+  });
+}
+
+async function enviarAvisoLider(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("lider-aviso-titulo").value.trim();
+  const texto = document.getElementById("lider-aviso-texto").value.trim();
+  if (!titulo) return;
+  const btn = document.getElementById("btn-lider-postar");
+  btn.disabled = true; btn.textContent = "Publicando...";
+  try {
+    const { error } = await sb.from("igr_avisos").insert({
+      igreja_id: state.igreja.id, titulo, texto,
+      grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id,
+    });
+    if (error) { alert("Não deu pra publicar agora. Tente de novo."); return; }
+    document.getElementById("lider-aviso-titulo").value = "";
+    document.getElementById("lider-aviso-texto").value = "";
+    await carregarAvisos("home-avisos");
+    enviarPush({ tipo: "grupo", grupo_id: state.membro.grupo_id }, titulo, texto);
+  } catch (e) {
+    console.error("Erro ao publicar aviso do líder:", e);
+    alert("Não deu pra publicar agora. Verifique sua conexão.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Publicar para o grupo";
+  }
+}
+
+async function carregarPedidosOracao() {
+  const { data } = await sb.from("igr_pedidos_oracao").select("*")
+    .eq("membro_id", state.membro.id).order("created_at", { ascending: false });
+  const el = document.getElementById("lista-pedidos-oracao");
+  el.innerHTML = (data || []).map(p => `
+    <div class="prayer-item">
+      <div><p>${p.texto}</p><span>${tempoRelativo(p.created_at)}</span></div>
+      <span class="status-pill ${p.status}">${p.status === "novo" ? "Novo" : p.status === "orando" ? "Orando" : "Respondido"}</span>
+    </div>
+  `).join("") || `<p class="hint">Você ainda não enviou nenhum pedido de oração.</p>`;
+}
+
+async function enviarPedidoOracao(ev) {
+  ev.preventDefault();
+  const texto = document.getElementById("novo-pedido-texto").value.trim();
+  if (!texto) return;
+  const btn = document.getElementById("btn-enviar-pedido");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const { error } = await sb.from("igr_pedidos_oracao").insert({ igreja_id: state.igreja.id, membro_id: state.membro.id, texto });
+    if (error) { alert("Não deu pra enviar o pedido: " + error.message); return; }
+    document.getElementById("novo-pedido-texto").value = "";
+    await carregarPedidosOracao();
+    if (state.membro.grupo_id) {
+      const { data: lideres } = await sb.from("igr_membros").select("id")
+        .eq("grupo_id", state.membro.grupo_id).eq("eh_lider", true);
+      if (lideres && lideres.length) {
+        enviarPush({ tipo: "membros", membro_ids: lideres.map(l => l.id) },
+          "Novo pedido de oração 🙏", `${state.membro.nome_completo.split(" ")[0]} enviou um pedido de oração.`);
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao enviar pedido de oração:", e);
+    alert("Não deu pra enviar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Enviar pedido";
+  }
+}
+
+async function gerarDevocionalDoDia() {
+  if (!state.membro) return null;
+  try {
+    const { data, error } = await sb.functions.invoke("igr-personalizar-devocional", {
+      body: { membro_id: state.membro.id },
+    });
+    if (error || !data?.ok) { console.error("Erro ao gerar devocional:", error || data); return null; }
+    return data;
+  } catch (e) {
+    console.error("Erro ao gerar devocional:", e);
+    return null;
+  }
+}
+
+function abrirDevocional() {
+  const d = state.devocionalGerado;
+  if (!d) return;
+  const hora = new Date().getHours();
+  const saudacaoAgora = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
+  const primeiroNome = state.membro?.nome_completo?.split(" ")[0] || "";
+  document.getElementById("devo-titulo-detalhe").textContent = `${saudacaoAgora}, ${primeiroNome}!`;
+  document.getElementById("devo-tema-detalhe").textContent = d.titulo || "";
+  document.getElementById("devo-versiculo").textContent = `"${d.versiculo || ""}"`;
+  document.getElementById("devo-referencia").textContent = d.referencia || "";
+  document.getElementById("devo-texto-completo").textContent = d.texto || "";
+  mostrarTela("tela-devocional-detalhe");
+  configurarReacoesDevocional();
+}
+
+async function configurarReacoesDevocional() {
+  const msgEl = document.getElementById("devo-reacao-msg");
+  msgEl.style.display = "none";
+  const botoes = document.querySelectorAll("#devo-reacoes .reacao-btn");
+  botoes.forEach(b => b.classList.remove("on"));
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  if (state.membro) {
+    const { data: atual } = await sb.from("igr_devocional_reacoes").select("reacao")
+      .eq("membro_id", state.membro.id).eq("devocional_id", `dia-${hoje}`).maybeSingle();
+    if (atual) {
+      document.querySelector(`#devo-reacoes .reacao-btn[data-reacao="${atual.reacao}"]`)?.classList.add("on");
+    }
+  }
+
+  botoes.forEach(btn => {
+    btn.onclick = async () => {
+      if (!state.membro) return;
+      botoes.forEach(b => b.classList.remove("on"));
+      btn.classList.add("on");
+      await sb.from("igr_devocional_reacoes")
+        .upsert({ membro_id: state.membro.id, devocional_id: `dia-${hoje}`, reacao: btn.dataset.reacao }, { onConflict: "membro_id,devocional_id" });
+      msgEl.textContent = "Obrigado por compartilhar 💛";
+      msgEl.style.display = "block";
+    };
+  });
+}
+
+// ---------- check-in diário de humor ----------
+async function configurarCheckinDiario() {
+  const box = document.getElementById("checkin-diario-box");
+  if (!box || !state.membro) return;
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data: existente } = await sb.from("igr_checkins_diarios").select("humor")
+    .eq("membro_id", state.membro.id).eq("data", hoje).maybeSingle();
+
+  if (existente) {
+    // já respondeu hoje — não mostra de novo, só volta amanhã
+    box.style.display = "none";
+    return;
+  }
+  box.style.display = "block";
+  box.querySelector(".checkin-pergunta").textContent = "Como você está hoje?";
+  const botoes = box.querySelectorAll(".reacao-btn");
+  botoes.forEach(b => b.classList.remove("on"));
+
+  botoes.forEach(btn => {
+    btn.onclick = async () => {
+      botoes.forEach(b => { b.classList.remove("on"); b.disabled = true; });
+      btn.classList.add("on");
+      await sb.from("igr_checkins_diarios")
+        .upsert({ membro_id: state.membro.id, humor: btn.dataset.reacao, data: hoje }, { onConflict: "membro_id,data" });
+      box.querySelector(".checkin-pergunta").textContent = "Obrigado! Isso ajuda a personalizar seu devocional 💛";
+      setTimeout(() => { box.style.display = "none"; }, 1400);
+    };
+  });
+}
+
+// ---------- estudos / pastor / história ----------
+async function carregarEsbocos() {
+  const { data } = await sb.from("igr_esbocos").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
+  const el = document.getElementById("lista-esbocos");
+  el.innerHTML = (data || []).map(e => `
+    <div class="card">
+      ${e.capa_url ? `<img class="capa-thumb" src="${e.capa_url}" alt="" ${e.arquivo_url ? `onclick="window.open('${e.arquivo_url}','_blank')"` : ""}>` : ""}
+      <div class="lesson">
+        ${!e.capa_url ? `<div class="thumb warm"><svg class="icon"><use href="#i-file"/></svg></div>` : ""}
+        <div class="meta"><h3>${e.titulo}</h3><span class="hint">${e.autor || ""}</span></div>
+      </div>
+      ${e.arquivo_url ? `
+        <div class="card-actions-row">
+          <a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;" href="${e.arquivo_url}" target="_blank" rel="noopener">Ler</a>
+          <a class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" href="${e.arquivo_url}" download>Baixar</a>
+        </div>` : ""}
+    </div>
+  `).join("") || `<div class="empty">Nenhum esboço publicado ainda.</div>`;
+}
+
+// ---------- ministério de louvor ----------
+async function carregarLouvor() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data: escalas } = await sb.from("igr_louvor_escalas").select("*")
+    .eq("igreja_id", state.igreja.id).gte("data", hoje).order("data", { ascending: true }).limit(1);
+  const escala = (escalas || [])[0];
+  state.louvorEscalaAtualId = escala?.id || null;
+
+  const gerBox = document.getElementById("louvor-gerenciar-box");
+  const podeGerenciarLouvor = state.membro?.eh_lider && (state.membro?.permissoes || []).includes("gerenciar_louvor");
+  if (gerBox) gerBox.style.display = podeGerenciarLouvor ? "block" : "none";
+  if (podeGerenciarLouvor) await carregarMembrosGrupoLouvor();
+
+  const escalaEl = document.getElementById("louvor-escala");
+  const musicasEl = document.getElementById("louvor-musicas");
+
+  if (!escala) {
+    escalaEl.innerHTML = `<div class="empty">Nenhuma escala publicada ainda.</div>`;
+    musicasEl.innerHTML = "";
+  } else {
+    const [{ data: participantes }, { data: musicas }] = await Promise.all([
+      sb.from("igr_louvor_participantes").select("*").eq("escala_id", escala.id).order("created_at"),
+      sb.from("igr_louvor_musicas").select("*").eq("escala_id", escala.id).order("ordem"),
+    ]);
+    const dataFmt = formatarData(escala.data);
+    escalaEl.innerHTML = `
+      <div class="card">
+        <h3>${escala.culto_titulo || "Culto"} · ${dataFmt}</h3>
+        ${escala.observacoes ? `<p style="margin-bottom:8px;">${escala.observacoes}</p>` : ""}
+        ${(participantes || []).map(p => `
+          <div class="row-avatar" style="padding:9px 0;border-top:1px solid var(--line);">
+            ${avatarIniciais(p.nome)}
+            <div class="row-info"><b>${p.nome}</b><span>${p.funcao || ""}</span></div>
+          </div>
+        `).join("") || `<p class="hint">Ninguém escalado ainda.</p>`}
+        ${escala.criado_por ? `<p class="hint" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">Escala organizada por <b style="color:var(--ink);">${escala.criado_por}</b></p>` : ""}
+        <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-top:10px;" id="btn-agenda-escala">📅 Adicionar à agenda</button>
+      </div>`;
+    document.getElementById("btn-agenda-escala")?.addEventListener("click", () => {
+      adicionarEventoAgenda(escala.culto_titulo || "Culto", escala.data, "19:00", "", escala.observacoes);
+    });
+    musicasEl.innerHTML = (musicas || []).map(m => `
+      <div class="card">
+        <h3>${m.titulo}</h3>
+        <p>${m.artista || ""}${m.tom ? " · Tom: " + m.tom : ""}</p>
+        <div class="card-actions-row">
+          ${m.link ? `<a class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" href="${m.link}" target="_blank" rel="noopener">Ver cifra</a>` : ""}
+          ${m.link_youtube ? `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;" href="${m.link_youtube}" target="_blank" rel="noopener">▶ YouTube</a>` : ""}
+        </div>
+      </div>
+    `).join("") || `<div class="empty">Repertório ainda não publicado.</div>`;
+  }
+
+  const { data: eventos } = await sb.from("igr_louvor_eventos").select("*")
+    .eq("igreja_id", state.igreja.id).gte("data", hoje).order("data", { ascending: true });
+  const eventosEl = document.getElementById("louvor-eventos");
+  eventosEl.innerHTML = (eventos || []).map(ev => `
+    <div class="card row-avatar">
+      ${seloData(ev.data)}
+      <div class="row-info">
+        <b>${ev.titulo}</b>
+        <span>${ev.horario ? ev.horario : ""}${ev.local ? " · " + ev.local : ""}</span>
+        ${ev.descricao ? `<p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${ev.descricao}</p>` : ""}
+        <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;margin-top:8px;" data-add-agenda-evento="${ev.id}">📅 Adicionar à agenda</button>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum ensaio ou evento agendado.</div>`;
+  eventosEl.querySelectorAll("[data-add-agenda-evento]").forEach(btn => {
+    const ev = (eventos || []).find(x => x.id === btn.dataset.addAgendaEvento);
+    if (ev) btn.addEventListener("click", () => adicionarEventoAgenda(ev.titulo, ev.data, ev.horario, ev.local, ev.descricao));
+  });
+}
+
+async function carregarMensagensPastor() {
+  const { data } = await sb.from("igr_mensagens_pastor").select("*").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false });
+  const el = document.getElementById("lista-mensagens-pastor");
+  if (!data || !data.length) { el.innerHTML = `<div class="empty">Nenhuma mensagem publicada ainda.</div>`; return; }
+  const [primeira, ...resto] = data;
+  el.innerHTML = `
+    <div class="card">
+      ${primeira.capa_url ? `<img class="capa-thumb" src="${primeira.capa_url}" alt="" ${primeira.video_url ? `onclick="window.open('${primeira.video_url}','_blank')"` : ""}>` : ""}
+      <span class="badge-inline">${primeira.autor || ""}</span>
+      <h3 style="margin:6px 0 4px;">${primeira.titulo}</h3><p style="margin:0;font-size:13px;color:var(--ink-soft);">${primeira.resumo || ""}</p>
+      ${primeira.video_url ? `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;margin-top:10px;" href="${primeira.video_url}" target="_blank" rel="noopener">Assistir</a>` : ""}
+    </div>
+    ${resto.length ? `<div class="section-label"><b>Mensagens anteriores</b></div>` : ""}
+    ${resto.map(m => `
+      <div class="card"><div class="lesson">
+        ${m.capa_url ? `<img class="capa-thumb" style="width:52px;height:52px;flex:none;margin:0;" src="${m.capa_url}" alt="">` : `<div class="thumb"><svg class="icon"><use href="#i-play"/></svg></div>`}
+        <div class="meta"><h3>${m.titulo}</h3><span class="hint">${m.duracao_min ? m.duracao_min + " min" : ""}</span></div>
+      </div></div>
+    `).join("")}
+  `;
+}
+
+// ---------- tela de contatos ----------
+function montarItensContato() {
+  const ig = state.igreja || {};
+  const itens = [];
+
+  if (ig.endereco) {
+    const q = encodeURIComponent(ig.endereco);
+    itens.push(`
+      <a class="contato-item" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">
+        <span class="ic"><svg class="icon"><use href="#i-mappin"/></svg></span>
+        <div class="txt"><b>Endereço</b><span>${ig.endereco}</span></div>
+      </a>
+      <div class="contato-sub-links" style="margin:-4px 0 14px;">
+        <a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">📍 Google Maps</a>
+        <a href="https://waze.com/ul?q=${q}&navigate=yes" target="_blank" rel="noopener">🚗 Waze</a>
+      </div>`);
+  }
+  if (ig.whatsapp_contato) {
+    itens.push(`
+      <a class="contato-item" href="https://wa.me/${limparTelefone(ig.whatsapp_contato)}" target="_blank" rel="noopener">
+        <span class="ic"><svg class="icon"><use href="#i-whatsapp"/></svg></span>
+        <div class="txt"><b>WhatsApp</b><span>${ig.whatsapp_contato}</span></div>
+      </a>`);
+  }
+  if (ig.instagram_url) {
+    itens.push(`
+      <a class="contato-item" href="${ig.instagram_url}" target="_blank" rel="noopener">
+        <span class="ic"><svg class="icon"><use href="#i-instagram"/></svg></span>
+        <div class="txt"><b>Instagram</b><span>Segue a gente lá</span></div>
+      </a>`);
+  }
+  if (ig.facebook_url) {
+    itens.push(`
+      <a class="contato-item" href="${ig.facebook_url}" target="_blank" rel="noopener">
+        <span class="ic"><svg class="icon"><use href="#i-facebook"/></svg></span>
+        <div class="txt"><b>Facebook</b><span>Curte nossa página</span></div>
+      </a>`);
+  }
+  return itens;
+}
+
+function carregarContatos() {
+  const itens = montarItensContato();
+  document.getElementById("lista-contatos").innerHTML = itens.join("") ||
+    `<div class="empty">Nenhum contato cadastrado ainda.</div>`;
+}
+
+// ---------- tela sobre a igreja ----------
+// ---------- grupos e departamentos ----------
+async function carregarGruposLista() {
+  const { data } = await sb.from("igr_grupos").select("*").eq("igreja_id", state.igreja.id).order("nome");
+  state.gruposListaCache = data || [];
+  const grupos = (data || []).filter(g => g.tipo === "grupo");
+  const deptos = (data || []).filter(g => g.tipo === "departamento");
+  const render = g => `
+    <div class="album-card" data-grupo="${g.id}">
+      <img src="${g.capa_url || "assets/logo.png"}" alt="">
+      <div class="info"><b>${g.nome}</b><span>${g.encontro_info || ""}</span></div>
+    </div>`;
+  document.getElementById("lista-grupos-tipo-grupo").innerHTML = grupos.map(render).join("") || `<div class="empty">Nenhum grupo cadastrado.</div>`;
+  document.getElementById("lista-grupos-tipo-departamento").innerHTML = deptos.map(render).join("") || `<div class="empty">Nenhum departamento cadastrado.</div>`;
+  document.querySelectorAll("#tela-grupos-lista [data-grupo]").forEach(card => {
+    card.addEventListener("click", () => abrirGrupoDetalhe(card.dataset.grupo));
+  });
+}
+
+function abrirGrupoDetalhe(grupoId) {
+  const grupo = (state.gruposListaCache || state.grupos || []).find(g => g.id === grupoId);
+  if (!grupo) return;
+  // Louvor tem tela própria, mais completa (escala, repertório etc.)
+  if (/louvor/i.test(grupo.nome || "")) { mostrarTela("tela-membro-louvor"); return; }
+
+  state.grupoDetalheAtual = grupo;
+  const capaEl = document.getElementById("grupo-detalhe-capa");
+  if (grupo.capa_url) { capaEl.src = grupo.capa_url; capaEl.style.display = "block"; } else { capaEl.style.display = "none"; }
+  document.getElementById("grupo-detalhe-nome").textContent = grupo.nome;
+  document.getElementById("grupo-detalhe-descricao").textContent = grupo.descricao || "Ainda não há uma descrição desse grupo.";
+
+  const souLiderDesseGrupo = state.membro?.eh_lider && state.membro?.grupo_id === grupo.id;
+  const gerBox = document.getElementById("grupo-detalhe-gerenciar");
+  gerBox.style.display = souLiderDesseGrupo ? "block" : "none";
+  if (souLiderDesseGrupo) {
+    const permissoes = state.membro.permissoes || [];
+    document.getElementById("grupo-bloco-editar-info").style.display = permissoes.includes("editar_grupo") ? "block" : "none";
+    document.getElementById("grupo-bloco-avisos").style.display = permissoes.includes("postar_avisos") ? "block" : "none";
+    document.getElementById("grupo-bloco-oracao").style.display = permissoes.includes("gerenciar_oracao") ? "block" : "none";
+    document.getElementById("gi-descricao").value = grupo.descricao || "";
+    if (permissoes.includes("gerenciar_oracao")) carregarOracaoDoGrupo(grupo.id);
+  }
+
+  mostrarTela("tela-grupo-detalhe");
+  carregarAvisosDoGrupoDetalhe(grupo.id);
+}
+
+async function carregarOracaoDoGrupo(grupoId) {
+  const { data } = await sb.from("igr_pedidos_oracao").select("*, igr_membros!inner(nome_completo, grupo_id)")
+    .eq("igreja_id", state.igreja.id).eq("igr_membros.grupo_id", grupoId).order("created_at", { ascending: false });
+  const el = document.getElementById("grupo-detalhe-oracao");
+  el.innerHTML = (data || []).map(p => `
+    <div class="card">
+      <div class="row-avatar">
+        ${avatarIniciais(p.igr_membros?.nome_completo || "?")}
+        <div class="row-info"><b>${p.igr_membros?.nome_completo || "Membro"}</b><span>${tempoRelativo(p.created_at)}</span></div>
+      </div>
+      <p style="margin:10px 0;font-size:13.5px;">${p.texto}</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="chip ${p.status === "novo" ? "on" : ""}" data-status-oracao-grupo="${p.id}" data-status="novo">Novo</button>
+        <button class="chip ${p.status === "orando" ? "on" : ""}" data-status-oracao-grupo="${p.id}" data-status="orando">Orando</button>
+        <button class="chip ${p.status === "respondido" ? "on" : ""}" data-status-oracao-grupo="${p.id}" data-status="respondido">Respondido</button>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum pedido de oração do grupo ainda.</div>`;
+
+  el.querySelectorAll("[data-status-oracao-grupo]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const pedido = (data || []).find(p => p.id === btn.dataset.statusOracaoGrupo);
+      await sb.from("igr_pedidos_oracao").update({ status: btn.dataset.status }).eq("id", btn.dataset.statusOracaoGrupo);
+      if (pedido?.membro_id) {
+        if (btn.dataset.status === "orando") {
+          enviarPush({ tipo: "membros", membro_ids: [pedido.membro_id] }, "Estamos orando por você 🙏", "Seu pedido de oração está sendo levado ao Senhor.");
+        } else if (btn.dataset.status === "respondido") {
+          enviarPush({ tipo: "membros", membro_ids: [pedido.membro_id] }, "Seu pedido foi respondido! 🙌", "Que alegria — seu pedido de oração foi marcado como respondido. Deus é fiel!");
+        }
+      }
+      carregarOracaoDoGrupo(grupoId);
+    });
+  });
+}
+
+async function carregarAvisosDoGrupoDetalhe(grupoId) {
+  const { data } = await sb.from("igr_avisos").select("*").eq("grupo_id", grupoId).order("publicado_em", { ascending: false }).limit(10);
+  const el = document.getElementById("grupo-detalhe-avisos");
+  el.innerHTML = (data || []).map(a => `
+    <div class="card row-avatar">
+      ${seloData(a.publicado_em)}
+      <div class="row-info"><b>${a.titulo}</b><p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p></div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum aviso publicado ainda.</div>`;
+}
+
+async function enviarGrupoInfo(ev) {
+  ev.preventDefault();
+  const grupo = state.grupoDetalheAtual;
+  if (!grupo) return;
+  const descricao = document.getElementById("gi-descricao").value.trim();
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  try {
+    const arquivo = document.getElementById("gi-capa").files[0];
+    const novaCapa = await uploadArquivo(arquivo, "grupos");
+    const capa_url = novaCapa || grupo.capa_url || null;
+    const { error } = await sb.from("igr_grupos").update({ descricao, capa_url }).eq("id", grupo.id);
+    if (error) { alert("Não deu pra salvar: " + error.message); return; }
+    Object.assign(grupo, { descricao, capa_url });
+    document.getElementById("grupo-detalhe-descricao").textContent = descricao || "Ainda não há uma descrição desse grupo.";
+    if (capa_url) { document.getElementById("grupo-detalhe-capa").src = capa_url; document.getElementById("grupo-detalhe-capa").style.display = "block"; }
+    enviarPush({ tipo: "grupo", grupo_id: grupo.id }, `Novidade no grupo ${grupo.nome}`, "As informações do grupo foram atualizadas.");
+    alert("Salvo com sucesso 💛");
+  } catch (e) {
+    console.error("Erro ao salvar informações do grupo:", e);
+    alert("Não deu pra salvar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Salvar informações";
+  }
+}
+
+async function enviarAvisoGrupoDetalhe(ev) {
+  ev.preventDefault();
+  const grupo = state.grupoDetalheAtual;
+  if (!grupo) return;
+  const titulo = document.getElementById("ga-titulo").value.trim();
+  const texto = document.getElementById("ga-texto").value.trim();
+  if (!titulo) return;
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Publicando...";
+  try {
+    const { error } = await sb.from("igr_avisos").insert({
+      igreja_id: state.igreja.id, titulo, texto, grupo_id: grupo.id, criado_por_membro_id: state.membro.id,
+      publicado_em: new Date().toISOString(),
+    });
+    if (error) { alert("Não deu pra publicar: " + error.message); return; }
+    ev.target.reset();
+    await carregarAvisosDoGrupoDetalhe(grupo.id);
+    enviarPush({ tipo: "grupo", grupo_id: grupo.id }, titulo, texto);
+  } catch (e) {
+    console.error("Erro ao publicar aviso do grupo:", e);
+    alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Publicar para o grupo";
+  }
+}
+
+async function carregarSobreIgreja() {
+  const ig = state.igreja || {};
+  document.getElementById("sobre-nome-igreja").textContent = ig.nome || "";
+  document.getElementById("sobre-texto").textContent = ig.sobre_texto ||
+    "Somos uma igreja que vive o amor de Cristo e caminha junto com nossa comunidade.";
+
+  const itens = montarItensContato();
+  document.getElementById("sobre-contatos").innerHTML = itens.join("") ||
+    `<p class="hint">Nenhum contato cadastrado ainda.</p>`;
+
+  const { data: pastores } = await sb.from("igr_pastores").select("*").eq("igreja_id", ig.id).order("ordem");
+  document.getElementById("sobre-pastores").innerHTML = (pastores || []).map(p => `
+    <div style="text-align:center;">
+      <img src="${p.foto_url || "assets/logo.png"}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;margin-bottom:8px;">
+      <b style="display:block;font-size:13.5px;">${p.nome}</b>
+      <span class="hint" style="margin:0;">${p.cargo || ""}</span>
+    </div>
+  `).join("") || `<p class="hint">Liderança ainda não cadastrada.</p>`;
+
+  const { data: cultos } = await sb.from("igr_cultos").select("*").eq("igreja_id", ig.id).order("ordem").limit(1);
+  const proximoBox = document.getElementById("sobre-proximo-culto");
+  if (cultos && cultos[0]) {
+    const c = cultos[0];
+    proximoBox.style.display = "block";
+    proximoBox.innerHTML = `<span class="badge-inline">Próximo culto</span><h3 style="margin:6px 0 2px;">${c.titulo}</h3><p style="margin:0;font-size:13px;color:var(--ink-soft);">${c.data ? formatarData(c.data) : c.dia_semana} · ${c.horario}${c.local ? " · " + c.local : ""}</p>`;
+  } else {
+    proximoBox.style.display = "none";
+  }
+}
+
+// ---------- eventos ----------
+function podeGerenciarEventos() {
+  return !!(state.adminNome || (state.membro && state.membro.eh_lider));
+}
+function podeEditarEvento(evento) {
+  if (state.adminNome) return true;
+  return !!(state.membro && evento.criado_por_membro_id === state.membro.id);
+}
+
+async function carregarEventos() {
+  const btnCriar = document.getElementById("btn-criar-evento");
+  if (btnCriar) btnCriar.style.display = podeGerenciarEventos() ? "block" : "none";
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data } = await sb.from("igr_eventos").select("*, igr_eventos_inscricoes(count)")
+    .eq("igreja_id", state.igreja.id).gte("data", hoje).order("data");
+  state.eventosCache = data || [];
+
+  document.getElementById("eventos-lista").innerHTML = (data || []).map(ev => {
+    const inscritos = ev.igr_eventos_inscricoes?.[0]?.count || 0;
+    const vagasTexto = ev.vagas_maximas ? `${inscritos}/${ev.vagas_maximas} vagas` : `${inscritos} inscritos`;
+    return `
+    <div class="evento-card" data-evento="${ev.id}">
+      <img src="${ev.banner_url || "assets/logo.png"}" alt="">
+      <div class="info">
+        <b>${ev.titulo}</b>
+        <span>${formatarPeriodo(ev.data, ev.data_fim)}${ev.horario ? " · " + ev.horario : ""}</span>
+        <span>${ev.local || ""}</span>
+        <span>${vagasTexto}</span>
+      </div>
+    </div>`;
+  }).join("") || `<div class="empty">Nenhum evento agendado no momento.</div>`;
+
+  document.querySelectorAll("#eventos-lista [data-evento]").forEach(card => {
+    card.addEventListener("click", () => abrirEventoDetalhe(card.dataset.evento));
+  });
+}
+
+async function abrirEventoDetalhe(eventoId) {
+  const { data: evento } = await sb.from("igr_eventos").select("*").eq("id", eventoId).single();
+  if (!evento) return;
+
+  if (evento.criado_por_membro_id) {
+    const { data: organizador } = await sb.from("igr_membros").select("telefone").eq("id", evento.criado_por_membro_id).maybeSingle();
+    evento.telefoneOrganizador = organizador?.telefone || null;
+  }
+  state.eventoAtual = evento;
+
+  const banner = document.getElementById("evento-detalhe-banner");
+  if (evento.banner_url) { banner.src = evento.banner_url; banner.style.display = "block"; } else { banner.style.display = "none"; }
+  document.getElementById("evento-detalhe-titulo").textContent = evento.titulo;
+  document.getElementById("evento-detalhe-info").textContent = `📅 ${formatarPeriodo(evento.data, evento.data_fim)}${evento.horario ? " às " + evento.horario : ""}${evento.local ? " · 📍 " + evento.local : ""}`;
+  document.getElementById("evento-detalhe-descricao").textContent = evento.descricao || "";
+
+  const { count: inscritos } = await sb.from("igr_eventos_inscricoes").select("id", { count: "exact", head: true }).eq("evento_id", eventoId);
+  const totalInscritos = inscritos || 0;
+  let vagasTexto = `${totalInscritos} inscrito(s)`;
+  if (evento.vagas_minimas) vagasTexto += totalInscritos < evento.vagas_minimas ? ` · faltam ${evento.vagas_minimas - totalInscritos} pro mínimo` : " · mínimo atingido ✓";
+  if (evento.vagas_maximas) vagasTexto += ` · ${Math.max(evento.vagas_maximas - totalInscritos, 0)} vaga(s) restante(s)`;
+  document.getElementById("evento-detalhe-vagas").textContent = vagasTexto;
+
+  const pagBox = document.getElementById("evento-detalhe-pagamento");
+  if (evento.gratuito === false) {
+    pagBox.style.display = "block";
+    document.getElementById("evento-pagamento-valor").textContent = evento.valor || "a combinar";
+    const pixEl = document.getElementById("evento-pagamento-pix");
+    if (evento.pix_chave) { pixEl.textContent = "🔑 Chave PIX: " + evento.pix_chave; pixEl.style.display = "block"; }
+    else { pixEl.style.display = "none"; }
+    const linkEl = document.getElementById("evento-pagamento-link");
+    if (evento.link_pagamento) { linkEl.href = evento.link_pagamento; linkEl.style.display = "inline-flex"; }
+    else { linkEl.style.display = "none"; }
+  } else {
+    pagBox.style.display = "none";
+  }
+
+  document.getElementById("evento-detalhe-gerenciar").style.display = podeEditarEvento(evento) ? "block" : "none";
+
+  const lotado = evento.vagas_maximas && totalInscritos >= evento.vagas_maximas;
+  esconderCartoesInscricaoEvento();
+
+  if (lotado) {
+    document.getElementById("evento-inscricao-box").innerHTML = `<div class="card empty">Esse evento já está com as vagas esgotadas.</div>`;
+    mostrarTela("tela-evento-detalhe");
+    return;
+  }
+
+  if (state.membro) {
+    const { data: jaInscrito, error: erroCheck } = await sb.from("igr_eventos_inscricoes").select("id").eq("evento_id", eventoId).eq("membro_id", state.membro.id).maybeSingle();
+    if (erroCheck) {
+      // sessão de membro inválida (ex: conta apagada) — trata como visitante
+      console.error("Sessão de membro inválida ao checar inscrição:", erroCheck);
+    } else if (jaInscrito) {
+      mostrarConfirmacaoInscricao(evento);
+      mostrarTela("tela-evento-detalhe");
+      return;
+    }
+  }
+  document.getElementById("btn-abrir-inscricao").style.display = "block";
+  mostrarTela("tela-evento-detalhe");
+}
+
+function esconderCartoesInscricaoEvento() {
+  ["evento-card-escolha", "evento-card-membro", "evento-card-login-necessario", "evento-card-visitante", "evento-card-confirmado"]
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = "none"; });
+  document.getElementById("btn-abrir-inscricao").style.display = "none";
+}
+
+function abrirEscolhaInscricao() {
+  esconderCartoesInscricaoEvento();
+  document.getElementById("evento-card-escolha").style.display = "block";
+}
+
+function escolherSouMembro() {
+  esconderCartoesInscricaoEvento();
+  if (state.membro) {
+    document.getElementById("evento-card-membro").style.display = "block";
+  } else {
+    document.getElementById("evento-card-login-necessario").style.display = "block";
+  }
+}
+
+function escolherSouVisitante() {
+  esconderCartoesInscricaoEvento();
+  document.getElementById("evento-card-visitante").style.display = "block";
+}
+
+function mostrarConfirmacaoInscricao(evento) {
+  esconderCartoesInscricaoEvento();
+  document.getElementById("evento-card-confirmado").style.display = "block";
+  const msg = `Oi! Me inscrevi no evento "${evento.titulo}" (${formatarPeriodo(evento.data, evento.data_fim)}). Confirmando minha presença!${evento.gratuito === false ? " Vou te enviar o comprovante de pagamento por aqui também 💛" : " 💛"}`;
+  const destino = evento.telefoneOrganizador || state.igreja?.whatsapp_contato || "";
+  document.getElementById("btn-whatsapp-confirmacao").href = linkWhatsapp(destino, msg);
+  const tituloConf = document.getElementById("evento-confirmado-titulo");
+  const textoConf = document.getElementById("evento-confirmado-texto");
+  if (evento.gratuito === false) {
+    tituloConf.textContent = "Inscrição registrada! 🎉";
+    textoConf.textContent = "Falta só confirmar o pagamento — os dados estão acima. Toque no botão abaixo pra mandar a confirmação e o comprovante pro organizador.";
+  } else {
+    tituloConf.textContent = "Inscrição confirmada! 🎉";
+    textoConf.textContent = "Te esperamos lá.";
+  }
+}
+
+async function inscreverMembroEvento() {
+  const evento = state.eventoAtual;
+  const btn = document.getElementById("btn-inscrever-membro");
+  btn.disabled = true; btn.textContent = "Inscrevendo...";
+  try {
+    const { error } = await sb.from("igr_eventos_inscricoes").insert({
+      evento_id: evento.id, membro_id: state.membro.id,
+      nome: state.membro.nome_completo, telefone: state.membro.telefone,
+      data_nascimento: state.membro.data_nascimento || null,
+    });
+    if (error) {
+      if (error.code === "23503") {
+        alert("Sua sessão de membro não é mais válida (a conta pode ter sido removida). Saia e entre de novo, ou se inscreva como visitante.");
+        sair();
+        return;
+      }
+      alert("Não deu pra inscrever agora: " + error.message);
+      return;
+    }
+    enviarPush({ tipo: "membros", membro_ids: [state.membro.id] }, "Inscrição confirmada! 🎉", `Você está inscrito(a) em "${evento.titulo}" — ${formatarPeriodo(evento.data, evento.data_fim)}.`);
+    await avisarLiderPorIdadeEGenero(evento, state.membro.data_nascimento, state.membro.genero, state.membro.nome_completo);
+    mostrarConfirmacaoInscricao(evento);
+  } catch (e) {
+    console.error("Erro ao inscrever membro:", e);
+    alert("Não deu pra inscrever agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Confirmar inscrição";
+  }
+}
+
+async function inscreverVisitanteEvento(ev) {
+  ev.preventDefault();
+  const evento = state.eventoAtual;
+  const nome = document.getElementById("evi-nome").value.trim();
+  const telefone = limparTelefone(document.getElementById("evi-telefone").value);
+  const data_nascimento = document.getElementById("evi-nascimento").value || null;
+  const genero = document.getElementById("evi-genero").value || null;
+  if (!nome || !telefone) return;
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Inscrevendo...";
+  try {
+    const { error } = await sb.from("igr_eventos_inscricoes").insert({ evento_id: evento.id, nome, telefone, data_nascimento });
+    if (error) { alert("Não deu pra inscrever agora: " + error.message); return; }
+    await avisarLiderPorIdadeEGenero(evento, data_nascimento, genero, nome);
+    mostrarConfirmacaoInscricao(evento);
+  } catch (e) {
+    console.error("Erro ao inscrever visitante:", e);
+    alert("Não deu pra inscrever agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Inscrever-se";
+  }
+}
+
+async function avisarLiderPorIdadeEGenero(evento, dataNascimento, genero, nomePessoa) {
+  if (!dataNascimento) return;
+  const idade = calcularIdade(dataNascimento);
+  let categoria = null;
+  if (idade >= 4 && idade <= 10) categoria = "crianca";
+  else if (idade >= 11 && idade <= 13) categoria = "juniores";
+  else if (idade >= 14 && idade <= 17) categoria = "jovem";
+  else if (idade >= 18 && genero === "M") categoria = "homens";
+  else if (idade >= 18 && genero === "F") categoria = "mulheres";
+  if (!categoria) return;
+  const grupo = state.grupos.find(g => g.categoria === categoria);
+  if (!grupo) return;
+  const { data: lideres } = await sb.from("igr_membros").select("id").eq("grupo_id", grupo.id).eq("eh_lider", true);
+  if (lideres && lideres.length) {
+    enviarPush({ tipo: "membros", membro_ids: lideres.map(l => l.id) },
+      "Inscrição em evento 🎉", `${nomePessoa.split(" ")[0]} (${idade} anos) se inscreveu em "${evento.titulo}" — talvez valha entrar em contato.`);
+  }
+}
+
+// ---------- eventos: criar/editar ----------
+function abrirFormEvento(evento) {
+  state.editandoEvento = evento || null;
+  document.getElementById("evento-form-titulo").textContent = evento ? "Editar evento" : "Novo evento";
+  document.getElementById("voltar-evento-form").onclick = () => {
+    if (state.adminNome) { mostrarTela("tela-admin-painel"); abrirSecaoAdmin("eventos"); }
+    else { mostrarTela("tela-eventos"); carregarEventos(); }
+  };
+  document.getElementById("ev-titulo").value = evento?.titulo || "";
+  document.getElementById("ev-descricao").value = evento?.descricao || "";
+  document.getElementById("ev-local").value = evento?.local || "";
+  definirValorData("ev-data", evento?.data);
+  definirValorData("ev-data-fim", evento?.data_fim);
+  document.getElementById("ev-horario").value = evento?.horario || "";
+  document.getElementById("ev-vagas-min").value = evento?.vagas_minimas || "";
+  document.getElementById("ev-vagas-max").value = evento?.vagas_maximas || "";
+  const ehGratuito = evento ? evento.gratuito !== false : true;
+  document.getElementById("ev-gratuito").value = ehGratuito ? "sim" : "nao";
+  document.getElementById("ev-pagamento-detalhes").style.display = ehGratuito ? "none" : "block";
+  document.getElementById("ev-valor").value = evento?.valor || "";
+  document.getElementById("ev-pix").value = evento?.pix_chave || "";
+  document.getElementById("ev-link-pagamento").value = evento?.link_pagamento || "";
+  document.getElementById("ev-erro").classList.remove("show");
+  mostrarTela("tela-evento-form");
+}
+
+async function enviarFormEvento(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("ev-titulo").value.trim();
+  const descricao = document.getElementById("ev-descricao").value.trim();
+  const local = document.getElementById("ev-local").value.trim();
+  const data = document.getElementById("ev-data").value;
+  const data_fim = document.getElementById("ev-data-fim").value || null;
+  const horario = document.getElementById("ev-horario").value.trim();
+  const vagas_minimas = parseInt(document.getElementById("ev-vagas-min").value, 10) || null;
+  const vagas_maximas = parseInt(document.getElementById("ev-vagas-max").value, 10) || null;
+  const gratuito = document.getElementById("ev-gratuito").value === "sim";
+  const valor = gratuito ? null : document.getElementById("ev-valor").value.trim() || null;
+  const pix_chave = gratuito ? null : document.getElementById("ev-pix").value.trim() || null;
+  const link_pagamento = gratuito ? null : document.getElementById("ev-link-pagamento").value.trim() || null;
+  const errEl = document.getElementById("ev-erro");
+  errEl.classList.remove("show");
+
+  if (!titulo || !data) {
+    errEl.textContent = "Preencha ao menos título e data.";
+    errEl.classList.add("show");
+    return;
+  }
+  if (data_fim && data_fim < data) {
+    errEl.textContent = "A data de término não pode ser antes da data de início.";
+    errEl.classList.add("show");
+    return;
+  }
+  if (!state.igreja) { errEl.textContent = "Ainda carregando os dados da igreja. Tente de novo em instantes."; errEl.classList.add("show"); return; }
+
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  try {
+    const arquivo = document.getElementById("ev-banner").files[0];
+    const novoBanner = await uploadArquivo(arquivo, "eventos");
+    const editando = state.editandoEvento;
+    const campos = { titulo, descricao, local, data, data_fim, horario, vagas_minimas, vagas_maximas, gratuito, valor, pix_chave, link_pagamento };
+
+    if (editando) {
+      const banner_url = novoBanner || editando.banner_url || null;
+      const { error } = await sb.from("igr_eventos").update({ ...campos, banner_url }).eq("id", editando.id);
+      if (error) { errEl.textContent = "Não deu pra salvar: " + error.message; errEl.classList.add("show"); return; }
+    } else {
+      const { error } = await sb.from("igr_eventos").insert({
+        igreja_id: state.igreja.id, ...campos,
+        banner_url: novoBanner,
+        criado_por_membro_id: state.membro?.id || null,
+        criado_por_nome: state.membro?.nome_completo || state.adminNome || null,
+      });
+      if (error) { errEl.textContent = "Não deu pra criar: " + error.message; errEl.classList.add("show"); return; }
+    }
+    ev.target.reset();
+    state.editandoEvento = null;
+    if (state.adminNome) { mostrarTela("tela-admin-painel"); abrirSecaoAdmin("eventos"); }
+    else { mostrarTela("tela-eventos"); await carregarEventos(); }
+  } catch (e) {
+    console.error("Erro ao salvar evento:", e);
+    errEl.textContent = "Não deu pra salvar agora. Verifique sua conexão e tente de novo.";
+    errEl.classList.add("show");
+  } finally {
+    btn.disabled = false; btn.textContent = "Salvar evento";
+  }
+}
+
+// ---------- eventos: dashboard de inscritos ----------
+async function abrirInscritosEvento(evento) {
+  document.getElementById("inscritos-titulo-evento").textContent = "Inscritos — " + evento.titulo;
+  document.getElementById("voltar-inscritos").onclick = () => {
+    if (state.adminNome) { mostrarTela("tela-admin-painel"); abrirSecaoAdmin("eventos"); }
+    else { mostrarTela("tela-evento-detalhe"); }
+  };
+  mostrarTela("tela-evento-inscritos");
+
+  const { data } = await sb.from("igr_eventos_inscricoes").select("*").eq("evento_id", evento.id).order("created_at");
+  const total = (data || []).length;
+  const faltamMinimo = evento.vagas_minimas ? Math.max(evento.vagas_minimas - total, 0) : null;
+  const vagasRestantes = evento.vagas_maximas ? Math.max(evento.vagas_maximas - total, 0) : null;
+
+  document.getElementById("inscritos-dashboard").innerHTML = `
+    <div class="dash-stat-row">
+      <div class="dash-stat"><b>${total}</b><span>Inscritos</span></div>
+      ${faltamMinimo !== null ? `<div class="dash-stat"><b>${faltamMinimo}</b><span>Faltam pro mínimo</span></div>` : ""}
+      ${vagasRestantes !== null ? `<div class="dash-stat"><b>${vagasRestantes}</b><span>Vagas restantes</span></div>` : ""}
+    </div>`;
+
+  document.getElementById("inscritos-lista").innerHTML = (data || []).map(i => `
+    <div class="dash-inscrito-item">
+      <div><b>${i.nome}</b>${i.data_nascimento ? ` · ${calcularIdade(i.data_nascimento)} anos` : ""}</div>
+      <span>${i.telefone}</span>
+    </div>
+  `).join("") || `<div class="empty">Ninguém se inscreveu ainda.</div>`;
+}
+
+async function carregarEventosAdmin() {
+  const { data } = await sb.from("igr_eventos").select("*, igr_eventos_inscricoes(count)").eq("igreja_id", state.igreja.id).order("data", { ascending: false });
+  state.eventosAdminCache = data || [];
+  document.getElementById("admin-lista-eventos").innerHTML = (data || []).map(ev => {
+    const inscritos = ev.igr_eventos_inscricoes?.[0]?.count || 0;
+    return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div><b style="font-size:13.5px;">${ev.titulo}</b><br><span class="hint" style="margin:0;">${formatarPeriodo(ev.data, ev.data_fim)} · ${inscritos} inscritos${ev.criado_por_nome ? " · por " + ev.criado_por_nome : ""}</span></div>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-editar-evento="${ev.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-ver-inscritos-admin="${ev.id}">Inscritos</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del-evento="${ev.id}">Excluir</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("") || `<div class="empty">Nenhum evento cadastrado.</div>`;
+
+  document.querySelectorAll("[data-del-evento]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_eventos", b.dataset.delEvento, carregarEventosAdmin)));
+  document.querySelectorAll("[data-editar-evento]").forEach(b => b.addEventListener("click", () => {
+    const evento = state.eventosAdminCache.find(e => e.id === b.dataset.editarEvento);
+    if (evento) abrirFormEvento(evento);
+  }));
+  document.querySelectorAll("[data-ver-inscritos-admin]").forEach(b => b.addEventListener("click", () => {
+    const evento = state.eventosAdminCache.find(e => e.id === b.dataset.verInscritosAdmin);
+    if (evento) abrirInscritosEvento(evento);
+  }));
+}
+
+// ---------- diretório de membros ----------
+function configurarDiretorio() {
+  const input = document.getElementById("dir-busca");
+  if (!input || input.dataset.wired) return;
+  input.dataset.wired = "1";
+  let timeoutId = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timeoutId);
+    const termo = input.value.trim();
+    if (termo.length < 2) { document.getElementById("dir-resultados").innerHTML = ""; return; }
+    timeoutId = setTimeout(() => buscarDiretorio(termo), 350);
+  });
+}
+async function buscarDiretorio(termo) {
+  const el = document.getElementById("dir-resultados");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const { data } = await sb.from("igr_membros").select("id, nome_completo, foto_url, profissao, telefone")
+    .eq("igreja_id", state.igreja.id)
+    .or(`nome_completo.ilike.%${termo}%,profissao.ilike.%${termo}%`)
+    .neq("id", state.membro?.id || "").limit(20);
+
+  const { data: conexoes } = await sb.from("igr_membros_conexoes").select("conectado_id").eq("membro_id", state.membro.id);
+  const jaConectados = new Set((conexoes || []).map(c => c.conectado_id));
+
+  el.innerHTML = (data || []).map(m => {
+    const meuNome = state.membro.nome_completo.split(" ")[0];
+    const msgWhats = `Oi ${m.nome_completo.split(" ")[0]}! Aqui é ${meuNome}, te encontrei no Diretório de Membros do app da igreja 💛`;
+    return `
+    <div class="card row-avatar">
+      ${m.foto_url ? `<img src="${m.foto_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(m.nome_completo)}
+      <div class="row-info"><b>${m.nome_completo}</b><span>${m.profissao || "Membro da igreja"}</span></div>
+      ${jaConectados.has(m.id)
+        ? `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;flex:none;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`
+        : `<button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;flex:none;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}">Conectar</button>`}
+    </div>`;
+  }).join("") || `<div class="empty">Ninguém encontrado com esse termo.</div>`;
+
+  el.querySelectorAll("[data-conectar]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; btn.textContent = "Conectando...";
+      const outroId = btn.dataset.conectar;
+      const { error } = await sb.from("igr_membros_conexoes").insert({ membro_id: state.membro.id, conectado_id: outroId });
+      if (error) { alert("Não deu pra conectar agora."); btn.disabled = false; btn.textContent = "Conectar"; return; }
+      await sb.from("igr_membros_conexoes").insert({ membro_id: outroId, conectado_id: state.membro.id });
+      const meuNome = state.membro.nome_completo.split(" ")[0];
+      enviarPush({ tipo: "membros", membro_ids: [outroId] }, "Nova conexão 🤝", `${meuNome} se conectou com você no Diretório de Membros.`);
+      const msgWhats = `Oi ${btn.dataset.nome.split(" ")[0]}! Aqui é ${meuNome}, te encontrei no Diretório de Membros do app da igreja 💛`;
+      btn.outerHTML = `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;flex:none;" href="${linkWhatsapp(btn.dataset.telefone, msgWhats)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`;
+    });
+  });
+}
+
+// ---------- fotos ----------
+async function carregarAlbuns() {
+  document.getElementById("fotos-voltar").onclick = () => mostrarTela(state.membro ? "tela-membro-home" : "tela-visitante");
+  const { data } = await sb.from("igr_fotos_albuns").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
+  state.albunsPublicoCache = data || [];
+  const el = document.getElementById("lista-albuns");
+  el.innerHTML = `<div class="albuns-lista">${(data || []).map(a => `
+    <div class="album-card" data-album="${a.id}">
+      <img src="${a.capa_url || "assets/logo.png"}" alt="">
+      <div class="info"><b>${a.titulo}</b><span>${a.data ? formatarData(a.data) : ""}</span></div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum álbum publicado ainda.</div>`}</div>`;
+  el.querySelectorAll("[data-album]").forEach(card => {
+    card.addEventListener("click", () => abrirAlbum(card.dataset.album));
+  });
+}
+async function carregarFotosPreviewVisitante() {
+  const el = document.getElementById("visitante-fotos-preview");
+  if (!el) return;
+  const { data } = await sb.from("igr_fotos_albuns").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false }).limit(1);
+  const album = (data || [])[0];
+  if (!album) { el.innerHTML = `<div class="empty">Nenhuma foto publicada ainda.</div>`; return; }
+  el.innerHTML = `
+    <div class="album-card" data-album="${album.id}">
+      <img src="${album.capa_url || "assets/logo.png"}" alt="">
+      <div class="info"><b>${album.titulo}</b><span>${album.data ? formatarData(album.data) : ""}</span></div>
+    </div>`;
+  el.querySelector("[data-album]").addEventListener("click", async () => {
+    mostrarTela("tela-fotos");
+    await carregarAlbuns();
+    abrirAlbum(album.id);
+  });
+}
+async function abrirAlbum(albumId) {
+  const album = (state.albunsPublicoCache || []).find(a => a.id === albumId) || {};
+  document.getElementById("album-titulo-detalhe").textContent = album.titulo || "";
+  document.getElementById("album-data-detalhe").textContent = album.data ? formatarData(album.data) : "";
+  mostrarTela("tela-fotos-album");
+  const { data: fotos } = await sb.from("igr_fotos").select("*").eq("album_id", albumId).order("created_at");
+  state.fotosAlbumAtual = fotos || [];
+  document.getElementById("grid-fotos-album").innerHTML = (fotos || []).map((f, i) => `
+    <div class="foto-item" data-foto-idx="${i}">
+      <img src="${f.url}" alt="">
+    </div>
+  `).join("") || `<div class="empty">Nenhuma foto neste álbum ainda.</div>`;
+  document.querySelectorAll("[data-foto-idx]").forEach(el => {
+    el.addEventListener("click", () => abrirLightbox(parseInt(el.dataset.fotoIdx, 10)));
+  });
+}
+
+// ---------- visualizador de fotos em tela cheia (lightbox) ----------
+function abrirLightbox(indice) {
+  state.lightboxIndice = indice;
+  atualizarLightbox();
+  document.getElementById("lightbox-overlay").classList.add("open");
+}
+function fecharLightbox() {
+  document.getElementById("lightbox-overlay").classList.remove("open");
+}
+function atualizarLightbox() {
+  const fotos = state.fotosAlbumAtual || [];
+  const foto = fotos[state.lightboxIndice];
+  if (!foto) return;
+  document.getElementById("lightbox-img").src = foto.url;
+  document.getElementById("lightbox-baixar").href = foto.url;
+  document.getElementById("lightbox-contador").textContent = `${state.lightboxIndice + 1} / ${fotos.length}`;
+}
+function lightboxProxima(delta) {
+  const fotos = state.fotosAlbumAtual || [];
+  if (!fotos.length) return;
+  state.lightboxIndice = (state.lightboxIndice + delta + fotos.length) % fotos.length;
+  atualizarLightbox();
+}
+
+// ---------- ministério de louvor: gerenciar (líder) ----------
+async function enviarEscalaLouvor(ev) {
+  ev.preventDefault();
+  const data = document.getElementById("le-data").value;
+  const culto_titulo = document.getElementById("le-titulo").value.trim();
+  const observacoes = document.getElementById("le-obs").value.trim();
+  if (!data || !culto_titulo) return;
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const { error } = await sb.from("igr_louvor_escalas").insert({
+      igreja_id: state.igreja.id, data, culto_titulo, observacoes,
+      criado_por: state.membro?.nome_completo || null,
+    });
+    if (error) { alert("Não deu pra criar a escala: " + error.message); return; }
+    ev.target.reset();
+    await carregarLouvor();
+  } catch (e) {
+    console.error("Erro ao criar escala:", e);
+    alert("Não deu pra criar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Criar escala";
+  }
+}
+async function enviarParticipanteLouvor(ev) {
+  ev.preventDefault();
+  if (!state.louvorEscalaAtualId) { alert("Crie uma escala primeiro."); return; }
+  const membroSelect = document.getElementById("lp-membro");
+  const membro_id = membroSelect.value || null;
+  const nomeDigitado = document.getElementById("lp-nome").value.trim();
+  const funcao = document.getElementById("lp-funcao").value.trim();
+  const nome = membro_id ? membroSelect.selectedOptions[0].textContent : nomeDigitado;
+  if (!nome || !funcao) return;
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const { error } = await sb.from("igr_louvor_participantes").insert({ escala_id: state.louvorEscalaAtualId, nome, funcao, membro_id });
+    if (error) { alert("Não deu pra adicionar: " + error.message); return; }
+    ev.target.reset();
+    await carregarLouvor();
+  } catch (e) {
+    console.error("Erro ao adicionar participante:", e);
+    alert("Não deu pra adicionar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Adicionar";
+  }
+}
+async function carregarMembrosGrupoLouvor() {
+  const select = document.getElementById("lp-membro");
+  if (!select || !state.membro?.grupo_id) return;
+  const { data } = await sb.from("igr_membros").select("id, nome_completo").eq("grupo_id", state.membro.grupo_id).order("nome_completo");
+  select.innerHTML = `<option value="">— Sem vincular a um membro —</option>` +
+    (data || []).map(m => `<option value="${m.id}">${m.nome_completo}</option>`).join("");
+}
+async function enviarMusicaLouvor(ev) {
+  ev.preventDefault();
+  if (!state.louvorEscalaAtualId) { alert("Crie uma escala primeiro."); return; }
+  const titulo = document.getElementById("lm-titulo").value.trim();
+  const artista = document.getElementById("lm-artista").value.trim();
+  const tom = document.getElementById("lm-tom").value.trim();
+  const link_youtube = document.getElementById("lm-youtube").value.trim();
+  let link = document.getElementById("lm-link").value.trim();
+  if (!titulo) return;
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const arquivo = document.getElementById("lm-cifra-arquivo").files[0];
+    const cifraUpload = await uploadArquivo(arquivo, "cifras");
+    if (cifraUpload) link = cifraUpload;
+    const { error } = await sb.from("igr_louvor_musicas").insert({ escala_id: state.louvorEscalaAtualId, titulo, artista, tom, link, link_youtube, ordem: Date.now() });
+    if (error) { alert("Não deu pra adicionar a música: " + error.message); return; }
+    ev.target.reset();
+    await carregarLouvor();
+  } catch (e) {
+    console.error("Erro ao adicionar música:", e);
+    alert("Não deu pra adicionar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Adicionar música";
+  }
+}
+async function enviarEventoLouvor(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("lev-titulo").value.trim();
+  const data = document.getElementById("lev-data").value;
+  const horario = document.getElementById("lev-horario").value.trim();
+  const local = document.getElementById("lev-local").value.trim();
+  if (!titulo || !data) return;
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const { error } = await sb.from("igr_louvor_eventos").insert({ igreja_id: state.igreja.id, titulo, data, horario, local });
+    if (error) { alert("Não deu pra adicionar: " + error.message); return; }
+    ev.target.reset();
+    await carregarLouvor();
+  } catch (e) {
+    console.error("Erro ao adicionar evento:", e);
+    alert("Não deu pra adicionar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Adicionar";
+  }
+}
+
+// ---------- administrador ----------
+async function enviarLoginAdmin(ev) {
+  ev.preventDefault();
+  const senha = document.getElementById("admin-senha").value;
+  const errEl = document.getElementById("admin-erro");
+  errEl.classList.remove("show");
+  if (!senha) return;
+  if (!state.igreja) {
+    errEl.textContent = "Ainda carregando os dados da igreja. Aguarde um instante e tente de novo.";
+    errEl.classList.add("show");
+    return;
+  }
+  const hash = await sha256(senha + ":" + state.igreja.id);
+  const { data: contas } = await sb.from("igr_admin_senhas").select("*").eq("igreja_id", state.igreja.id);
+  const conta = (contas || []).find(c => c.senha_hash === hash);
+  if (!conta) {
+    errEl.textContent = "Senha incorreta.";
+    errEl.classList.add("show");
+    return;
+  }
+  state.adminPapel = conta.papel;
+  state.adminNome = conta.nome;
+  document.getElementById("admin-senha").value = "";
+  montarGridAdmin();
+  mostrarTela("tela-admin-painel");
+}
+
+async function carregarPainelAdmin() {
+  const el = document.getElementById("admin-lideres-pendentes");
+  const { data } = await sb.from("igr_membros").select("*, igr_grupos(nome)")
+    .eq("igreja_id", state.igreja.id).eq("lider_status", "pendente").order("created_at");
+  el.innerHTML = (data || []).map(m => `
+    <div class="card" data-membro-id="${m.id}">
+      <div class="row-avatar">
+        ${avatarIniciais(m.nome_completo)}
+        <div class="row-info"><b>${m.nome_completo}</b><span>${m.igr_grupos?.nome || "grupo não informado"} · ${m.telefone}</span></div>
+      </div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin:10px 0 6px;">O que ela pode acessar como líder?</label>
+      <div class="interesses-grid" style="margin-bottom:10px;">
+        <label class="interesse-item"><input type="checkbox" value="editar_grupo" checked> Editar capa/descrição</label>
+        <label class="interesse-item"><input type="checkbox" value="postar_avisos" checked> Postar avisos</label>
+        <label class="interesse-item"><input type="checkbox" value="gerenciar_oracao" checked> Ver pedidos de oração</label>
+        <label class="interesse-item"><input type="checkbox" value="gerenciar_louvor"> Gerenciar Louvor</label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn btn-primary" style="width:auto;padding:9px 16px;font-size:12.5px;" data-acao="aprovar" data-id="${m.id}">Aprovar</button>
+        <button class="btn btn-ghost" style="width:auto;padding:9px 16px;font-size:12.5px;" data-acao="recusar" data-id="${m.id}">Recusar</button>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum pedido pendente no momento.</div>`;
+
+  el.querySelectorAll("[data-acao]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.id;
+      const aprovar = btn.dataset.acao === "aprovar";
+      const card = btn.closest("[data-membro-id]");
+      const permissoes = aprovar ? Array.from(card.querySelectorAll('input[type=checkbox]:checked')).map(c => c.value) : [];
+      btn.disabled = true;
+      await sb.from("igr_membros").update({
+        lider_status: aprovar ? "aprovado" : "recusado",
+        eh_lider: aprovar,
+        permissoes,
+      }).eq("id", id);
+      await carregarPainelAdmin();
+    });
+  });
+
+  // popula o select de grupo do formulário "adicionar líder diretamente"
+  const selectGrupo = document.getElementById("anl-grupo");
+  if (selectGrupo) {
+    selectGrupo.innerHTML = `<option value="">Selecione</option>` +
+      (state.grupos || []).map(g => `<option value="${g.id}">${g.nome}</option>`).join("");
+  }
+
+  await carregarLideresAtivos();
+}
+
+const LABELS_PERMISSOES = {
+  editar_grupo: "Editar grupo", postar_avisos: "Postar avisos",
+  gerenciar_oracao: "Ver oração", gerenciar_louvor: "Gerenciar Louvor",
+};
+
+async function carregarLideresAtivos() {
+  const el = document.getElementById("admin-lideres-ativos");
+  if (!el) return;
+  const { data } = await sb.from("igr_membros").select("*, igr_grupos(nome)")
+    .eq("igreja_id", state.igreja.id).eq("eh_lider", true).order("nome_completo");
+
+  el.innerHTML = (data || []).map(m => {
+    const tagsPermissoes = (m.permissoes || []).map(p => LABELS_PERMISSOES[p] || p).join(" · ") || "nenhuma permissão marcada";
+    return `
+    <div class="card" data-lider-id="${m.id}">
+      <div class="row-avatar">
+        ${avatarIniciais(m.nome_completo)}
+        <div class="row-info"><b>${m.nome_completo}</b><span>${m.igr_grupos?.nome || "sem grupo"} · ${tagsPermissoes}</span></div>
+      </div>
+      <div id="editar-lider-${m.id}" style="display:none;margin-top:12px;">
+        <div class="field"><label>Grupo/Departamento</label>
+          <select class="editar-lider-grupo">${(state.grupos || []).map(g => `<option value="${g.id}" ${g.id === m.grupo_id ? "selected" : ""}>${g.nome}</option>`).join("")}</select>
+        </div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin:8px 0 6px;">Permissões</label>
+        <div class="interesses-grid" style="margin-bottom:12px;">
+          <label class="interesse-item"><input type="checkbox" value="editar_grupo" ${(m.permissoes || []).includes("editar_grupo") ? "checked" : ""}> Editar capa/descrição</label>
+          <label class="interesse-item"><input type="checkbox" value="postar_avisos" ${(m.permissoes || []).includes("postar_avisos") ? "checked" : ""}> Postar avisos</label>
+          <label class="interesse-item"><input type="checkbox" value="gerenciar_oracao" ${(m.permissoes || []).includes("gerenciar_oracao") ? "checked" : ""}> Ver pedidos de oração</label>
+          <label class="interesse-item"><input type="checkbox" value="gerenciar_louvor" ${(m.permissoes || []).includes("gerenciar_louvor") ? "checked" : ""}> Gerenciar Louvor</label>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" style="flex:1;" data-salvar-lider="${m.id}">Salvar</button>
+          <button class="btn btn-ghost" style="flex:1;" data-remover-lider="${m.id}">Remover liderança</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-top:10px;" data-toggle-editar-lider="${m.id}">Editar</button>
+    </div>`;
+  }).join("") || `<div class="empty">Nenhum líder ativo no momento.</div>`;
+
+  el.querySelectorAll("[data-toggle-editar-lider]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const box = document.getElementById("editar-lider-" + btn.dataset.toggleEditarLider);
+      box.style.display = box.style.display === "none" ? "block" : "none";
+    });
+  });
+  el.querySelectorAll("[data-salvar-lider]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.salvarLider;
+      const card = btn.closest("[data-lider-id]");
+      const grupo_id = card.querySelector(".editar-lider-grupo").value;
+      const permissoes = Array.from(card.querySelectorAll('input[type=checkbox]:checked')).map(c => c.value);
+      btn.disabled = true; btn.textContent = "Salvando...";
+      await sb.from("igr_membros").update({ grupo_id, permissoes }).eq("id", id);
+      await carregarLideresAtivos();
+    });
+  });
+  el.querySelectorAll("[data-remover-lider]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Remover a liderança dessa pessoa? Ela continua como membro normal.")) return;
+      btn.disabled = true;
+      await sb.from("igr_membros").update({ eh_lider: false, permissoes: [], lider_status: "nenhum" }).eq("id", btn.dataset.removerLider);
+      await carregarLideresAtivos();
+    });
+  });
+}
+
+async function enviarNovoLiderAdmin(ev) {
+  ev.preventDefault();
+  const nome_completo = document.getElementById("anl-nome").value.trim();
+  const telefone = limparTelefone(document.getElementById("anl-telefone").value);
+  const grupo_id = document.getElementById("anl-grupo").value;
+  const pin = document.getElementById("anl-senha").value.trim();
+  const permissoes = Array.from(ev.target.querySelectorAll('input[type=checkbox]:checked')).map(c => c.value);
+  if (!nome_completo || !telefone || !grupo_id || !/^\d{4}$/.test(pin)) {
+    alert("Preencha nome, telefone, grupo e uma senha de 4 números.");
+    return;
+  }
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Criando...";
+  try {
+    const pin_hash = await sha256(pin + ":" + telefone);
+    const { error } = await sb.from("igr_membros").insert({
+      igreja_id: state.igreja.id, nome_completo, telefone, grupo_id, pin_hash,
+      lider_status: "aprovado", eh_lider: true, permissoes,
+    });
+    if (error) {
+      alert(error.code === "23505" ? "Já existe um cadastro com esse telefone." : "Não deu pra criar: " + error.message);
+      return;
+    }
+    const resultado = document.getElementById("anl-resultado");
+    const nomeGrupo = (state.grupos || []).find(g => g.id === grupo_id)?.nome || "";
+    resultado.innerHTML = `✅ Líder criado! Passa isso pra <b>${nome_completo}</b> entrar (menu → Entrar / Cadastro):<br><b>Telefone:</b> ${telefone}<br><b>Senha:</b> ${pin}<br><span class="hint" style="margin:6px 0 0;display:block;">Acesso liberado no grupo ${nomeGrupo}, só no que foi marcado acima.</span>`;
+    resultado.style.display = "block";
+    ev.target.reset();
+  } catch (e) {
+    console.error("Erro ao criar líder:", e);
+    alert("Não deu pra criar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Criar acesso de líder";
+  }
+}
+
+async function carregarVisitantesAdmin() {
+  const el = document.getElementById("admin-visitantes");
+  const { data } = await sb.from("igr_visitantes").select("*, igr_grupos(nome)")
+    .eq("igreja_id", state.igreja.id).order("created_at", { ascending: false }).limit(30);
+
+  const agora = new Date();
+  const doMes = (data || []).filter(v => {
+    const d = new Date(v.created_at);
+    return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+  }).length;
+  const totalContatados = (data || []).filter(v => v.contatado).length;
+
+  document.getElementById("admin-dashboard-visitantes").innerHTML = `
+    <div class="dash-stat-row">
+      <div class="dash-stat"><b>${doMes}</b><span>Visitantes este mês</span></div>
+      <div class="dash-stat"><b>${totalContatados}/${(data || []).length}</b><span>Já contatados</span></div>
+    </div>`;
+
+  el.innerHTML = (data || []).map(v => {
+    const idade = v.data_nascimento ? calcularIdade(v.data_nascimento) : null;
+    const nomeGrupo = v.igr_grupos?.nome || "nossa igreja";
+    const assinatura = state.adminNome ? `Aqui é ${state.adminNome}, do` : "Aqui é do";
+    const msg = `Oi ${v.nome.split(" ")[0]}! ${assinatura} ${nomeGrupo} da ${state.igreja.nome}. Que alegria que você nos visitou! 💛`;
+    return `
+    <div class="card">
+      <div class="row-avatar">
+        ${avatarIniciais(v.nome)}
+        <div class="row-info"><b>${v.nome}${idade ? " · " + idade + " anos" : ""}</b><span>${v.igr_grupos?.nome || "sem grupo definido"} · ${tempoRelativo(v.created_at)}${v.contatado ? " · já contatado" : ""}</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <a class="btn btn-primary" style="width:auto;padding:9px 16px;font-size:12.5px;" href="${linkWhatsapp(v.telefone, msg)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>
+        ${!v.contatado ? `<button class="btn btn-ghost" style="width:auto;padding:9px 16px;font-size:12.5px;" data-marcar-contatado-admin="${v.id}">Marcar contatado</button>` : ""}
+      </div>
+    </div>`;
+  }).join("") || `<div class="empty">Nenhum visitante registrado ainda.</div>`;
+
+  el.querySelectorAll("[data-marcar-contatado-admin]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      await sb.from("igr_visitantes").update({ contatado: true }).eq("id", btn.dataset.marcarContatadoAdmin);
+      carregarVisitantesAdmin();
+    });
+  });
+}
+
+// ---------- admin: exportar membros (CSV) ----------
+function escaparCSV(valor) {
+  const texto = (valor === null || valor === undefined) ? "" : String(valor);
+  if (texto.includes(",") || texto.includes('"') || texto.includes("\n")) {
+    return `"${texto.replace(/"/g, '""')}"`;
+  }
+  return texto;
+}
+async function exportarMembrosCSV() {
+  const btn = document.getElementById("btn-exportar-membros");
+  btn.disabled = true; btn.textContent = "Gerando arquivo...";
+  try {
+    const { data, error } = await sb.from("igr_membros").select("*, igr_grupos(nome)").eq("igreja_id", state.igreja.id).order("nome_completo");
+    if (error) { alert("Não deu pra exportar: " + error.message); return; }
+
+    const colunas = [
+      "Nome completo", "Telefone", "Data de nascimento", "Idade", "Gênero", "Estado civil",
+      "Endereço", "Grupo/Departamento", "É líder", "Status de liderança",
+      "Batizado", "Data do batismo", "Pastor do batismo", "Interesses/talentos", "Cadastrado em",
+    ];
+    const linhas = (data || []).map(m => [
+      m.nome_completo, m.telefone,
+      m.data_nascimento ? formatarData(m.data_nascimento) : "",
+      m.data_nascimento ? calcularIdade(m.data_nascimento) : "",
+      m.genero === "M" ? "Masculino" : m.genero === "F" ? "Feminino" : "",
+      m.estado_civil || "",
+      m.endereco || "",
+      m.igr_grupos?.nome || "",
+      m.eh_lider ? "Sim" : "Não",
+      m.lider_status || "",
+      m.batizado === true ? "Sim" : m.batizado === false ? "Não" : "",
+      m.data_batismo ? formatarData(m.data_batismo) : "",
+      m.pastor_batismo || "",
+      (m.interesses || []).join("; "),
+      m.created_at ? formatarData(m.created_at) : "",
+    ].map(escaparCSV).join(","));
+
+    const csv = "\uFEFF" + colunas.join(",") + "\n" + linhas.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `membros-${state.igreja.nome.replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (e) {
+    console.error("Erro ao exportar membros:", e);
+    alert("Não deu pra exportar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "📥 Exportar todos os membros (CSV)";
+  }
+}
+
+// ---------- admin: alternador de abas ----------
+function montarGridAdmin() {
+  const papel = state.adminPapel || "geral";
+  document.querySelectorAll("#admin-grid [data-secao]").forEach(card => {
+    const papeisPermitidos = card.dataset.papel.split(",");
+    card.style.display = papeisPermitidos.includes(papel) ? "flex" : "none";
+  });
+  document.querySelectorAll(".admin-painel-aba").forEach(sec => sec.style.display = "none");
+  document.getElementById("admin-grid").style.display = "grid";
+  document.getElementById("admin-titulo-painel").textContent = state.adminNome ? `Olá, ${state.adminNome}` : "Painel do administrador";
+}
+
+function abrirSecaoAdmin(secao) {
+  document.getElementById("admin-grid").style.display = "none";
+  document.querySelectorAll(".admin-painel-aba").forEach(sec => {
+    sec.style.display = sec.dataset.adminPainel === secao ? "block" : "none";
+  });
+  const cargas = {
+    lideres: carregarPainelAdmin, visitantes: carregarVisitantesAdmin,
+    cultos: carregarCultosAdmin, avisos: carregarAvisosAdmin,
+    pastor: carregarPastorAdmin, estudos: carregarEsbocosAdmin,
+    fotos: carregarAlbunsAdmin,
+    igreja: () => { preencherFormIgrejaAdmin(); carregarPastoresPerfilAdmin(); },
+    oracao: () => carregarOracaoAdmin("todos"),
+    eventos: carregarEventosAdmin,
+  };
+  cargas[secao]?.();
+}
+
+function configurarAbasAdmin() {
+  document.querySelectorAll("#admin-grid [data-secao]").forEach(card => {
+    card.addEventListener("click", () => abrirSecaoAdmin(card.dataset.secao));
+  });
+  document.querySelectorAll("[data-voltar-admin]").forEach(b => {
+    b.addEventListener("click", montarGridAdmin);
+  });
+  document.querySelectorAll("[data-filtro-oracao]").forEach(chip => {
+    chip.addEventListener("click", () => carregarOracaoAdmin(chip.dataset.filtroOracao));
+  });
+}
+
+// ---------- admin: pedidos de oração ----------
+async function carregarOracaoAdmin(filtro) {
+  document.querySelectorAll("[data-filtro-oracao]").forEach(c => c.classList.toggle("on", c.dataset.filtroOracao === filtro));
+  let query = sb.from("igr_pedidos_oracao").select("*, igr_membros(nome_completo, telefone)")
+    .eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
+  if (filtro && filtro !== "todos") query = query.eq("status", filtro);
+  const { data } = await query;
+  const el = document.getElementById("admin-lista-oracao");
+  el.innerHTML = (data || []).map(p => `
+    <div class="card">
+      <div class="row-avatar">
+        ${avatarIniciais(p.igr_membros?.nome_completo || "?")}
+        <div class="row-info"><b>${p.igr_membros?.nome_completo || "Membro"}</b><span>${tempoRelativo(p.created_at)}</span></div>
+      </div>
+      <p style="margin:10px 0;font-size:13.5px;">${p.texto}</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="chip ${p.status === "novo" ? "on" : ""}" data-status-oracao="${p.id}" data-status="novo">Novo</button>
+        <button class="chip ${p.status === "orando" ? "on" : ""}" data-status-oracao="${p.id}" data-status="orando">Orando</button>
+        <button class="chip ${p.status === "respondido" ? "on" : ""}" data-status-oracao="${p.id}" data-status="respondido">Respondido</button>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum pedido de oração por aqui.</div>`;
+
+  el.querySelectorAll("[data-status-oracao]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const pedido = (data || []).find(p => p.id === btn.dataset.statusOracao);
+      await sb.from("igr_pedidos_oracao").update({ status: btn.dataset.status }).eq("id", btn.dataset.statusOracao);
+      if (pedido?.membro_id) {
+        if (btn.dataset.status === "orando") {
+          enviarPush({ tipo: "membros", membro_ids: [pedido.membro_id] }, "Estamos orando por você 🙏", "Seu pedido de oração está sendo levado ao Senhor.");
+        } else if (btn.dataset.status === "respondido") {
+          enviarPush({ tipo: "membros", membro_ids: [pedido.membro_id] }, "Seu pedido foi respondido! 🙌", "Que alegria — seu pedido de oração foi marcado como respondido. Deus é fiel!");
+        }
+      }
+      const filtroAtivo = document.querySelector("[data-filtro-oracao].on")?.dataset.filtroOracao || "todos";
+      carregarOracaoAdmin(filtroAtivo);
+    });
+  });
+}
+
+// pequeno helper: excluir um registro e recarregar a lista
+async function excluirRegistro(tabela, id, recarregarFn) {
+  if (!confirm("Excluir este item?")) return;
+  await sb.from(tabela).delete().eq("id", id);
+  recarregarFn();
+}
+
+// ---------- admin: cultos ----------
+async function carregarCultosAdmin() {
+  const el = document.getElementById("admin-lista-cultos");
+  const { data } = await sb.from("igr_cultos").select("*").eq("igreja_id", state.igreja.id).order("ordem");
+  el.innerHTML = (data || []).map(c => `
+    <div class="card">
+      ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div><b style="font-size:13.5px;">${c.titulo}</b><br><span class="hint" style="margin:0;">${c.data ? formatarData(c.data) + " (especial)" : c.dia_semana} · ${c.horario}${c.local ? " · " + c.local : ""}</span></div>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${c.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${c.id}">Excluir</button>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum culto cadastrado.</div>`;
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_cultos", b.dataset.del, carregarCultosAdmin)));
+  el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const item = (data || []).find(x => x.id === b.dataset.edit);
+    if (item) iniciarEdicaoCulto(item);
+  }));
+}
+function iniciarEdicaoCulto(item) {
+  state.editando.culto = item;
+  document.getElementById("ac-titulo").value = item.titulo || "";
+  document.getElementById("ac-dia").value = item.dia_semana || "";
+  document.getElementById("ac-horario").value = item.horario || "";
+  document.getElementById("ac-local").value = item.local || "";
+  definirValorData("ac-data", item.data);
+  const btn = document.querySelector("#form-admin-culto button[type=submit]");
+  btn.textContent = "Salvar alterações";
+  document.getElementById("ac-cancelar-edicao").style.display = "inline-block";
+  document.getElementById("form-admin-culto").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function cancelarEdicaoCulto() {
+  state.editando.culto = null;
+  document.getElementById("form-admin-culto").reset();
+  document.querySelector("#form-admin-culto button[type=submit]").textContent = "Adicionar culto";
+  document.getElementById("ac-cancelar-edicao").style.display = "none";
+}
+async function enviarCultoAdmin(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("ac-titulo").value.trim();
+  const dia_semana = document.getElementById("ac-dia").value.trim();
+  const horario = document.getElementById("ac-horario").value.trim();
+  const local = document.getElementById("ac-local").value.trim();
+  const data_especifica = document.getElementById("ac-data").value || null;
+  if (!titulo || !horario || (!dia_semana && !data_especifica)) {
+    alert("Preencha o título, o horário, e o dia da semana (ou uma data específica).");
+    return;
+  }
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  const editando = state.editando.culto;
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const arquivo = document.getElementById("ac-imagem").files[0];
+    const novaImagem = await uploadArquivo(arquivo, "cultos");
+    if (editando) {
+      const imagem_url = novaImagem || editando.imagem_url || null;
+      const { error } = await sb.from("igr_cultos").update({ titulo, dia_semana, horario, local, imagem_url, data: data_especifica }).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
+      cancelarEdicaoCulto();
+    } else {
+      const { error } = await sb.from("igr_cultos").insert({ igreja_id: state.igreja.id, titulo, dia_semana, horario, local, imagem_url: novaImagem, data: data_especifica, ordem: Date.now() });
+      if (error) { alert("Não deu pra salvar o culto: " + error.message); return; }
+      ev.target.reset();
+    }
+    carregarCultosAdmin();
+  } catch (e) {
+    console.error("Erro ao salvar culto:", e);
+    alert("Não deu pra salvar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false;
+    if (!state.editando.culto) btn.textContent = "Adicionar culto";
+  }
+}
+
+// ---------- admin: avisos gerais ----------
+async function carregarAvisosAdmin() {
+  const el = document.getElementById("admin-lista-avisos");
+  const { data } = await sb.from("igr_avisos").select("*, igr_grupos(nome)").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false });
+  el.innerHTML = (data || []).map(a => `
+    <div class="card">
+      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div><b style="font-size:13.5px;">${a.titulo}</b><br><span class="hint" style="margin:0;">${a.igr_grupos?.nome || "Geral"}</span></div>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${a.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${a.id}">Excluir</button>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum aviso cadastrado.</div>`;
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_avisos", b.dataset.del, carregarAvisosAdmin)));
+  el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const item = (data || []).find(x => x.id === b.dataset.edit);
+    if (item) iniciarEdicaoAviso(item);
+  }));
+}
+function iniciarEdicaoAviso(item) {
+  state.editando.aviso = item;
+  document.getElementById("aa-titulo").value = item.titulo || "";
+  document.getElementById("aa-texto").value = item.texto || "";
+  const btn = document.querySelector("#form-admin-aviso button[type=submit]");
+  btn.textContent = "Salvar alterações";
+  document.getElementById("aa-cancelar-edicao").style.display = "inline-block";
+  document.getElementById("form-admin-aviso").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function cancelarEdicaoAviso() {
+  state.editando.aviso = null;
+  document.getElementById("form-admin-aviso").reset();
+  document.querySelector("#form-admin-aviso button[type=submit]").textContent = "Publicar aviso";
+  document.getElementById("aa-cancelar-edicao").style.display = "none";
+}
+async function enviarAvisoAdmin(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("aa-titulo").value.trim();
+  const texto = document.getElementById("aa-texto").value.trim();
+  if (!titulo) return;
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  const editando = state.editando.aviso;
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const arquivo = document.getElementById("aa-imagem").files[0];
+    const novaImagem = await uploadArquivo(arquivo, "avisos");
+    if (editando) {
+      const imagem_url = novaImagem || editando.imagem_url || null;
+      const { error } = await sb.from("igr_avisos").update({ titulo, texto, imagem_url }).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
+      cancelarEdicaoAviso();
+    } else {
+      const { error } = await sb.from("igr_avisos").insert({ igreja_id: state.igreja.id, titulo, texto, imagem_url: novaImagem, publicado_em: new Date().toISOString() });
+      if (error) { alert("Não deu pra publicar o aviso: " + error.message); return; }
+      ev.target.reset();
+      enviarPush({ tipo: "todos" }, titulo, texto);
+    }
+    carregarAvisosAdmin();
+  } catch (e) {
+    console.error("Erro ao publicar aviso:", e);
+    alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false;
+    if (!state.editando.aviso) btn.textContent = "Publicar aviso";
+  }
+}
+
+// ---------- admin: mensagens do pastor ----------
+async function carregarPastorAdmin() {
+  const el = document.getElementById("admin-lista-pastor");
+  const { data } = await sb.from("igr_mensagens_pastor").select("*").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false });
+  el.innerHTML = (data || []).map(m => `
+    <div class="card">
+      ${m.capa_url ? `<img class="capa-thumb" src="${m.capa_url}" alt="">` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div><b style="font-size:13.5px;">${m.titulo}</b><br><span class="hint" style="margin:0;">${m.autor || ""}</span></div>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${m.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${m.id}">Excluir</button>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhuma mensagem cadastrada.</div>`;
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_mensagens_pastor", b.dataset.del, carregarPastorAdmin)));
+  el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const item = (data || []).find(x => x.id === b.dataset.edit);
+    if (item) iniciarEdicaoPastor(item);
+  }));
+}
+function iniciarEdicaoPastor(item) {
+  state.editando.pastor = item;
+  document.getElementById("ap-titulo").value = item.titulo || "";
+  document.getElementById("ap-autor").value = item.autor || "";
+  document.getElementById("ap-resumo").value = item.resumo || "";
+  document.getElementById("ap-video").value = item.video_url || "";
+  const btn = document.querySelector("#form-admin-pastor button[type=submit]");
+  btn.textContent = "Salvar alterações";
+  document.getElementById("ap-cancelar-edicao").style.display = "inline-block";
+  document.getElementById("form-admin-pastor").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function cancelarEdicaoPastor() {
+  state.editando.pastor = null;
+  document.getElementById("form-admin-pastor").reset();
+  document.querySelector("#form-admin-pastor button[type=submit]").textContent = "Publicar mensagem";
+  document.getElementById("ap-cancelar-edicao").style.display = "none";
+}
+async function enviarPastorAdmin(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("ap-titulo").value.trim();
+  const autor = document.getElementById("ap-autor").value.trim();
+  const resumo = document.getElementById("ap-resumo").value.trim();
+  const video_url = document.getElementById("ap-video").value.trim();
+  if (!titulo || !resumo) return;
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  const editando = state.editando.pastor;
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const arquivo = document.getElementById("ap-capa").files[0];
+    const novaCapa = await uploadArquivo(arquivo, "pastor");
+    if (editando) {
+      const capa_url = novaCapa || editando.capa_url || null;
+      const { error } = await sb.from("igr_mensagens_pastor").update({ titulo, autor, resumo, video_url, capa_url }).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
+      cancelarEdicaoPastor();
+    } else {
+      const { error } = await sb.from("igr_mensagens_pastor").insert({ igreja_id: state.igreja.id, titulo, autor, resumo, video_url, capa_url: novaCapa, publicado_em: new Date().toISOString() });
+      if (error) { alert("Não deu pra publicar a mensagem: " + error.message); return; }
+      ev.target.reset();
+    }
+    carregarPastorAdmin();
+  } catch (e) {
+    console.error("Erro ao publicar mensagem do pastor:", e);
+    alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false;
+    if (!state.editando.pastor) btn.textContent = "Publicar mensagem";
+  }
+}
+
+// ---------- admin: esboços ----------
+async function carregarEsbocosAdmin() {
+  const el = document.getElementById("admin-lista-esbocos");
+  const { data } = await sb.from("igr_esbocos").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
+  el.innerHTML = (data || []).map(e => `
+    <div class="card">
+      ${e.capa_url ? `<img class="capa-thumb" src="${e.capa_url}" alt="">` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div><b style="font-size:13.5px;">${e.titulo}</b><br><span class="hint" style="margin:0;">${e.autor || ""}</span></div>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${e.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${e.id}">Excluir</button>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum esboço cadastrado.</div>`;
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_esbocos", b.dataset.del, carregarEsbocosAdmin)));
+  el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const item = (data || []).find(x => x.id === b.dataset.edit);
+    if (item) iniciarEdicaoEsboco(item);
+  }));
+}
+function iniciarEdicaoEsboco(item) {
+  state.editando.esboco = item;
+  document.getElementById("ae-titulo").value = item.titulo || "";
+  document.getElementById("ae-pregador").value = item.autor || "";
+  const btn = document.querySelector("#form-admin-esboco button[type=submit]");
+  btn.textContent = "Salvar alterações";
+  document.getElementById("ae-cancelar-edicao").style.display = "inline-block";
+  document.getElementById("form-admin-esboco").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function cancelarEdicaoEsboco() {
+  state.editando.esboco = null;
+  document.getElementById("form-admin-esboco").reset();
+  document.querySelector("#form-admin-esboco button[type=submit]").textContent = "Publicar esboço";
+  document.getElementById("ae-cancelar-edicao").style.display = "none";
+}
+async function enviarEsbocoAdmin(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("ae-titulo").value.trim();
+  const autor = document.getElementById("ae-pregador").value.trim();
+  if (!titulo) return;
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  const editando = state.editando.esboco;
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const [novaCapa, novoArquivo] = await Promise.all([
+      uploadArquivo(document.getElementById("ae-capa").files[0], "esbocos"),
+      uploadArquivo(document.getElementById("ae-arquivo").files[0], "esbocos"),
+    ]);
+    if (editando) {
+      const capa_url = novaCapa || editando.capa_url || null;
+      const arquivo_url = novoArquivo || editando.arquivo_url || null;
+      const { error } = await sb.from("igr_esbocos").update({ titulo, autor, capa_url, arquivo_url }).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
+      cancelarEdicaoEsboco();
+    } else {
+      const { error } = await sb.from("igr_esbocos").insert({ igreja_id: state.igreja.id, titulo, autor, capa_url: novaCapa, arquivo_url: novoArquivo });
+      if (error) { alert("Não deu pra publicar o esboço: " + error.message); return; }
+      ev.target.reset();
+      enviarPush({ tipo: "todos" }, "Novo estudo disponível 📖", titulo);
+    }
+    carregarEsbocosAdmin();
+  } catch (e) {
+    console.error("Erro ao publicar esboço:", e);
+    alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false;
+    if (!state.editando.esboco) btn.textContent = "Publicar esboço";
+  }
+}
+
+// ---------- admin: álbuns de fotos ----------
+async function carregarAlbunsAdmin() {
+  const { data } = await sb.from("igr_fotos_albuns").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
+  state.albunsCache = data || [];
+
+  const select = document.getElementById("af-album-selecionado");
+  const selecionadoAntes = select.value;
+  select.innerHTML = `<option value="">Selecione um álbum</option>` +
+    state.albunsCache.map(a => `<option value="${a.id}">${a.titulo}</option>`).join("");
+  if (selecionadoAntes) select.value = selecionadoAntes;
+
+  const el = document.getElementById("admin-lista-albuns");
+  el.innerHTML = state.albunsCache.map(a => `
+    <div class="card">
+      ${a.capa_url ? `<img class="capa-thumb" src="${a.capa_url}" alt="">` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div><b style="font-size:13.5px;">${a.titulo}</b><br><span class="hint" style="margin:0;">${a.data ? formatarData(a.data) : ""}</span></div>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit-album="${a.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del-album="${a.id}">Excluir</button>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum álbum criado ainda.</div>`;
+  el.querySelectorAll("[data-del-album]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_fotos_albuns", b.dataset.delAlbum, carregarAlbunsAdmin)));
+  el.querySelectorAll("[data-edit-album]").forEach(b => b.addEventListener("click", () => {
+    const item = state.albunsCache.find(a => a.id === b.dataset.editAlbum);
+    if (item) iniciarEdicaoAlbum(item);
+  }));
+}
+function iniciarEdicaoAlbum(item) {
+  state.editando.album = item;
+  document.getElementById("af-titulo").value = item.titulo || "";
+  definirValorData("af-data", item.data);
+  const btn = document.querySelector("#form-admin-album button[type=submit]");
+  btn.textContent = "Salvar alterações";
+  document.getElementById("af-cancelar-edicao").style.display = "inline-block";
+  document.getElementById("form-admin-album").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function cancelarEdicaoAlbum() {
+  state.editando.album = null;
+  document.getElementById("form-admin-album").reset();
+  document.querySelector("#form-admin-album button[type=submit]").textContent = "Criar álbum";
+  document.getElementById("af-cancelar-edicao").style.display = "none";
+}
+
+async function enviarAlbumAdmin(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("af-titulo").value.trim();
+  const data = document.getElementById("af-data").value || null;
+  if (!titulo) return;
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  const editando = state.editando.album;
+  btn.disabled = true; btn.textContent = editando ? "Salvando..." : "Criando...";
+  try {
+    const arquivo = document.getElementById("af-capa").files[0];
+    const novaCapa = await uploadArquivo(arquivo, "fotos-capas");
+    if (editando) {
+      const capa_url = novaCapa || editando.capa_url || null;
+      const { error } = await sb.from("igr_fotos_albuns").update({ titulo, data, capa_url }).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
+      cancelarEdicaoAlbum();
+    } else {
+      const { error } = await sb.from("igr_fotos_albuns").insert({ igreja_id: state.igreja.id, titulo, data, capa_url: novaCapa });
+      if (error) { alert("Não deu pra criar o álbum: " + error.message); return; }
+      ev.target.reset();
+    }
+    carregarAlbunsAdmin();
+  } catch (e) {
+    console.error("Erro ao criar álbum:", e);
+    alert("Não deu pra salvar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false;
+    if (!state.editando.album) btn.textContent = "Criar álbum";
+  }
+}
+
+async function enviarFotosAlbum() {
+  const albumId = document.getElementById("af-album-selecionado").value;
+  const arquivos = Array.from(document.getElementById("af-fotos").files);
+  if (!albumId) { alert("Escolha um álbum primeiro."); return; }
+  if (!arquivos.length) { alert("Escolha pelo menos uma foto."); return; }
+
+  const btn = document.getElementById("btn-enviar-fotos");
+  const progresso = document.getElementById("af-progresso");
+  btn.disabled = true;
+  progresso.style.display = "block";
+  const logoUrl = state.igreja?.logo_url || "assets/logo.png";
+
+  try {
+    let enviadas = 0;
+    let primeiraUrl = null;
+    for (const arquivo of arquivos) {
+      progresso.textContent = `Enviando foto ${enviadas + 1} de ${arquivos.length}...`;
+      const comMarca = await aplicarMarcaDagua(arquivo, logoUrl);
+      const url = await uploadArquivo(comMarca, "fotos/" + albumId);
+      if (url) {
+        await sb.from("igr_fotos").insert({ album_id: albumId, url });
+        if (!primeiraUrl) primeiraUrl = url;
+        enviadas++;
+      }
+    }
+    if (primeiraUrl) {
+      const album = (state.albunsCache || []).find(a => a.id === albumId);
+      if (album && !album.capa_url) {
+        await sb.from("igr_fotos_albuns").update({ capa_url: primeiraUrl }).eq("id", albumId);
+      }
+    }
+    progresso.textContent = `${enviadas} de ${arquivos.length} fotos enviadas com sucesso 💛`;
+    document.getElementById("af-fotos").value = "";
+    carregarAlbunsAdmin();
+  } catch (e) {
+    console.error("Erro ao enviar fotos:", e);
+    progresso.textContent = "Algo deu errado no envio. Tente de novo.";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------- admin: dados da igreja (endereço/redes) ----------
+function preencherFormIgrejaAdmin() {
+  const ig = state.igreja || {};
+  document.getElementById("ai-sobre").value = ig.sobre_texto || "";
+  document.getElementById("ai-endereco").value = ig.endereco || "";
+  document.getElementById("ai-instagram").value = ig.instagram_url || "";
+  document.getElementById("ai-facebook").value = ig.facebook_url || "";
+  document.getElementById("ai-whatsapp").value = ig.whatsapp_contato || "";
+}
+async function enviarIgrejaAdmin(ev) {
+  ev.preventDefault();
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const sobre_texto = document.getElementById("ai-sobre").value.trim();
+  const endereco = document.getElementById("ai-endereco").value.trim();
+  const instagram_url = document.getElementById("ai-instagram").value.trim();
+  const facebook_url = document.getElementById("ai-facebook").value.trim();
+  const whatsapp_contato = document.getElementById("ai-whatsapp").value.trim();
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  try {
+    const { error } = await sb.from("igr_igrejas").update({ sobre_texto, endereco, instagram_url, facebook_url, whatsapp_contato }).eq("id", state.igreja.id);
+    if (error) { alert("Não deu pra salvar: " + error.message); return; }
+    Object.assign(state.igreja, { sobre_texto, endereco, instagram_url, facebook_url, whatsapp_contato });
+    aplicarMarca(state.igreja);
+    alert("Salvo com sucesso 💛");
+  } catch (e) {
+    console.error("Erro ao salvar dados da igreja:", e);
+    alert("Não deu pra salvar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Salvar";
+  }
+}
+
+// ---------- admin: liderança (pastores) ----------
+async function carregarPastoresPerfilAdmin() {
+  const { data } = await sb.from("igr_pastores").select("*").eq("igreja_id", state.igreja.id).order("ordem");
+  state.pastoresCache = data || [];
+  const el = document.getElementById("admin-lista-pastores-perfil");
+  el.innerHTML = state.pastoresCache.map(p => `
+    <div class="card">
+      ${p.foto_url ? `<img class="capa-thumb" style="height:90px;" src="${p.foto_url}" alt="">` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div><b style="font-size:13.5px;">${p.nome}</b><br><span class="hint" style="margin:0;">${p.cargo || ""}</span></div>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit-pastor="${p.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del-pastor="${p.id}">Excluir</button>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhuma liderança cadastrada.</div>`;
+  el.querySelectorAll("[data-del-pastor]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_pastores", b.dataset.delPastor, carregarPastoresPerfilAdmin)));
+  el.querySelectorAll("[data-edit-pastor]").forEach(b => b.addEventListener("click", () => {
+    const item = state.pastoresCache.find(p => p.id === b.dataset.editPastor);
+    if (item) iniciarEdicaoPastorPerfil(item);
+  }));
+}
+function iniciarEdicaoPastorPerfil(item) {
+  state.editando.pastorPerfil = item;
+  document.getElementById("app-nome").value = item.nome || "";
+  document.getElementById("app-cargo").value = item.cargo || "";
+  const btn = document.querySelector("#form-admin-pastor-perfil button[type=submit]");
+  btn.textContent = "Salvar alterações";
+  document.getElementById("app-cancelar-edicao").style.display = "inline-block";
+  document.getElementById("form-admin-pastor-perfil").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function cancelarEdicaoPastorPerfil() {
+  state.editando.pastorPerfil = null;
+  document.getElementById("form-admin-pastor-perfil").reset();
+  document.querySelector("#form-admin-pastor-perfil button[type=submit]").textContent = "Adicionar";
+  document.getElementById("app-cancelar-edicao").style.display = "none";
+}
+async function enviarPastorPerfilAdmin(ev) {
+  ev.preventDefault();
+  const nome = document.getElementById("app-nome").value.trim();
+  const cargo = document.getElementById("app-cargo").value.trim();
+  if (!nome) return;
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  const editando = state.editando.pastorPerfil;
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const arquivo = document.getElementById("app-foto").files[0];
+    const novaFoto = await uploadArquivo(arquivo, "pastores");
+    if (editando) {
+      const foto_url = novaFoto || editando.foto_url || null;
+      const { error } = await sb.from("igr_pastores").update({ nome, cargo, foto_url }).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
+      cancelarEdicaoPastorPerfil();
+    } else {
+      const { error } = await sb.from("igr_pastores").insert({ igreja_id: state.igreja.id, nome, cargo, foto_url: novaFoto, ordem: Date.now() });
+      if (error) { alert("Não deu pra adicionar: " + error.message); return; }
+      ev.target.reset();
+    }
+    carregarPastoresPerfilAdmin();
+  } catch (e) {
+    console.error("Erro ao salvar liderança:", e);
+    alert("Não deu pra salvar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false;
+    if (!state.editando.pastorPerfil) btn.textContent = "Adicionar";
+  }
+}
+
+// ---------- add to home screen ----------
+// ---------- notificações push ----------
+const VAPID_PUBLIC_KEY = "BMq_lW6h3iwNZ5RICFE-zjLqdUxRCyIIHpbDQA65WqUp-rBkBmiCxDnC--sPNdNIXvm0vcFpj_n1ActS7V_v2Co";
+
+function base64ParaUint8Array(base64) {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const base64Seguro = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64Seguro);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function registrarServiceWorker() {
+  if (!("serviceWorker" in navigator)) return null;
+  try {
+    return await navigator.serviceWorker.register("sw.js");
+  } catch (e) {
+    console.error("Erro ao registrar service worker:", e);
+    return null;
+  }
+}
+
+async function configurarCaixaPush() {
+  const box = document.getElementById("push-ativar-box");
+  if (!box || !state.membro) return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) { box.style.display = "none"; return; }
+  if (Notification.permission === "denied") { box.style.display = "none"; return; }
+
+  const reg = await navigator.serviceWorker.getRegistration();
+  const inscricaoAtual = reg ? await reg.pushManager.getSubscription() : null;
+  box.style.display = inscricaoAtual ? "none" : "block";
+}
+
+async function ativarPush() {
+  const btn = document.getElementById("btn-ativar-push");
+  btn.disabled = true; btn.textContent = "Ativando...";
+  try {
+    const permissao = await Notification.requestPermission();
+    if (permissao !== "granted") {
+      alert("Sem a permissão de notificações não conseguimos te avisar. Você pode ativar depois nas configurações do navegador.");
+      return;
+    }
+    const reg = await registrarServiceWorker();
+    if (!reg) { alert("Seu navegador não suporta notificações push."); return; }
+    const inscricao = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: base64ParaUint8Array(VAPID_PUBLIC_KEY),
+    });
+    const json = inscricao.toJSON();
+    const { error } = await sb.from("igr_push_subscricoes").upsert({
+      membro_id: state.membro.id,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+    }, { onConflict: "membro_id,endpoint" });
+    if (error) { alert("Não deu pra ativar agora: " + error.message); return; }
+    document.getElementById("push-ativar-box").style.display = "none";
+  } catch (e) {
+    console.error("Erro ao ativar push:", e);
+    alert("Não deu pra ativar agora. Tente de novo em instantes.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Ativar";
+  }
+}
+
+async function enviarPush(filtro, titulo, texto, url) {
+  try {
+    await sb.functions.invoke("igr-enviar-push", {
+      body: { igreja_id: state.igreja.id, titulo, texto, url: url || "./", filtro },
+    });
+  } catch (e) {
+    console.error("Erro ao enviar push:", e);
+  }
+}
+
+// Android/Chrome permitem disparar o instalador nativo com 1 toque via essa API.
+// iOS Safari não tem NENHUMA API pra isso — a Apple só deixa a própria pessoa
+// fazer manualmente pelo menu de Compartilhar. Isso é uma limitação da Apple,
+// não uma coisa que dê pra contornar em código.
+let promptInstalacaoAdiado = null;
+window.addEventListener("beforeinstallprompt", (ev) => {
+  ev.preventDefault();
+  promptInstalacaoAdiado = ev;
+  const btn = document.getElementById("btn-instalar-agora");
+  if (btn) btn.style.display = "inline-flex";
+});
+
+function configurarBannerA2HS() {
+  if (localStorage.getItem("igr_a2hs_fechado")) return;
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  document.querySelectorAll(".a2hs-texto").forEach(el => {
+    el.textContent = isIOS
+      ? 'No iPhone, a Apple só permite fazer manualmente: toque em Compartilhar (□↑) e depois em "Adicionar à Tela de Início".'
+      : 'Toque no botão abaixo pra instalar com 1 toque.';
+  });
+  document.querySelectorAll(".a2hs").forEach(el => el.style.display = "flex");
+  const btn = document.getElementById("btn-instalar-agora");
+  if (btn) btn.style.display = (!isIOS && promptInstalacaoAdiado) ? "inline-flex" : "none";
+}
+async function instalarAgora(ev) {
+  ev.stopPropagation();
+  if (!promptInstalacaoAdiado) return;
+  promptInstalacaoAdiado.prompt();
+  await promptInstalacaoAdiado.userChoice;
+  promptInstalacaoAdiado = null;
+  fecharA2HS();
+}
+function fecharA2HS() {
+  localStorage.setItem("igr_a2hs_fechado", "1");
+  document.querySelectorAll(".a2hs").forEach(el => el.style.display = "none");
+}
+
+// ---------- inicialização ----------
+async function iniciar() {
+  // Os botões são ligados PRIMEIRO, antes de qualquer chamada à rede.
+  // Assim, mesmo que carregarIgreja/carregarCultos/carregarAvisos falhem
+  // (rede instável, etc.), os botões continuam funcionando.
+  document.getElementById("form-visitante").addEventListener("submit", enviarContatoVisitante);
+  document.getElementById("form-cadastro").addEventListener("submit", concluirCadastro);
+  document.getElementById("cad-batizado")?.addEventListener("change", (ev) => {
+    document.getElementById("cad-batismo-detalhes").style.display = ev.target.value === "sim" ? "block" : "none";
+  });
+  document.getElementById("cad-tem-parentes")?.addEventListener("change", (ev) => {
+    document.getElementById("cad-parentes-detalhes").style.display = ev.target.value === "sim" ? "block" : "none";
+  });
+  configurarBuscaParentes("cad-busca-parente", "cad-parente-sugestoes", "cad-parentes-selecionados", "parentesSelecionados");
+  renderInteresses("cad-interesses-lista");
+  document.getElementById("form-editar-perfil")?.addEventListener("submit", enviarEditarPerfil);
+  document.getElementById("form-trocar-senha")?.addEventListener("submit", enviarTrocarSenha);
+  document.getElementById("btn-meu-perfil")?.addEventListener("click", abrirEditarPerfil);
+  document.getElementById("link-trocar-senha")?.addEventListener("click", () => {
+    const form = document.getElementById("form-trocar-senha");
+    form.style.display = form.style.display === "none" ? "block" : "none";
+  });
+  document.getElementById("ep-batizado")?.addEventListener("change", (ev) => {
+    document.getElementById("ep-batismo-detalhes").style.display = ev.target.value === "sim" ? "block" : "none";
+  });
+  document.getElementById("ep-tem-parentes")?.addEventListener("change", (ev) => {
+    document.getElementById("ep-parentes-detalhes").style.display = ev.target.value === "sim" ? "block" : "none";
+  });
+  configurarBuscaParentes("ep-busca-parente", "ep-parente-sugestoes", "ep-parentes-selecionados", "parentesSelecionadosPerfil");
+  renderInteresses("ep-interesses-lista");
+  document.getElementById("form-admin-login").addEventListener("submit", enviarLoginAdmin);
+  document.getElementById("form-admin-culto")?.addEventListener("submit", enviarCultoAdmin);
+  document.getElementById("form-admin-novo-lider")?.addEventListener("submit", enviarNovoLiderAdmin);
+  document.getElementById("btn-exportar-membros")?.addEventListener("click", exportarMembrosCSV);
+  document.getElementById("form-admin-aviso")?.addEventListener("submit", enviarAvisoAdmin);
+  document.getElementById("form-admin-pastor")?.addEventListener("submit", enviarPastorAdmin);
+  document.getElementById("form-admin-esboco")?.addEventListener("submit", enviarEsbocoAdmin);
+  document.getElementById("form-admin-album")?.addEventListener("submit", enviarAlbumAdmin);
+  document.getElementById("btn-enviar-fotos")?.addEventListener("click", enviarFotosAlbum);
+  document.getElementById("form-admin-igreja")?.addEventListener("submit", enviarIgrejaAdmin);
+  document.getElementById("form-admin-pastor-perfil")?.addEventListener("submit", enviarPastorPerfilAdmin);
+  document.getElementById("form-grupo-info")?.addEventListener("submit", enviarGrupoInfo);
+  document.getElementById("form-grupo-aviso")?.addEventListener("submit", enviarAvisoGrupoDetalhe);
+  document.getElementById("form-louvor-escala")?.addEventListener("submit", enviarEscalaLouvor);
+  document.getElementById("form-louvor-participante")?.addEventListener("submit", enviarParticipanteLouvor);
+  document.getElementById("form-louvor-musica")?.addEventListener("submit", enviarMusicaLouvor);
+  document.getElementById("form-louvor-evento")?.addEventListener("submit", enviarEventoLouvor);
+  configurarAbasAdmin();
+  estilizarInputsArquivo();
+  estilizarInputsData();
+  configurarEditorFoto();
+  document.getElementById("ep-foto")?.addEventListener("change", async (ev) => {
+    const arquivo = ev.target.files[0];
+    if (!arquivo) return;
+    const url = URL.createObjectURL(arquivo);
+    const resultado = await abrirEditorFoto(url);
+    if (resultado) {
+      state.fotoPerfilRecortada = resultado;
+      document.getElementById("ep-foto-preview").src = URL.createObjectURL(resultado);
+    }
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById("ep-foto-preview")?.addEventListener("click", async () => {
+    const semFotoAinda = !state.fotoPerfilRecortada && !state.membro?.foto_url;
+    if (semFotoAinda) { alert("Escolha uma foto primeiro, com o botão acima."); return; }
+    const fonte = state.fotoPerfilRecortada ? URL.createObjectURL(state.fotoPerfilRecortada) : document.getElementById("ep-foto-preview").src;
+    const resultado = await abrirEditorFoto(fonte);
+    if (resultado) {
+      state.fotoPerfilRecortada = resultado;
+      document.getElementById("ep-foto-preview").src = URL.createObjectURL(resultado);
+    }
+  });
+  document.getElementById("btn-ativar-push")?.addEventListener("click", ativarPush);
+  registrarServiceWorker();
+  document.getElementById("form-lider-aviso")?.addEventListener("submit", enviarAvisoLider);
+  configurarPinBoxes();
+  document.getElementById("login-form-telefone").addEventListener("submit", enviarLoginTelefone);
+  document.getElementById("login-form-pin").addEventListener("submit", enviarLoginPin);
+  document.getElementById("form-novo-pedido").addEventListener("submit", enviarPedidoOracao);
+
+  document.querySelectorAll("[data-nav]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const alvo = btn.dataset.nav;
+      mostrarTela(alvo);
+      if (alvo === "tela-membro-estudos") await carregarEsbocos();
+      if (alvo === "tela-membro-louvor") await carregarLouvor();
+      if (alvo === "tela-membro-pastor") await carregarMensagensPastor();
+      if (alvo === "tela-fotos") await carregarAlbuns();
+      if (alvo === "tela-contatos") carregarContatos();
+      if (alvo === "tela-sobre-igreja") await carregarSobreIgreja();
+      if (alvo === "tela-grupos-lista") await carregarGruposLista();
+      if (alvo === "tela-diretorio") configurarDiretorio();
+      if (alvo === "tela-eventos") await carregarEventos();
+    });
+  });
+  document.querySelectorAll("[data-close-a2hs]").forEach(b => b.addEventListener("click", fecharA2HS));
+  document.getElementById("btn-instalar-agora")?.addEventListener("click", instalarAgora);
+  document.getElementById("btn-criar-evento")?.addEventListener("click", () => abrirFormEvento(null));
+  document.getElementById("btn-admin-novo-evento")?.addEventListener("click", () => abrirFormEvento(null));
+  document.getElementById("form-evento")?.addEventListener("submit", enviarFormEvento);
+  document.getElementById("ev-gratuito")?.addEventListener("change", (ev) => {
+    document.getElementById("ev-pagamento-detalhes").style.display = ev.target.value === "nao" ? "block" : "none";
+  });
+  document.getElementById("btn-abrir-inscricao")?.addEventListener("click", abrirEscolhaInscricao);
+  document.getElementById("btn-sou-membro")?.addEventListener("click", escolherSouMembro);
+  document.getElementById("btn-sou-visitante")?.addEventListener("click", escolherSouVisitante);
+  document.getElementById("btn-ir-login-evento")?.addEventListener("click", () => mostrarTela("tela-login"));
+  document.getElementById("btn-inscrever-membro")?.addEventListener("click", inscreverMembroEvento);
+  document.getElementById("form-inscricao-visitante")?.addEventListener("submit", inscreverVisitanteEvento);
+  document.getElementById("btn-editar-evento")?.addEventListener("click", () => abrirFormEvento(state.eventoAtual));
+  document.getElementById("btn-ver-inscritos")?.addEventListener("click", () => abrirInscritosEvento(state.eventoAtual));
+  document.getElementById("btn-sair")?.addEventListener("click", sair);
+
+  // ---- menu lateral (drawer) ----
+  const drawer = document.getElementById("drawer");
+  const drawerOverlay = document.getElementById("drawer-overlay");
+  const abrirDrawer = () => { drawer.classList.add("open"); drawerOverlay.classList.add("open"); };
+  const fecharDrawer = () => { drawer.classList.remove("open"); drawerOverlay.classList.remove("open"); };
+  document.getElementById("btn-abrir-drawer").addEventListener("click", abrirDrawer);
+  drawerOverlay.addEventListener("click", fecharDrawer);
+  document.querySelectorAll("[data-close-drawer]").forEach(el => el.addEventListener("click", fecharDrawer));
+  document.getElementById("btn-abrir-perfil").addEventListener("click", () => {
+    if (state.membro) { abrirEditarPerfil(); } else { mostrarTela("tela-login"); }
+  });
+
+  // ---- lightbox de fotos ----
+  document.getElementById("lightbox-fechar").addEventListener("click", fecharLightbox);
+  document.getElementById("lightbox-prev").addEventListener("click", () => lightboxProxima(-1));
+  document.getElementById("lightbox-next").addEventListener("click", () => lightboxProxima(1));
+  document.getElementById("lightbox-overlay").addEventListener("click", (ev) => {
+    if (ev.target.id === "lightbox-overlay") fecharLightbox();
+  });
+
+  // Carregamento de dados: cada etapa isolada, uma falha não derruba as outras.
+  try { await carregarIgreja(); } catch (e) { console.error("Falha ao carregar igreja:", e); }
+  try { await carregarCultos(); } catch (e) { console.error("Falha ao carregar cultos:", e); }
+  try { await carregarAvisos("visitante-avisos"); } catch (e) { console.error("Falha ao carregar avisos:", e); }
+  try { await carregarFotosPreviewVisitante(); } catch (e) { console.error("Falha ao carregar preview de fotos:", e); }
+  try { configurarBannerA2HS(); } catch (e) { console.error("Falha no banner A2HS:", e); }
+
+  if (state.membro) {
+    // valida se o membro ainda existe (evita sessão presa após limpeza de dados de teste)
+    try {
+      const { data } = await sb.from("igr_membros").select("*").eq("id", state.membro.id).maybeSingle();
+      if (data) { state.membro = data; atualizarVisibilidadeLouvor(); await montarHomeMembro(); mostrarTela("tela-membro-home"); return; }
+      localStorage.removeItem("igr_membro");
+    } catch (e) { console.error("Falha ao validar sessão:", e); }
+  }
+  mostrarTela("tela-visitante");
+}
+
+iniciar();
