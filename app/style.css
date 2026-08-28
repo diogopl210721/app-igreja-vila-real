@@ -60,9 +60,12 @@ body{
 .banner .body p{ margin:0; font-size:12.5px; color:var(--ink-soft); }
 
 .hero-boasvindas{
-  border-radius:24px; padding:22px 20px 24px; margin-bottom:18px; position:relative; overflow:hidden;
-  background:linear-gradient(135deg, var(--brand), var(--coral));
-  box-shadow:0 18px 34px -16px color-mix(in srgb, var(--brand) 60%, transparent);
+  border-radius:26px; padding:32px 22px 28px; margin-bottom:18px; position:relative; overflow:hidden;
+  background:
+    radial-gradient(circle at 85% -15%, rgba(255,255,255,.35), transparent 55%),
+    radial-gradient(circle at -10% 115%, rgba(255,255,255,.18), transparent 50%),
+    linear-gradient(150deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 55%, var(--coral)) 65%, var(--coral) 100%);
+  box-shadow:0 22px 40px -16px color-mix(in srgb, var(--brand) 65%, transparent);
   color:#fff;
 }
 .hero-boasvindas::before{
@@ -70,13 +73,19 @@ body{
   background:radial-gradient(circle at 88% -10%, rgba(255,255,255,.28), transparent 55%);
   pointer-events:none;
 }
-.hero-boasvindas .tag{ position:relative; display:inline-block; background:rgba(255,255,255,.22); backdrop-filter:blur(2px); font-size:10.5px; font-weight:700; padding:6px 12px; border-radius:999px; margin-bottom:14px; }
-.hero-boasvindas h1{ position:relative; margin:0 0 8px; font-family:'Montserrat',sans-serif; font-weight:700; font-size:21px; line-height:1.25; letter-spacing:-.2px; }
-.hero-boasvindas p{ position:relative; margin:0 0 16px; font-size:13.5px; line-height:1.5; color:rgba(255,255,255,.92); }
-.hero-boasvindas .cta{
-  position:relative; display:inline-flex; align-items:center; gap:6px; background:#fff; color:var(--brand);
-  font-weight:700; font-size:13px; padding:11px 18px; border-radius:12px; text-decoration:none; cursor:pointer; border:none;
+.hero-boasvindas .emoji-boasvindas{
+  position:relative; font-size:34px; line-height:1; margin-bottom:12px; display:block;
+  filter:drop-shadow(0 4px 10px rgba(0,0,0,.18));
 }
+.hero-boasvindas .tag{ position:relative; display:inline-block; background:rgba(255,255,255,.24); backdrop-filter:blur(2px); font-size:11px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; padding:6px 13px; border-radius:999px; margin-bottom:16px; }
+.hero-boasvindas h1{ position:relative; margin:0 0 10px; font-family:'Montserrat',sans-serif; font-weight:800; font-size:27px; line-height:1.16; letter-spacing:-.5px; text-shadow:0 2px 14px rgba(0,0,0,.12); }
+.hero-boasvindas p{ position:relative; margin:0 0 20px; font-size:14.5px; line-height:1.55; color:rgba(255,255,255,.94); max-width:34em; }
+.hero-boasvindas .cta{
+  position:relative; display:inline-flex; align-items:center; gap:7px; background:#fff; color:var(--brand);
+  font-weight:800; font-size:14px; padding:14px 22px; border-radius:14px; text-decoration:none; cursor:pointer; border:none;
+  box-shadow:0 10px 24px -8px rgba(0,0,0,.35); transition:transform .15s ease;
+}
+.hero-boasvindas .cta:active{ transform:scale(.97); }
 
 .card{ background:var(--card); border-radius:18px; border:1px solid var(--line); padding:15px 16px; margin-bottom:11px; }
 .card h3{ margin:0 0 5px; font-size:14px; font-weight:700; font-family:'Montserrat',sans-serif; }
