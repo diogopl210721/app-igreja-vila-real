@@ -427,6 +427,7 @@ async function carregarAvisos(targetId) {
   el.innerHTML = visiveis.slice(0, 5).map(a => `
     <div class="card">
       ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
       <div class="row-avatar" style="align-items:flex-start;">
         ${seloData(a.publicado_em)}
         <div class="row-info">
@@ -1009,13 +1010,19 @@ async function enviarAvisoLider(ev) {
   const btn = document.getElementById("btn-lider-postar");
   btn.disabled = true; btn.textContent = "Publicando...";
   try {
+    const arquivo = document.getElementById("lider-aviso-imagem").files[0];
+    const arquivoVideo = document.getElementById("lider-aviso-video").files[0];
+    const imagem_url = await uploadArquivo(arquivo, "avisos");
+    const video_url = await uploadArquivo(arquivoVideo, "avisos");
     const { error } = await sb.from("igr_avisos").insert({
-      igreja_id: state.igreja.id, titulo, texto,
+      igreja_id: state.igreja.id, titulo, texto, imagem_url, video_url,
       grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id,
     });
     if (error) { alert("Não deu pra publicar agora. Tente de novo."); return; }
     document.getElementById("lider-aviso-titulo").value = "";
     document.getElementById("lider-aviso-texto").value = "";
+    document.getElementById("lider-aviso-imagem").value = "";
+    document.getElementById("lider-aviso-video").value = "";
     await carregarAvisos("home-avisos");
     enviarPush({ tipo: "grupo", grupo_id: state.membro.grupo_id }, titulo, texto);
   } catch (e) {
@@ -1400,9 +1407,13 @@ async function carregarAvisosDoGrupoDetalhe(grupoId) {
   const { data } = await sb.from("igr_avisos").select("*").eq("grupo_id", grupoId).order("publicado_em", { ascending: false }).limit(10);
   const el = document.getElementById("grupo-detalhe-avisos");
   el.innerHTML = (data || []).map(a => `
-    <div class="card row-avatar">
-      ${seloData(a.publicado_em)}
-      <div class="row-info"><b>${a.titulo}</b><p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p></div>
+    <div class="card">
+      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
+      <div class="row-avatar" style="align-items:flex-start;">
+        ${seloData(a.publicado_em)}
+        <div class="row-info"><b>${a.titulo}</b><p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p></div>
+      </div>
     </div>
   `).join("") || `<div class="empty">Nenhum aviso publicado ainda.</div>`;
 }
@@ -1443,8 +1454,12 @@ async function enviarAvisoGrupoDetalhe(ev) {
   const btn = ev.target.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Publicando...";
   try {
+    const arquivo = document.getElementById("ga-imagem").files[0];
+    const arquivoVideo = document.getElementById("ga-video").files[0];
+    const imagem_url = await uploadArquivo(arquivo, "avisos");
+    const video_url = await uploadArquivo(arquivoVideo, "avisos");
     const { error } = await sb.from("igr_avisos").insert({
-      igreja_id: state.igreja.id, titulo, texto, grupo_id: grupo.id, criado_por_membro_id: state.membro.id,
+      igreja_id: state.igreja.id, titulo, texto, imagem_url, video_url, grupo_id: grupo.id, criado_por_membro_id: state.membro.id,
       publicado_em: new Date().toISOString(),
     });
     if (error) { alert("Não deu pra publicar: " + error.message); return; }
@@ -2855,6 +2870,7 @@ async function carregarAvisosAdmin() {
   el.innerHTML = (data || []).map(a => `
     <div class="card">
       ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
         <div><b style="font-size:13.5px;">${a.titulo}</b><br><span class="hint" style="margin:0;">${a.igr_grupos?.nome || "Geral"}</span></div>
         <div style="display:flex;gap:6px;flex:none;">
@@ -2896,14 +2912,17 @@ async function enviarAvisoAdmin(ev) {
   btn.disabled = true; btn.textContent = "Enviando...";
   try {
     const arquivo = document.getElementById("aa-imagem").files[0];
+    const arquivoVideo = document.getElementById("aa-video").files[0];
     const novaImagem = await uploadArquivo(arquivo, "avisos");
+    const novoVideo = await uploadArquivo(arquivoVideo, "avisos");
     if (editando) {
       const imagem_url = novaImagem || editando.imagem_url || null;
-      const { error } = await sb.from("igr_avisos").update({ titulo, texto, imagem_url }).eq("id", editando.id);
+      const video_url = novoVideo || editando.video_url || null;
+      const { error } = await sb.from("igr_avisos").update({ titulo, texto, imagem_url, video_url }).eq("id", editando.id);
       if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
       cancelarEdicaoAviso();
     } else {
-      const { error } = await sb.from("igr_avisos").insert({ igreja_id: state.igreja.id, titulo, texto, imagem_url: novaImagem, publicado_em: new Date().toISOString() });
+      const { error } = await sb.from("igr_avisos").insert({ igreja_id: state.igreja.id, titulo, texto, imagem_url: novaImagem, video_url: novoVideo, publicado_em: new Date().toISOString() });
       if (error) { alert("Não deu pra publicar o aviso: " + error.message); return; }
       ev.target.reset();
       enviarPush({ tipo: "todos" }, titulo, texto);

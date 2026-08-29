@@ -353,7 +353,8 @@
           <form id="form-admin-aviso">
             <div class="field"><label>Título</label><input id="aa-titulo" required placeholder="Ex: Retiro de família"></div>
             <div class="field"><label>Texto</label><input id="aa-texto" placeholder="Detalhes do aviso"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Banner (opcional)</label><input id="aa-imagem" type="file" accept="image/*"></div>
+            <div class="field"><label>Banner (opcional)</label><input id="aa-imagem" type="file" accept="image/*"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="aa-video" type="file" accept="video/*"></div>
             <button class="btn btn-primary" type="submit">Publicar aviso</button>
             <button class="btn btn-ghost" type="button" id="aa-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoAviso()">Cancelar edição</button>
           </form>
@@ -705,6 +706,8 @@
         <form id="form-lider-aviso">
           <div class="field"><label>Título</label><input id="lider-aviso-titulo" required placeholder="Ex: Convocação, reunião, ensaio..."></div>
           <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="lider-aviso-texto" placeholder="Data, horário, local..."></div>
+          <div class="field"><label>Imagem (opcional)</label><input id="lider-aviso-imagem" type="file" accept="image/*"></div>
+          <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="lider-aviso-video" type="file" accept="video/*"></div>
           <button class="btn btn-primary" id="btn-lider-postar" type="submit">Publicar para o grupo</button>
         </form>
       </div>
@@ -1198,6 +1201,8 @@
           <form id="form-grupo-aviso">
             <div class="field"><label>Título</label><input id="ga-titulo" required placeholder="Ex: Reunião de sexta"></div>
             <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="ga-texto" placeholder="Data, horário, local..."></div>
+            <div class="field"><label>Imagem (opcional)</label><input id="ga-imagem" type="file" accept="image/*"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="ga-video" type="file" accept="video/*"></div>
             <button class="btn btn-primary" type="submit">Publicar para o grupo</button>
           </form>
         </div>
