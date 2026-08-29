@@ -55,7 +55,7 @@ function estilizarInputsData() {
     wrapper.appendChild(textInput);
     wrapper.appendChild(btnCal);
     wrapper.appendChild(input);
-    input.style.cssText = "position:absolute;opacity:0;width:0;height:0;pointer-events:none;";
+    input.style.cssText = "position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;";
 
     textInput.addEventListener("input", () => {
       let v = textInput.value.replace(/\D/g, "").slice(0, 8);
@@ -76,15 +76,17 @@ function estilizarInputsData() {
     });
 
     btnCal.addEventListener("click", () => {
-      if (input.showPicker) { try { input.showPicker(); return; } catch (e) {} }
       input.style.pointerEvents = "auto";
-      input.style.opacity = "0";
+      input.style.opacity = "1";
+      if (input.showPicker) {
+        try { input.showPicker(); return; } catch (e) {}
+      }
       input.focus();
-      input.click();
+      try { input.click(); } catch (e) {}
     });
     input.addEventListener("change", () => {
       textInput.value = input.value ? isoParaBr(input.value) : "";
-      input.style.cssText = "position:absolute;opacity:0;width:0;height:0;pointer-events:none;";
+      input.style.cssText = "position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;";
     });
   });
 }
@@ -595,6 +597,7 @@ async function concluirCadastro(ev) {
     const data_batismo = document.getElementById("cad-data-batismo").value || null;
     const pastor_batismo = document.getElementById("cad-pastor-batismo").value.trim() || null;
     const interesses = coletarInteresses("cad-interesses-lista", "cad-interesse-outro");
+    const autoriza_fotos = document.getElementById("cad-autoriza-fotos").checked;
 
     const { data, error } = await sb.from("igr_membros").insert({
       igreja_id: state.igreja.id, nome_completo, telefone, endereco,
@@ -602,6 +605,7 @@ async function concluirCadastro(ev) {
       pin_hash,
       lider_status: "nenhum",
       batizado, data_batismo, pastor_batismo, interesses,
+      autoriza_fotos,
       perfil_completo: true,
     }).select().single();
 
@@ -2450,6 +2454,8 @@ async function abrirFichaMembro(membroId) {
   document.getElementById("fm-pastor-batismo").value = m.pastor_batismo || "";
   batizado.onchange = () => { blocoBatismo.style.display = batizado.checked ? "block" : "none"; };
 
+  document.getElementById("fm-autoriza-fotos").checked = m.autoriza_fotos !== false;
+
   renderInteresses("fm-interesses-lista", m.interesses || []);
 }
 
@@ -2477,6 +2483,7 @@ async function salvarFichaMembro(ev) {
     batizado,
     data_batismo: batizado ? (document.getElementById("fm-data-batismo").value || null) : null,
     pastor_batismo: batizado ? (document.getElementById("fm-pastor-batismo").value.trim() || null) : null,
+    autoriza_fotos: document.getElementById("fm-autoriza-fotos").checked,
     interesses: coletarInteresses("fm-interesses-lista"),
   };
 
@@ -2509,7 +2516,7 @@ async function exportarGrupoMembrosCSV() {
     const colunas = [
       "Nome completo", "Telefone", "E-mail", "Data de nascimento", "Idade", "Endereço", "Profissão",
       "Grupo/Departamento", "É líder", "Status de liderança", "Permissões",
-      "Batizado", "Data do batismo", "Pastor do batismo", "Interesses/talentos", "Cadastrado em",
+      "Batizado", "Data do batismo", "Pastor do batismo", "Autoriza fotos", "Interesses/talentos", "Cadastrado em",
     ];
     const linhas = (data || []).map(m => [
       m.nome_completo, m.telefone, m.email || "",
@@ -2523,6 +2530,7 @@ async function exportarGrupoMembrosCSV() {
       m.batizado === true ? "Sim" : m.batizado === false ? "Não" : "",
       m.data_batismo ? formatarData(m.data_batismo) : "",
       m.pastor_batismo || "",
+      m.autoriza_fotos === false ? "Não" : "Sim",
       (m.interesses || []).join("; "),
       m.created_at ? formatarData(m.created_at) : "",
     ].map(escaparCSV).join(","));
@@ -2560,7 +2568,7 @@ async function exportarMembrosCSV() {
     const colunas = [
       "Nome completo", "Telefone", "Data de nascimento", "Idade", "Gênero", "Estado civil",
       "Endereço", "Grupo/Departamento", "É líder", "Status de liderança",
-      "Batizado", "Data do batismo", "Pastor do batismo", "Interesses/talentos", "Cadastrado em",
+      "Batizado", "Data do batismo", "Pastor do batismo", "Autoriza fotos", "Interesses/talentos", "Cadastrado em",
     ];
     const linhas = (data || []).map(m => [
       m.nome_completo, m.telefone,
@@ -2575,6 +2583,7 @@ async function exportarMembrosCSV() {
       m.batizado === true ? "Sim" : m.batizado === false ? "Não" : "",
       m.data_batismo ? formatarData(m.data_batismo) : "",
       m.pastor_batismo || "",
+      m.autoriza_fotos === false ? "Não" : "Sim",
       (m.interesses || []).join("; "),
       m.created_at ? formatarData(m.created_at) : "",
     ].map(escaparCSV).join(","));

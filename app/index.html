@@ -292,6 +292,10 @@
                 <div class="field"><label>Pastor que batizou</label><input id="fm-pastor-batismo"></div>
               </div>
 
+              <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;margin-bottom:10px;">
+                <input type="checkbox" id="fm-autoriza-fotos" style="width:auto;"> Autoriza uso de imagem (fotos/vídeos)
+              </label>
+
               <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin:6px 0 6px;">Interesses / talentos</label>
               <div id="fm-interesses-lista" class="interesses-grid" style="margin-bottom:16px;"></div>
 
@@ -569,6 +573,16 @@
           </div>
           <div id="cad-parentes-selecionados" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
         </div>
+
+        <div class="section-label"><b>Uso de imagem</b></div>
+        <label class="interesse-item" style="align-items:flex-start;gap:10px;padding:14px;margin-bottom:16px;">
+          <input type="checkbox" id="cad-autoriza-fotos" style="width:auto;margin-top:2px;" checked>
+          <span style="font-size:12.5px;line-height:1.5;color:var(--ink-soft);">
+            Autorizo a <b>IEQ Vila Real</b> a fotografar e filmar minha participação em cultos, eventos e atividades da igreja,
+            e a usar essas imagens nas redes sociais, no site e no aplicativo da igreja, sem fins comerciais.
+            Posso pedir a remoção de uma imagem específica a qualquer momento, falando com a liderança.
+          </span>
+        </label>
 
         <p class="error-msg" id="cad-erro"></p>
         <button class="btn btn-primary" id="btn-concluir-cadastro" type="submit">Concluir cadastro</button>
