@@ -2360,6 +2360,188 @@ async function carregarVisitantesAdmin() {
   });
 }
 
+// ---------- admin: membros por grupo ----------
+let estadoMembrosAdmin = { grupoId: null, grupoNome: "", membroId: null };
+
+async function carregarMembrosAdminGrupos() {
+  document.getElementById("admin-membros-view-ficha").style.display = "none";
+  document.getElementById("admin-membros-view-lista").style.display = "none";
+  document.getElementById("admin-membros-view-grupos").style.display = "block";
+
+  const grid = document.getElementById("admin-membros-grupos-grid");
+  grid.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+
+  const { data } = await sb.from("igr_membros").select("grupo_id").eq("igreja_id", state.igreja.id);
+  const contagem = {};
+  (data || []).forEach(m => { if (m.grupo_id) contagem[m.grupo_id] = (contagem[m.grupo_id] || 0) + 1; });
+
+  grid.innerHTML = (state.grupos || []).map(g => `
+    <button class="admin-grid-card" data-grupo-membros="${g.id}" data-grupo-nome="${g.nome}">
+      <svg class="icon"><use href="#i-user"/></svg>
+      ${g.nome}
+      <span style="font-weight:400;font-size:11.5px;color:var(--ink-soft);">${contagem[g.id] || 0} membro(s)</span>
+    </button>
+  `).join("") || `<div class="empty">Nenhum grupo cadastrado ainda.</div>`;
+
+  grid.querySelectorAll("[data-grupo-membros]").forEach(btn => {
+    btn.addEventListener("click", () => abrirGrupoDeMembros(btn.dataset.grupoMembros, btn.dataset.grupoNome));
+  });
+}
+
+async function abrirGrupoDeMembros(grupoId, grupoNome) {
+  estadoMembrosAdmin.grupoId = grupoId;
+  estadoMembrosAdmin.grupoNome = grupoNome;
+
+  document.getElementById("admin-membros-view-grupos").style.display = "none";
+  document.getElementById("admin-membros-view-lista").style.display = "block";
+  document.getElementById("admin-membros-lista-titulo").textContent = `Membros · ${grupoNome}`;
+
+  const el = document.getElementById("admin-membros-lista");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+
+  const { data } = await sb.from("igr_membros").select("*").eq("igreja_id", state.igreja.id).eq("grupo_id", grupoId).order("nome_completo");
+
+  el.innerHTML = (data || []).map(m => `
+    <div class="card" data-abrir-ficha="${m.id}" style="cursor:pointer;">
+      <div class="row-avatar">
+        ${avatarIniciais(m.nome_completo)}
+        <div class="row-info"><b>${m.nome_completo}</b><span>${m.telefone}${m.eh_lider ? " · líder" : ""}</span></div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum membro cadastrado neste grupo ainda.</div>`;
+
+  el.querySelectorAll("[data-abrir-ficha]").forEach(card => {
+    card.addEventListener("click", () => abrirFichaMembro(card.dataset.abrirFicha));
+  });
+}
+
+async function abrirFichaMembro(membroId) {
+  estadoMembrosAdmin.membroId = membroId;
+  const { data: m, error } = await sb.from("igr_membros").select("*").eq("id", membroId).single();
+  if (error || !m) { alert("Não deu pra carregar esse membro."); return; }
+
+  document.getElementById("admin-membros-view-lista").style.display = "none";
+  document.getElementById("admin-membros-view-ficha").style.display = "block";
+
+  document.getElementById("fm-nome").value = m.nome_completo || "";
+  document.getElementById("fm-telefone").value = m.telefone || "";
+  document.getElementById("fm-email").value = m.email || "";
+  document.getElementById("fm-endereco").value = m.endereco || "";
+  document.getElementById("fm-nascimento").value = m.data_nascimento || "";
+  document.getElementById("fm-profissao").value = m.profissao || "";
+
+  const selectGrupo = document.getElementById("fm-grupo");
+  selectGrupo.innerHTML = (state.grupos || []).map(g => `<option value="${g.id}" ${g.id === m.grupo_id ? "selected" : ""}>${g.nome}</option>`).join("");
+
+  const ehLider = document.getElementById("fm-eh-lider");
+  ehLider.checked = !!m.eh_lider;
+  const blocoPermissoes = document.getElementById("fm-bloco-permissoes");
+  blocoPermissoes.style.display = m.eh_lider ? "block" : "none";
+  blocoPermissoes.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = (m.permissoes || []).includes(cb.value);
+  });
+  ehLider.onchange = () => { blocoPermissoes.style.display = ehLider.checked ? "block" : "none"; };
+
+  const batizado = document.getElementById("fm-batizado");
+  batizado.checked = !!m.batizado;
+  const blocoBatismo = document.getElementById("fm-bloco-batismo");
+  blocoBatismo.style.display = m.batizado ? "block" : "none";
+  document.getElementById("fm-data-batismo").value = m.data_batismo || "";
+  document.getElementById("fm-pastor-batismo").value = m.pastor_batismo || "";
+  batizado.onchange = () => { blocoBatismo.style.display = batizado.checked ? "block" : "none"; };
+
+  renderInteresses("fm-interesses-lista", m.interesses || []);
+}
+
+async function salvarFichaMembro(ev) {
+  ev.preventDefault();
+  const id = estadoMembrosAdmin.membroId;
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+
+  const ehLider = document.getElementById("fm-eh-lider").checked;
+  const batizado = document.getElementById("fm-batizado").checked;
+  const permissoes = ehLider ? Array.from(document.querySelectorAll("#fm-permissoes-lista input:checked")).map(c => c.value) : [];
+
+  const payload = {
+    nome_completo: document.getElementById("fm-nome").value.trim(),
+    telefone: limparTelefone(document.getElementById("fm-telefone").value),
+    email: document.getElementById("fm-email").value.trim() || null,
+    endereco: document.getElementById("fm-endereco").value.trim() || null,
+    data_nascimento: document.getElementById("fm-nascimento").value || null,
+    profissao: document.getElementById("fm-profissao").value.trim() || null,
+    grupo_id: document.getElementById("fm-grupo").value,
+    eh_lider: ehLider,
+    permissoes,
+    lider_status: ehLider ? "aprovado" : "nenhum",
+    batizado,
+    data_batismo: batizado ? (document.getElementById("fm-data-batismo").value || null) : null,
+    pastor_batismo: batizado ? (document.getElementById("fm-pastor-batismo").value.trim() || null) : null,
+    interesses: coletarInteresses("fm-interesses-lista"),
+  };
+
+  const { error } = await sb.from("igr_membros").update(payload).eq("id", id);
+  btn.disabled = false; btn.textContent = "Salvar alterações";
+  if (error) { alert("Não deu pra salvar: " + error.message); return; }
+  await abrirGrupoDeMembros(estadoMembrosAdmin.grupoId, estadoMembrosAdmin.grupoNome);
+}
+
+async function excluirMembroAdmin() {
+  const id = estadoMembrosAdmin.membroId;
+  if (!id) return;
+  if (!confirm("Tem certeza que quer excluir esse cadastro? Essa ação não pode ser desfeita.")) return;
+  const btn = document.getElementById("btn-excluir-membro");
+  btn.disabled = true; btn.textContent = "Excluindo...";
+  const { error } = await sb.from("igr_membros").delete().eq("id", id);
+  btn.disabled = false; btn.textContent = "🗑 Excluir cadastro deste membro";
+  if (error) { alert("Não deu pra excluir: " + error.message); return; }
+  await abrirGrupoDeMembros(estadoMembrosAdmin.grupoId, estadoMembrosAdmin.grupoNome);
+}
+
+async function exportarGrupoMembrosCSV() {
+  const btn = document.getElementById("btn-exportar-grupo-membros");
+  btn.disabled = true; btn.textContent = "Gerando arquivo...";
+  try {
+    const { data, error } = await sb.from("igr_membros").select("*, igr_grupos(nome)")
+      .eq("igreja_id", state.igreja.id).eq("grupo_id", estadoMembrosAdmin.grupoId).order("nome_completo");
+    if (error) { alert("Não deu pra exportar: " + error.message); return; }
+
+    const colunas = [
+      "Nome completo", "Telefone", "E-mail", "Data de nascimento", "Idade", "Endereço", "Profissão",
+      "Grupo/Departamento", "É líder", "Status de liderança", "Permissões",
+      "Batizado", "Data do batismo", "Pastor do batismo", "Interesses/talentos", "Cadastrado em",
+    ];
+    const linhas = (data || []).map(m => [
+      m.nome_completo, m.telefone, m.email || "",
+      m.data_nascimento ? formatarData(m.data_nascimento) : "",
+      m.data_nascimento ? calcularIdade(m.data_nascimento) : "",
+      m.endereco || "", m.profissao || "",
+      m.igr_grupos?.nome || "",
+      m.eh_lider ? "Sim" : "Não",
+      m.lider_status || "",
+      (m.permissoes || []).join("; "),
+      m.batizado === true ? "Sim" : m.batizado === false ? "Não" : "",
+      m.data_batismo ? formatarData(m.data_batismo) : "",
+      m.pastor_batismo || "",
+      (m.interesses || []).join("; "),
+      m.created_at ? formatarData(m.created_at) : "",
+    ].map(escaparCSV).join(","));
+
+    const csv = "\uFEFF" + colunas.join(",") + "\n" + linhas.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `membros-${estadoMembrosAdmin.grupoNome.replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (e) {
+    console.error("Erro ao exportar membros do grupo:", e);
+    alert("Não deu pra exportar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "📥 Exportar este grupo (CSV)";
+  }
+}
+
 // ---------- admin: exportar membros (CSV) ----------
 function escaparCSV(valor) {
   const texto = (valor === null || valor === undefined) ? "" : String(valor);
@@ -2430,7 +2612,7 @@ function abrirSecaoAdmin(secao) {
     sec.style.display = sec.dataset.adminPainel === secao ? "block" : "none";
   });
   const cargas = {
-    lideres: carregarPainelAdmin, visitantes: carregarVisitantesAdmin,
+    lideres: carregarPainelAdmin, membros: carregarMembrosAdminGrupos, visitantes: carregarVisitantesAdmin,
     cultos: carregarCultosAdmin, avisos: carregarAvisosAdmin,
     pastor: carregarPastorAdmin, estudos: carregarEsbocosAdmin,
     fotos: carregarAlbunsAdmin,
@@ -3163,6 +3345,11 @@ async function iniciar() {
   document.getElementById("form-admin-culto")?.addEventListener("submit", enviarCultoAdmin);
   document.getElementById("form-admin-novo-lider")?.addEventListener("submit", enviarNovoLiderAdmin);
   document.getElementById("btn-exportar-membros")?.addEventListener("click", exportarMembrosCSV);
+  document.getElementById("btn-exportar-grupo-membros")?.addEventListener("click", exportarGrupoMembrosCSV);
+  document.getElementById("form-ficha-membro")?.addEventListener("submit", salvarFichaMembro);
+  document.getElementById("btn-excluir-membro")?.addEventListener("click", excluirMembroAdmin);
+  document.querySelector("[data-voltar-lista-membros]")?.addEventListener("click", () => carregarMembrosAdminGrupos());
+  document.querySelector("[data-voltar-ficha-membro]")?.addEventListener("click", () => abrirGrupoDeMembros(estadoMembrosAdmin.grupoId, estadoMembrosAdmin.grupoNome));
   document.getElementById("form-admin-aviso")?.addEventListener("submit", enviarAvisoAdmin);
   document.getElementById("form-admin-pastor")?.addEventListener("submit", enviarPastorAdmin);
   document.getElementById("form-admin-esboco")?.addEventListener("submit", enviarEsbocoAdmin);

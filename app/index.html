@@ -188,6 +188,7 @@
 
       <div class="admin-grid" id="admin-grid">
         <button class="admin-grid-card" data-secao="lideres" data-papel="geral"><svg class="icon"><use href="#i-user"/></svg>Líderes</button>
+        <button class="admin-grid-card" data-secao="membros" data-papel="geral"><svg class="icon"><use href="#i-user"/></svg>Membros</button>
         <button class="admin-grid-card" data-secao="visitantes" data-papel="geral"><svg class="icon"><use href="#i-heart"/></svg>Visitantes</button>
         <button class="admin-grid-card" data-secao="cultos" data-papel="geral,midia"><svg class="icon"><use href="#i-book"/></svg>Cultos</button>
         <button class="admin-grid-card" data-secao="avisos" data-papel="geral,midia"><svg class="icon"><use href="#i-bell"/></svg>Avisos</button>
@@ -234,6 +235,70 @@
             <button class="btn btn-primary" type="submit">Criar acesso de líder</button>
           </form>
           <div id="anl-resultado" style="display:none;margin-top:12px;padding:12px;border-radius:12px;background:var(--brand-soft);font-size:13px;"></div>
+        </div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="membros" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+
+        <!-- Sub-tela 1: grupos -->
+        <div id="admin-membros-view-grupos">
+          <div class="section-label"><b>Membros por grupo</b></div>
+          <p class="hint" style="margin-top:-6px;">Toque num grupo pra ver quem está cadastrado nele.</p>
+          <div class="admin-grid" id="admin-membros-grupos-grid" style="margin-top:4px;"></div>
+        </div>
+
+        <!-- Sub-tela 2: lista de membros de um grupo -->
+        <div id="admin-membros-view-lista" style="display:none;">
+          <div class="admin-aba-voltar" data-voltar-lista-membros>← Voltar aos grupos</div>
+          <div class="section-label"><b id="admin-membros-lista-titulo">Membros</b></div>
+          <button class="btn btn-ghost" id="btn-exportar-grupo-membros" type="button" style="margin-bottom:12px;">📥 Exportar este grupo (CSV)</button>
+          <div id="admin-membros-lista"><p class="hint"><span class="loading-dot"></span></p></div>
+        </div>
+
+        <!-- Sub-tela 3: ficha/edicao de um membro -->
+        <div id="admin-membros-view-ficha" style="display:none;">
+          <div class="admin-aba-voltar" data-voltar-ficha-membro>← Voltar à lista</div>
+          <div class="card">
+            <form id="form-ficha-membro">
+              <div class="field"><label>Nome completo</label><input id="fm-nome" required></div>
+              <div class="field"><label>Telefone</label><input id="fm-telefone" required></div>
+              <div class="field"><label>E-mail</label><input id="fm-email" type="email"></div>
+              <div class="field"><label>Endereço</label><input id="fm-endereco"></div>
+              <div class="field"><label>Data de nascimento</label><input id="fm-nascimento" type="date"></div>
+              <div class="field"><label>Profissão</label><input id="fm-profissao"></div>
+              <div class="field"><label>Grupo/Departamento</label>
+                <select id="fm-grupo"></select>
+              </div>
+
+              <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;margin-bottom:10px;">
+                <input type="checkbox" id="fm-eh-lider" style="width:auto;"> É líder deste grupo
+              </label>
+              <div id="fm-bloco-permissoes" style="display:none;margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;">Permissões de liderança</label>
+                <div class="interesses-grid" id="fm-permissoes-lista">
+                  <label class="interesse-item"><input type="checkbox" value="editar_grupo"> Editar capa/descrição</label>
+                  <label class="interesse-item"><input type="checkbox" value="postar_avisos"> Postar avisos</label>
+                  <label class="interesse-item"><input type="checkbox" value="gerenciar_oracao"> Ver pedidos de oração</label>
+                  <label class="interesse-item"><input type="checkbox" value="gerenciar_louvor"> Gerenciar Louvor</label>
+                </div>
+              </div>
+
+              <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;margin-bottom:10px;">
+                <input type="checkbox" id="fm-batizado" style="width:auto;"> Batizado(a)
+              </label>
+              <div id="fm-bloco-batismo" style="display:none;">
+                <div class="field"><label>Data do batismo</label><input id="fm-data-batismo" type="date"></div>
+                <div class="field"><label>Pastor que batizou</label><input id="fm-pastor-batismo"></div>
+              </div>
+
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin:6px 0 6px;">Interesses / talentos</label>
+              <div id="fm-interesses-lista" class="interesses-grid" style="margin-bottom:16px;"></div>
+
+              <button class="btn btn-primary" type="submit">Salvar alterações</button>
+            </form>
+            <button class="btn btn-ghost" id="btn-excluir-membro" type="button" style="margin-top:10px;color:#C0392B;">🗑 Excluir cadastro deste membro</button>
+          </div>
         </div>
       </div>
 
