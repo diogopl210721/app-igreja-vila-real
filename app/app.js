@@ -21,84 +21,21 @@ function limparTelefone(v) {
   return (v || "").replace(/\D/g, "");
 }
 
-// Upload de arquivo (imagem/pdf) pro Storage do Supabase, retorna a URL pública
 // deixa todos os campos de arquivo do sistema com a cara do app, em português
-// deixa todos os campos de data no padrão dd/mm/aaaa, digitável com barra automática + ícone de calendário
+// campos de data usam o seletor nativo do navegador/celular (mais confiável em qualquer aparelho)
 function isoParaBr(iso) {
   if (!iso || !iso.includes("-")) return "";
   const [aaaa, mm, dd] = iso.split("-");
   return `${dd}/${mm}/${aaaa}`;
 }
 function estilizarInputsData() {
-  document.querySelectorAll('input[type="date"]').forEach(input => {
-    if (input.dataset.estilizado) return;
-    input.dataset.estilizado = "1";
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "data-input-wrapper";
-    input.parentNode.insertBefore(wrapper, input);
-
-    const textInput = document.createElement("input");
-    textInput.type = "text";
-    textInput.inputMode = "numeric";
-    textInput.placeholder = "dd/mm/aaaa";
-    textInput.maxLength = 10;
-    textInput.className = "data-input-texto";
-    if (input.value) textInput.value = isoParaBr(input.value);
-
-    const btnCal = document.createElement("button");
-    btnCal.type = "button";
-    btnCal.className = "data-input-icone";
-    btnCal.setAttribute("aria-label", "Abrir calendário");
-    btnCal.innerHTML = '<svg class="icon"><use href="#i-calendar"/></svg>';
-
-    wrapper.appendChild(textInput);
-    wrapper.appendChild(btnCal);
-    wrapper.appendChild(input);
-    input.style.cssText = "position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;";
-
-    textInput.addEventListener("input", () => {
-      let v = textInput.value.replace(/\D/g, "").slice(0, 8);
-      if (v.length >= 5) v = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4);
-      else if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
-      textInput.value = v;
-      if (v.length === 10) {
-        const [dd, mm, aaaa] = v.split("/");
-        const iso = `${aaaa}-${mm}-${dd}`;
-        const d = new Date(iso + "T00:00:00");
-        if (!isNaN(d) && d.getDate() === parseInt(dd, 10) && d.getMonth() + 1 === parseInt(mm, 10)) {
-          input.value = iso;
-          input.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      } else {
-        input.value = "";
-      }
-    });
-
-    btnCal.addEventListener("click", () => {
-      input.style.pointerEvents = "auto";
-      input.style.opacity = "1";
-      if (input.showPicker) {
-        try { input.showPicker(); return; } catch (e) {}
-      }
-      input.focus();
-      try { input.click(); } catch (e) {}
-    });
-    input.addEventListener("change", () => {
-      textInput.value = input.value ? isoParaBr(input.value) : "";
-      input.style.cssText = "position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;";
-    });
-  });
+  // mantido por compatibilidade; os campos de data agora usam o input nativo do navegador direto,
+  // que já abre o seletor de calendário de forma confiável em qualquer celular.
 }
-
 function definirValorData(id, isoValue) {
   const input = document.getElementById(id);
   if (!input) return;
   input.value = isoValue || "";
-  const textInput = input.previousElementSibling?.previousElementSibling;
-  if (textInput && textInput.classList.contains("data-input-texto")) {
-    textInput.value = isoValue ? isoParaBr(isoValue) : "";
-  }
 }
 
 function estilizarInputsArquivo() {
@@ -2477,16 +2414,61 @@ async function carregarMembrosAdminGrupos() {
   (data || []).forEach(m => { if (m.grupo_id) contagem[m.grupo_id] = (contagem[m.grupo_id] || 0) + 1; });
 
   grid.innerHTML = (state.grupos || []).map(g => `
-    <button class="admin-grid-card" data-grupo-membros="${g.id}" data-grupo-nome="${g.nome}">
-      <svg class="icon"><use href="#i-user"/></svg>
-      ${g.nome}
-      <span style="font-weight:400;font-size:11.5px;color:var(--ink-soft);">${contagem[g.id] || 0} membro(s)</span>
-    </button>
+    <div class="admin-grid-card" style="position:relative;cursor:default;" data-grupo-membros="${g.id}" data-grupo-nome="${g.nome}">
+      <button type="button" class="editar-grupo-icone" data-editar-grupo="${g.id}" aria-label="Editar grupo" title="Editar grupo">✏️</button>
+      <div data-abrir-grupo="${g.id}" data-grupo-nome-abrir="${g.nome}" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <svg class="icon"><use href="#i-user"/></svg>
+        ${g.nome}
+        <span style="font-weight:400;font-size:11.5px;color:var(--ink-soft);">${contagem[g.id] || 0} membro(s)</span>
+      </div>
+    </div>
   `).join("") || `<div class="empty">Nenhum grupo cadastrado ainda.</div>`;
 
-  grid.querySelectorAll("[data-grupo-membros]").forEach(btn => {
-    btn.addEventListener("click", () => abrirGrupoDeMembros(btn.dataset.grupoMembros, btn.dataset.grupoNome));
+  grid.querySelectorAll("[data-abrir-grupo]").forEach(el => {
+    el.addEventListener("click", () => abrirGrupoDeMembros(el.dataset.abrirGrupo, el.dataset.grupoNomeAbrir));
   });
+  grid.querySelectorAll("[data-editar-grupo]").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      abrirEdicaoGrupoAdmin(btn.dataset.editarGrupo);
+    });
+  });
+}
+
+async function abrirEdicaoGrupoAdmin(grupoId) {
+  const grupo = (state.grupos || []).find(g => g.id === grupoId);
+  if (!grupo) return;
+  estadoMembrosAdmin.grupoEditando = grupo;
+  document.getElementById("admin-membros-view-grupos").style.display = "none";
+  document.getElementById("admin-membros-view-editar-grupo").style.display = "block";
+  document.getElementById("eg-nome").value = grupo.nome || "";
+  document.getElementById("eg-descricao").value = grupo.descricao || "";
+}
+
+async function salvarEdicaoGrupoAdmin(ev) {
+  ev.preventDefault();
+  const grupo = estadoMembrosAdmin.grupoEditando;
+  if (!grupo) return;
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  try {
+    const nome = document.getElementById("eg-nome").value.trim();
+    const descricao = document.getElementById("eg-descricao").value.trim();
+    const arquivo = document.getElementById("eg-capa").files[0];
+    const novaCapa = arquivo ? await uploadArquivo(arquivo, "grupos") : null;
+    const payload = { nome, descricao };
+    if (novaCapa) payload.capa_url = novaCapa;
+    const { error } = await sb.from("igr_grupos").update(payload).eq("id", grupo.id);
+    if (error) { alert("Não deu pra salvar: " + error.message); return; }
+    Object.assign(grupo, payload);
+    document.getElementById("admin-membros-view-editar-grupo").style.display = "none";
+    await carregarMembrosAdminGrupos();
+  } catch (e) {
+    console.error("Erro ao salvar grupo:", e);
+    alert("Não deu pra salvar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Salvar grupo";
+  }
 }
 
 async function abrirGrupoDeMembros(grupoId, grupoNome) {
@@ -2528,7 +2510,7 @@ async function abrirFichaMembro(membroId) {
   document.getElementById("fm-telefone").value = m.telefone || "";
   document.getElementById("fm-email").value = m.email || "";
   document.getElementById("fm-endereco").value = m.endereco || "";
-  document.getElementById("fm-nascimento").value = m.data_nascimento || "";
+  definirValorData("fm-nascimento", m.data_nascimento);
   document.getElementById("fm-profissao").value = m.profissao || "";
 
   const selectGrupo = document.getElementById("fm-grupo");
@@ -2547,7 +2529,7 @@ async function abrirFichaMembro(membroId) {
   batizado.checked = !!m.batizado;
   const blocoBatismo = document.getElementById("fm-bloco-batismo");
   blocoBatismo.style.display = m.batizado ? "block" : "none";
-  document.getElementById("fm-data-batismo").value = m.data_batismo || "";
+  definirValorData("fm-data-batismo", m.data_batismo);
   document.getElementById("fm-pastor-batismo").value = m.pastor_batismo || "";
   batizado.onchange = () => { blocoBatismo.style.display = batizado.checked ? "block" : "none"; };
 
@@ -3456,6 +3438,8 @@ async function iniciar() {
   document.getElementById("form-ficha-membro")?.addEventListener("submit", salvarFichaMembro);
   document.getElementById("btn-excluir-membro")?.addEventListener("click", excluirMembroAdmin);
   document.querySelector("[data-voltar-lista-membros]")?.addEventListener("click", () => carregarMembrosAdminGrupos());
+  document.querySelector("[data-voltar-editar-grupo]")?.addEventListener("click", () => carregarMembrosAdminGrupos());
+  document.getElementById("form-editar-grupo")?.addEventListener("submit", salvarEdicaoGrupoAdmin);
   document.querySelector("[data-voltar-ficha-membro]")?.addEventListener("click", () => abrirGrupoDeMembros(estadoMembrosAdmin.grupoId, estadoMembrosAdmin.grupoNome));
   document.getElementById("form-admin-aviso")?.addEventListener("submit", enviarAvisoAdmin);
   document.getElementById("form-admin-pastor")?.addEventListener("submit", enviarPastorAdmin);

@@ -244,8 +244,21 @@
         <!-- Sub-tela 1: grupos -->
         <div id="admin-membros-view-grupos">
           <div class="section-label"><b>Membros por grupo</b></div>
-          <p class="hint" style="margin-top:-6px;">Toque num grupo pra ver quem está cadastrado nele.</p>
+          <p class="hint" style="margin-top:-6px;">Toque num grupo pra ver quem está cadastrado nele, ou no ✏️ pra editar o grupo.</p>
           <div class="admin-grid" id="admin-membros-grupos-grid" style="margin-top:4px;"></div>
+        </div>
+
+        <!-- Sub-tela 1b: editar dados do grupo -->
+        <div id="admin-membros-view-editar-grupo" style="display:none;">
+          <div class="admin-aba-voltar" data-voltar-editar-grupo>← Voltar aos grupos</div>
+          <div class="card">
+            <form id="form-editar-grupo">
+              <div class="field"><label>Nome do grupo/departamento</label><input id="eg-nome" required></div>
+              <div class="field"><label>Descrição</label><textarea id="eg-descricao" rows="3" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Conte sobre esse grupo"></textarea></div>
+              <div class="field" style="margin-bottom:6px;"><label>Capa (opcional)</label><input id="eg-capa" type="file" accept="image/*"></div>
+              <button class="btn btn-primary" type="submit">Salvar grupo</button>
+            </form>
+          </div>
         </div>
 
         <!-- Sub-tela 2: lista de membros de um grupo -->
@@ -918,6 +931,9 @@
   <!-- ============ MINISTÉRIO DE LOUVOR ============ -->
   <div class="screen" id="tela-membro-louvor">
     <div class="scroll">
+      <div class="voltar-btn" data-nav="tela-membro-home">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin:6px 0 4px;">Ministério de Louvor</span>
       <p class="hint" style="margin-bottom:16px;">Escala, repertório e ensaios do ministério.</p>
 

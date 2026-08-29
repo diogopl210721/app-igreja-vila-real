@@ -295,6 +295,7 @@ a.linklike{ color:var(--brand); font-weight:700; font-size:13px; cursor:pointer;
   font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; font-family:'Inter',sans-serif;
 }
 .admin-grid-card .icon{ width:24px; height:24px; stroke:var(--brand); }
+.editar-grupo-icone{ position:absolute; top:8px; right:8px; background:var(--bg); border:1px solid var(--line); border-radius:999px; width:28px; height:28px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
 
 /* ---------- dashboard rápido (admin) ---------- */
 .dash-stat-row{ display:flex; gap:12px; margin-bottom:16px; }
