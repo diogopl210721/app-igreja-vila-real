@@ -398,6 +398,9 @@ a.linklike{ color:var(--brand); font-weight:700; font-size:13px; cursor:pointer;
 .parente-linha select{ font-size:12.5px; padding:6px 8px; border-radius:8px; border:1.5px solid var(--line); background:var(--bg); flex:none; width:120px; }
 .parente-linha button{ background:none; border:none; color:var(--ink-faint); font-size:16px; cursor:pointer; flex:none; padding:0 2px; }
 
+.chip-pessoa{ display:inline-flex; align-items:center; gap:6px; background:var(--brand-soft); color:var(--brand); font-size:12.5px; font-weight:600; padding:6px 8px 6px 12px; border-radius:999px; }
+.chip-pessoa button{ background:none; border:none; color:var(--brand); font-size:15px; cursor:pointer; line-height:1; padding:0; }
+
 /* ---------- botão de voltar (visual de botão, não só texto) ---------- */
 .voltar-btn{
   display:inline-flex; align-items:center; gap:6px; margin:6px 0 14px; cursor:pointer;

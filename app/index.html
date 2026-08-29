@@ -414,6 +414,25 @@
 
         <div class="section-label"><b>Álbuns cadastrados</b></div>
         <div id="admin-lista-albuns"></div>
+
+        <div class="section-label"><b>Marcar pessoas nas fotos</b></div>
+        <p class="hint" style="margin-top:-6px;">Escolha um álbum, toque numa foto e marque quem aparece nela.</p>
+        <div class="card">
+          <div class="field">
+            <label>Álbum</label>
+            <select id="mf-album-selecionado"><option value="">Selecione um álbum</option></select>
+          </div>
+          <div id="mf-fotos-grid" class="fotos-grid"></div>
+          <div id="mf-marcar-painel" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
+            <img id="mf-foto-preview" style="width:100%;border-radius:12px;margin-bottom:12px;" alt="">
+            <div class="field" style="position:relative;margin-bottom:8px;">
+              <label>Marcar pessoa</label>
+              <input id="mf-busca-pessoa" autocomplete="off" placeholder="Digite o nome...">
+              <div id="mf-sugestoes" class="autocomplete-lista" style="display:none;"></div>
+            </div>
+            <div id="mf-pessoas-marcadas" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
+        </div>
       </div>
 
       <div class="admin-painel-aba" data-admin-painel="igreja" style="display:none;">
@@ -515,6 +534,21 @@
         <div class="field"><label>Nome completo</label><input id="cad-nome" required></div>
         <div class="field"><label>Telefone</label><input id="cad-telefone" required placeholder="(41) 9 0000-0000"></div>
         <div class="field"><label>Data de nascimento</label><input id="cad-nascimento" type="date"></div>
+        <div class="field"><label>Gênero</label>
+          <select id="cad-genero">
+            <option value="">Prefiro não informar</option>
+            <option value="M">Masculino</option>
+            <option value="F">Feminino</option>
+          </select>
+        </div>
+        <div class="field"><label>Estado civil</label>
+          <select id="cad-estado-civil">
+            <option value="">Prefiro não informar</option>
+            <option value="solteiro">Solteiro(a)</option>
+            <option value="casado">Casado(a)</option>
+          </select>
+        </div>
+        <p class="hint" style="margin:-4px 0 12px;">Usamos isso só pra te encaminhar automaticamente pro grupo certo (crianças, juniores, mocidade, homens ou mulheres).</p>
         <div class="field"><label>Endereço</label><input id="cad-endereco" required placeholder="Rua, número, bairro"></div>
         <div class="field">
           <label>Crie uma senha de 4 números</label>
@@ -607,6 +641,7 @@
       <div class="quicklinks">
         <button class="quicklink" data-nav="tela-membro-estudos"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Estudos</button>
         <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
+        <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minhas fotos</button>
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
         <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Grupos</button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
@@ -816,7 +851,20 @@
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Fotos</span>
       <p class="hint" style="margin-bottom:16px;">Confira e baixe as fotos dos nossos cultos e eventos.</p>
+      <button class="btn btn-ghost" data-nav="tela-minhas-fotos" id="btn-ver-minhas-fotos" style="display:none;margin-bottom:16px;">❤️ Ver as fotos em que fui marcado(a)</button>
       <div id="lista-albuns"><p class="hint"><span class="loading-dot"></span> carregando...</p></div>
+    </div>
+  </div>
+
+  <!-- ============ FOTOS: MINHAS FOTOS (marcadas) ============ -->
+  <div class="screen" id="tela-minhas-fotos">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-fotos">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar pros álbuns
+      </div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Minhas fotos</span>
+      <p class="hint" style="margin-bottom:16px;">Fotos em que a liderança te marcou.</p>
+      <div class="fotos-grid" id="grid-minhas-fotos"></div>
     </div>
   </div>
 

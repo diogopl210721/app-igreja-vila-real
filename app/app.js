@@ -598,10 +598,15 @@ async function concluirCadastro(ev) {
     const pastor_batismo = document.getElementById("cad-pastor-batismo").value.trim() || null;
     const interesses = coletarInteresses("cad-interesses-lista", "cad-interesse-outro");
     const autoriza_fotos = document.getElementById("cad-autoriza-fotos").checked;
+    const genero = document.getElementById("cad-genero").value || null;
+    const estado_civil = document.getElementById("cad-estado-civil").value || null;
+    const { grupo } = data_nascimento ? classificarVisitante(data_nascimento, genero, estado_civil) : { grupo: null };
 
     const { data, error } = await sb.from("igr_membros").insert({
       igreja_id: state.igreja.id, nome_completo, telefone, endereco,
       data_nascimento: data_nascimento || null,
+      genero, estado_civil,
+      grupo_id: grupo?.id || null,
       pin_hash,
       lider_status: "nenhum",
       batizado, data_batismo, pastor_batismo, interesses,
@@ -1964,6 +1969,7 @@ async function buscarDiretorio(termo) {
 // ---------- fotos ----------
 async function carregarAlbuns() {
   document.getElementById("fotos-voltar").onclick = () => mostrarTela(state.membro ? "tela-membro-home" : "tela-visitante");
+  document.getElementById("btn-ver-minhas-fotos").style.display = state.membro ? "block" : "none";
   const { data } = await sb.from("igr_fotos_albuns").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
   state.albunsPublicoCache = data || [];
   const el = document.getElementById("lista-albuns");
@@ -2008,6 +2014,97 @@ async function abrirAlbum(albumId) {
   `).join("") || `<div class="empty">Nenhuma foto neste álbum ainda.</div>`;
   document.querySelectorAll("[data-foto-idx]").forEach(el => {
     el.addEventListener("click", () => abrirLightbox(parseInt(el.dataset.fotoIdx, 10)));
+  });
+}
+
+// ---------- fotos: minhas fotos marcadas ----------
+async function carregarMinhasFotos() {
+  const el = document.getElementById("grid-minhas-fotos");
+  if (!state.membro) { el.innerHTML = `<div class="empty">Entre como membro pra ver suas fotos marcadas.</div>`; return; }
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span> carregando...</p>`;
+  const { data } = await sb.from("igr_fotos_marcacoes").select("igr_fotos(id, url, album_id)").eq("membro_id", state.membro.id);
+  const fotos = (data || []).map(d => d.igr_fotos).filter(Boolean);
+  state.fotosAlbumAtual = fotos;
+  el.innerHTML = fotos.map((f, i) => `
+    <div class="foto-item" data-foto-idx="${i}"><img src="${f.url}" alt=""></div>
+  `).join("") || `<div class="empty">Nenhuma foto marcada com você ainda.</div>`;
+  el.querySelectorAll("[data-foto-idx]").forEach(elx => {
+    elx.addEventListener("click", () => abrirLightbox(parseInt(elx.dataset.fotoIdx, 10)));
+  });
+}
+
+// ---------- admin: marcar pessoas nas fotos ----------
+function popularAlbunsParaMarcacao() {
+  const select = document.getElementById("mf-album-selecionado");
+  if (!select) return;
+  const selecionadoAntes = select.value;
+  select.innerHTML = `<option value="">Selecione um álbum</option>` +
+    (state.albunsCache || []).map(a => `<option value="${a.id}">${a.titulo}</option>`).join("");
+  if (selecionadoAntes) select.value = selecionadoAntes;
+}
+async function carregarFotosParaMarcacao(albumId) {
+  const grid = document.getElementById("mf-fotos-grid");
+  document.getElementById("mf-marcar-painel").style.display = "none";
+  if (!albumId) { grid.innerHTML = ""; return; }
+  grid.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const { data } = await sb.from("igr_fotos").select("*").eq("album_id", albumId).order("created_at");
+  state.mfFotosCache = data || [];
+  grid.innerHTML = state.mfFotosCache.map((f, i) => `
+    <div class="foto-item" data-mf-foto-idx="${i}"><img src="${f.url}" alt=""></div>
+  `).join("") || `<div class="empty">Nenhuma foto neste álbum ainda.</div>`;
+  grid.querySelectorAll("[data-mf-foto-idx]").forEach(elx => {
+    elx.addEventListener("click", () => abrirPainelMarcacao(parseInt(elx.dataset.mfFotoIdx, 10)));
+  });
+}
+async function abrirPainelMarcacao(idx) {
+  const foto = state.mfFotosCache?.[idx];
+  if (!foto) return;
+  state.mfFotoAtual = foto;
+  document.getElementById("mf-marcar-painel").style.display = "block";
+  document.getElementById("mf-foto-preview").src = foto.url;
+  document.getElementById("mf-busca-pessoa").value = "";
+  document.getElementById("mf-sugestoes").style.display = "none";
+  await carregarPessoasMarcadasNaFoto();
+}
+async function carregarPessoasMarcadasNaFoto() {
+  const { data } = await sb.from("igr_fotos_marcacoes").select("id, igr_membros(nome_completo)").eq("foto_id", state.mfFotoAtual.id);
+  const el = document.getElementById("mf-pessoas-marcadas");
+  el.innerHTML = (data || []).map(m => `
+    <span class="chip-pessoa" data-marcacao-id="${m.id}">${m.igr_membros?.nome_completo || "?"} <button type="button" data-remover-marcacao="${m.id}">×</button></span>
+  `).join("") || `<p class="hint" style="margin:4px 0 0;">Ninguém marcado nesta foto ainda.</p>`;
+  el.querySelectorAll("[data-remover-marcacao]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await sb.from("igr_fotos_marcacoes").delete().eq("id", btn.dataset.removerMarcacao);
+      carregarPessoasMarcadasNaFoto();
+    });
+  });
+}
+function configurarBuscaMarcacaoFoto() {
+  const input = document.getElementById("mf-busca-pessoa");
+  const sugestoesEl = document.getElementById("mf-sugestoes");
+  if (!input) return;
+  let timeoutId = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timeoutId);
+    const termo = input.value.trim();
+    if (termo.length < 2) { sugestoesEl.style.display = "none"; return; }
+    timeoutId = setTimeout(async () => {
+      const { data } = await sb.from("igr_membros").select("id, nome_completo")
+        .eq("igreja_id", state.igreja.id).ilike("nome_completo", `%${termo}%`).limit(6);
+      sugestoesEl.innerHTML = (data || []).map(m => `<div class="autocomplete-item" data-id="${m.id}">${m.nome_completo}</div>`).join("");
+      sugestoesEl.style.display = data?.length ? "block" : "none";
+      sugestoesEl.querySelectorAll("[data-id]").forEach(item => {
+        item.addEventListener("click", async () => {
+          const { error } = await sb.from("igr_fotos_marcacoes").insert({ foto_id: state.mfFotoAtual.id, membro_id: item.dataset.id });
+          input.value = "";
+          sugestoesEl.style.display = "none";
+          if (!error) carregarPessoasMarcadasNaFoto();
+        });
+      });
+    }, 300);
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
   });
 }
 
@@ -2995,6 +3092,7 @@ async function carregarAlbunsAdmin() {
   select.innerHTML = `<option value="">Selecione um álbum</option>` +
     state.albunsCache.map(a => `<option value="${a.id}">${a.titulo}</option>`).join("");
   if (selecionadoAntes) select.value = selecionadoAntes;
+  popularAlbunsParaMarcacao();
 
   const el = document.getElementById("admin-lista-albuns");
   el.innerHTML = state.albunsCache.map(a => `
@@ -3413,6 +3511,7 @@ async function iniciar() {
       if (alvo === "tela-membro-louvor") await carregarLouvor();
       if (alvo === "tela-membro-pastor") await carregarMensagensPastor();
       if (alvo === "tela-fotos") await carregarAlbuns();
+      if (alvo === "tela-minhas-fotos") await carregarMinhasFotos();
       if (alvo === "tela-contatos") carregarContatos();
       if (alvo === "tela-sobre-igreja") await carregarSobreIgreja();
       if (alvo === "tela-grupos-lista") await carregarGruposLista();
@@ -3423,6 +3522,8 @@ async function iniciar() {
   document.querySelectorAll("[data-close-a2hs]").forEach(b => b.addEventListener("click", fecharA2HS));
   document.getElementById("btn-instalar-agora")?.addEventListener("click", instalarAgora);
   document.getElementById("btn-criar-evento")?.addEventListener("click", () => abrirFormEvento(null));
+  document.getElementById("mf-album-selecionado")?.addEventListener("change", (ev) => carregarFotosParaMarcacao(ev.target.value));
+  configurarBuscaMarcacaoFoto();
   document.getElementById("btn-admin-novo-evento")?.addEventListener("click", () => abrirFormEvento(null));
   document.getElementById("form-evento")?.addEventListener("submit", enviarFormEvento);
   document.getElementById("ev-gratuito")?.addEventListener("change", (ev) => {
