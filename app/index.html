@@ -222,7 +222,8 @@
           <div class="field"><label>Data (início)</label><input id="adm-cal-data" type="date" required></div>
           <div class="field"><label>Data final (opcional — pra evento de vários dias)</label><input id="adm-cal-data-fim" type="date"></div>
           <div class="field"><label>Horário (opcional)</label><input id="adm-cal-horario" placeholder="Ex: 19h30"></div>
-          <div class="field" style="margin-bottom:6px;"><label>Observações (opcional)</label><input id="adm-cal-observacoes" placeholder="Detalhes adicionais"></div>
+          <div class="field"><label>Observações (opcional)</label><input id="adm-cal-observacoes" placeholder="Detalhes adicionais"></div>
+          <div class="field" style="margin-bottom:6px;"><label>Banner/imagem (opcional)</label><input id="adm-cal-imagem" type="file" accept="image/*"></div>
           <button class="btn btn-primary" id="btn-adm-add-calendario" type="button">Publicar e notificar todo mundo</button>
         </div>
       </div>
@@ -1177,7 +1178,8 @@
           <div class="field"><label>Data (início)</label><input id="cal-data" type="date" required></div>
           <div class="field"><label>Data final (opcional — pra evento de vários dias)</label><input id="cal-data-fim" type="date"></div>
           <div class="field"><label>Horário (opcional)</label><input id="cal-horario" placeholder="Ex: 19h30"></div>
-          <div class="field" style="margin-bottom:6px;"><label>Observações (opcional)</label><input id="cal-observacoes" placeholder="Detalhes adicionais"></div>
+          <div class="field"><label>Observações (opcional)</label><input id="cal-observacoes" placeholder="Detalhes adicionais"></div>
+          <div class="field" style="margin-bottom:6px;"><label>Banner/imagem (opcional)</label><input id="cal-imagem" type="file" accept="image/*"></div>
           <button class="btn btn-primary" type="submit">Salvar no calendário</button>
         </div>
       </form>
@@ -1191,6 +1193,8 @@
         </div>
         <div id="cal-dias-semana" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;font-size:10.5px;color:var(--ink-soft);text-align:center;font-weight:700;"></div>
         <div id="cal-grade-mes" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+        <div class="section-label" style="margin-top:18px;"><b>Nesse mês</b></div>
+        <div id="cal-legenda-mes"></div>
       </div>
 
       <!-- VISAO: DIA (lista do dia escolhido) -->

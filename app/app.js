@@ -2191,6 +2191,27 @@ function renderGradeCalendario() {
   document.querySelectorAll("[data-dia-calendario]").forEach(btn => {
     btn.addEventListener("click", () => abrirDiaCalendario(btn.dataset.diaCalendario));
   });
+
+  // legenda: lista curta do que tem em cada dia marcado nesse mes
+  const mesStr = `${mesRef.getFullYear()}-${String(mesRef.getMonth() + 1).padStart(2, "0")}`;
+  const itensLegenda = (state.calendarioEventos || [])
+    .filter(ev => {
+      const fim = ev.data_fim || ev.data;
+      // aparece na legenda do mes se o periodo do evento cruza esse mes
+      return ev.data.slice(0, 7) <= mesStr && fim.slice(0, 7) >= mesStr;
+    })
+    .sort((a, b) => a.data.localeCompare(b.data));
+  const legendaEl = document.getElementById("cal-legenda-mes");
+  legendaEl.innerHTML = itensLegenda.map(ev => {
+    const diaExibir = ev.data.slice(0, 7) === mesStr ? new Date(ev.data + "T00:00:00").getDate() : 1;
+    return `<div data-legenda-dia="${ev.data.slice(0, 7) === mesStr ? ev.data : `${mesStr}-01`}" style="display:flex;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;">
+      <b style="color:var(--brand);flex:none;width:26px;">${String(diaExibir).padStart(2, "0")}</b>
+      <span style="font-size:13px;">${ev.titulo}</span>
+    </div>`;
+  }).join("") || `<p class="hint" style="padding:6px 4px;">Nada marcado nesse mês.</p>`;
+  legendaEl.querySelectorAll("[data-legenda-dia]").forEach(el => {
+    el.addEventListener("click", () => abrirDiaCalendario(el.dataset.legendaDia));
+  });
 }
 
 function abrirDiaCalendario(dataISO) {
@@ -2205,6 +2226,7 @@ function abrirDiaCalendario(dataISO) {
   const el = document.getElementById("calendario-lista");
   el.innerHTML = eventosDoDia.map(ev => `
     <div class="card">
+      ${ev.imagem_url ? `<img class="capa-thumb" src="${ev.imagem_url}" alt="">` : ""}
       <b style="font-size:14.5px;">${ev.titulo}</b>
       <p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);">📍 ${ev.local}${ev.horario ? " · " + ev.horario : ""}</p>
       ${ev.data_fim && ev.data_fim !== ev.data ? `<p class="hint" style="margin:4px 0 0;">📅 ${formatarData(ev.data)} a ${formatarData(ev.data_fim)}</p>` : ""}
@@ -2234,10 +2256,12 @@ async function enviarCalendario(ev) {
 
   const btn = ev.target.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Salvando...";
+  const arquivo = document.getElementById("cal-imagem").files[0];
+  const imagem_url = await uploadArquivo(arquivo, "calendario");
   const { error } = await sb.from("igr_calendario_eventos").insert({
     igreja_id: state.igreja.id, grupo_id: state.membro?.grupo_id || null,
     criado_por_membro_id: state.membro?.id || null, criado_por_nome: state.membro?.nome_completo || null,
-    titulo, local, data, data_fim, horario: horario || null, observacoes: observacoes || null,
+    titulo, local, data, data_fim, horario: horario || null, observacoes: observacoes || null, imagem_url,
   });
   btn.disabled = false; btn.textContent = "Salvar no calendário";
   if (error) { alert("Não deu pra salvar: " + error.message); return; }
@@ -2266,10 +2290,12 @@ async function enviarCalendarioAdmin() {
 
   const btn = document.getElementById("btn-adm-add-calendario");
   btn.disabled = true; btn.textContent = "Publicando...";
+  const arquivo = document.getElementById("adm-cal-imagem").files[0];
+  const imagem_url = await uploadArquivo(arquivo, "calendario");
   const { error } = await sb.from("igr_calendario_eventos").insert({
     igreja_id: state.igreja.id, grupo_id: null,
     criado_por_nome: state.adminNome || "Administração",
-    titulo, local, data, data_fim, horario: horario || null, observacoes: observacoes || null,
+    titulo, local, data, data_fim, horario: horario || null, observacoes: observacoes || null, imagem_url,
   });
   btn.disabled = false; btn.textContent = "Publicar e notificar todo mundo";
   if (error) { alert("Não deu pra publicar: " + error.message); return; }
@@ -2280,6 +2306,7 @@ async function enviarCalendarioAdmin() {
   document.getElementById("adm-cal-data-fim").value = "";
   document.getElementById("adm-cal-horario").value = "";
   document.getElementById("adm-cal-observacoes").value = "";
+  document.getElementById("adm-cal-imagem").value = "";
   enviarPush({ tipo: "todos" }, `Novo compromisso: ${titulo}`, `📍 ${local} · ${formatarData(data)}${horario ? " às " + horario : ""}`);
   alert("Publicado! Notificação enviada a todos os membros.");
 }
@@ -2552,20 +2579,35 @@ async function enviarFormEvento(ev) {
     const novoBanner = await uploadArquivo(arquivo, "eventos");
     const editando = state.editandoEvento;
     const campos = { titulo, descricao, local, data, data_fim, horario, vagas_minimas, vagas_maximas, gratuito, valor, pix_chave, link_pagamento };
+    let eventoId = editando?.id;
+    let bannerFinal = novoBanner;
 
     if (editando) {
       const banner_url = novoBanner || editando.banner_url || null;
+      bannerFinal = banner_url;
       const { error } = await sb.from("igr_eventos").update({ ...campos, banner_url }).eq("id", editando.id);
       if (error) { errEl.textContent = "Não deu pra salvar: " + error.message; errEl.classList.add("show"); return; }
     } else {
-      const { error } = await sb.from("igr_eventos").insert({
+      const { data: novoEvento, error } = await sb.from("igr_eventos").insert({
         igreja_id: state.igreja.id, ...campos,
         banner_url: novoBanner,
         criado_por_membro_id: state.membro?.id || null,
         criado_por_nome: state.membro?.nome_completo || state.adminNome || null,
-      });
+      }).select().single();
       if (error) { errEl.textContent = "Não deu pra criar: " + error.message; errEl.classList.add("show"); return; }
+      eventoId = novoEvento?.id;
     }
+
+    // sincroniza automaticamente com o Calendário da Igreja
+    if (eventoId) {
+      await sb.from("igr_calendario_eventos").upsert({
+        evento_id: eventoId, igreja_id: state.igreja.id, grupo_id: null,
+        titulo, local: local || "A definir", data, data_fim, horario: horario || null,
+        observacoes: descricao || null, imagem_url: bannerFinal || null,
+        criado_por_nome: state.membro?.nome_completo || state.adminNome || "Eventos",
+      }, { onConflict: "evento_id" });
+    }
+
     ev.target.reset();
     state.editandoEvento = null;
     if (state.adminNome) { mostrarTela("tela-admin-painel"); abrirSecaoAdmin("eventos"); }
