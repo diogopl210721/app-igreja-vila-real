@@ -1191,8 +1191,8 @@ async function montarHomeMembro() {
   await carregarAvisos("home-avisos");
   await carregarPedidosOracao();
 
-  const liderBox = document.getElementById("lider-postar-box");
-  if (liderBox) liderBox.style.display = m.eh_lider ? "block" : "none";
+  const btnAvisoLider = document.getElementById("btn-abrir-aviso-lider");
+  if (btnAvisoLider) btnAvisoLider.style.display = m.eh_lider ? "block" : "none";
   const btnBannerLider = document.getElementById("btn-abrir-banner-lider");
   if (btnBannerLider) btnBannerLider.style.display = m.eh_lider ? "block" : "none";
   const liderVisitantesBox = document.getElementById("lider-visitantes-box");
@@ -5272,6 +5272,7 @@ async function iniciar() {
   document.getElementById("btn-salvar-plano-novo")?.addEventListener("click", criarPlanoPersonalizado);
   document.getElementById("btn-tema-buscar")?.addEventListener("click", () => buscarPorTema("buscar"));
   document.getElementById("btn-tema-estudo")?.addEventListener("click", () => buscarPorTema("estudo"));
+  document.getElementById("btn-abrir-aviso-lider")?.addEventListener("click", () => mostrarTela("tela-lider-aviso"));
   document.getElementById("btn-abrir-banner-lider")?.addEventListener("click", () => {
     document.getElementById("banner-view-form").style.display = "block";
     document.getElementById("banner-view-escolher").style.display = "none";

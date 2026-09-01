@@ -864,17 +864,7 @@
       <button class="btn btn-ghost" id="btn-meu-grupo" style="display:none;margin:6px 0 4px;">📁 Ver meu grupo</button>
       <button class="btn btn-ghost" data-nav="tela-diretorio" style="margin:6px 0 4px;">🔎 Diretório de Membros</button>
 
-      <div class="card" id="lider-postar-box" style="display:none;border:1.5px dashed var(--brand);">
-        <h3>Postar aviso do seu grupo</h3>
-        <form id="form-lider-aviso">
-          <div class="field"><label>Título</label><input id="lider-aviso-titulo" required placeholder="Ex: Convocação, reunião, ensaio..."></div>
-          <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="lider-aviso-texto" placeholder="Data, horário, local..."></div>
-          <div class="field"><label>Imagem (opcional)</label><input id="lider-aviso-imagem" type="file" accept="image/*"></div>
-          <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="lider-aviso-video" type="file" accept="video/*"></div>
-          <button class="btn btn-primary" id="btn-lider-postar" type="submit">Publicar para o grupo</button>
-        </form>
-      </div>
-
+      <button class="btn btn-ghost" id="btn-abrir-aviso-lider" style="display:none;margin:6px 0 4px;border:1.5px dashed var(--brand);">📢 Postar aviso do seu grupo</button>
       <button class="btn btn-ghost" id="btn-abrir-banner-lider" style="display:none;margin-top:10px;border:1.5px dashed var(--brand);">🎨 Criar banner de divulgação</button>
 
       <div id="lider-visitantes-box" style="display:none;">
@@ -1397,6 +1387,23 @@
         <button class="btn btn-primary" id="btn-tema-estudo" type="button">📝 Montar estudo/pregação completo</button>
       </div>
       <div id="tema-resultado" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ============ POSTAR AVISO (LÍDER) ============ -->
+  <div class="screen" id="tela-lider-aviso">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-home"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:12px;">Postar aviso do seu grupo</span>
+      <div class="card">
+        <form id="form-lider-aviso">
+          <div class="field"><label>Título</label><input id="lider-aviso-titulo" required placeholder="Ex: Convocação, reunião, ensaio..."></div>
+          <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="lider-aviso-texto" placeholder="Data, horário, local..."></div>
+          <div class="field"><label>Imagem (opcional)</label><input id="lider-aviso-imagem" type="file" accept="image/*"></div>
+          <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="lider-aviso-video" type="file" accept="video/*"></div>
+          <button class="btn btn-primary" id="btn-lider-postar" type="submit">Publicar para o grupo</button>
+        </form>
+      </div>
     </div>
   </div>
 
