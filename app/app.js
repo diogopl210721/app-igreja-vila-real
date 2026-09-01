@@ -2632,34 +2632,14 @@ function arquivoParaBase64(file) {
   });
 }
 
-function roundRectPath(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
+async function carregarFontesBanner() {
+  await Promise.all([document.fonts.load("700 30px Inter"), document.fonts.load("600 30px Inter")]);
 }
 
-function desenharLogoComCirculo(ctx, logo, cx, cy, raio) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,255,255,.95)";
-  ctx.fill();
-  ctx.clip();
-  const escala = Math.max((raio * 2 * 0.86) / logo.naturalWidth, (raio * 2 * 0.86) / logo.naturalHeight);
-  const w = logo.naturalWidth * escala, h = logo.naturalHeight * escala;
-  ctx.drawImage(logo, cx - w / 2, cy - h / 2, w, h);
-  ctx.restore();
-}
-
-// mede o quao claro/escuro esta o canto onde a marca vai entrar, pra escolher a variante de logo certa
-function medirLuminosidadeCanto(ctx, W, H) {
+// mede a luminosidade de uma faixa do banner, pra escolher cor de texto legível ali
+function medirLuminosidadeFaixa(ctx, x, y, w, h) {
   try {
-    const tam = Math.round(W * 0.32);
-    const dados = ctx.getImageData(0, H - tam, tam, tam).data;
+    const dados = ctx.getImageData(x, y, w, h).data;
     let soma = 0, n = 0;
     for (let i = 0; i < dados.length; i += 4 * 37) {
       soma += 0.299 * dados[i] + 0.587 * dados[i + 1] + 0.114 * dados[i + 2];
@@ -2668,55 +2648,56 @@ function medirLuminosidadeCanto(ctx, W, H) {
     return n ? soma / n : 128;
   } catch (e) {
     console.error("Não consegui medir a luminosidade do banner, usando padrão:", e);
-    return 100; // padrão: assume fundo escuro (mais comum em artes de evento) e usa a logo clara
+    return 100;
   }
 }
 
-async function carregarFontesBanner() {
-  await Promise.all([document.fonts.load("700 30px Inter"), document.fonts.load("600 30px Inter")]);
-}
-
-// carimba a logo da igreja (variante clara ou escura, conforme o fundo) + o site, sempre garantidos
-async function carimbarMarcaNoBanner(canvas) {
+// a logo agora entra direto na arte pela própria IA (como imagem de referência); aqui só garantimos
+// que o site da igreja sempre aparece, com um texto discreto e legível, sem caixa/pilula por cima
+async function carimbarSiteNoBanner(canvas) {
   try {
+    const site = state.igreja?.site_url;
+    if (!site) return;
     const ctx = canvas.getContext("2d");
     const W = canvas.width, H = canvas.height;
     await carregarFontesBanner();
 
-    const luz = medirLuminosidadeCanto(ctx, W, H);
-    const logoSrc = luz < 130 ? "assets/logo-escuro.png" : "assets/logo-claro.png";
-    const logo = await carregarImagemEl(logoSrc, true);
+    const alturaFaixa = Math.round(H * 0.06);
+    const y = H - alturaFaixa;
+    const luz = medirLuminosidadeFaixa(ctx, 0, y, W, alturaFaixa);
+    const corTexto = luz < 130 ? "rgba(255,255,255,.92)" : "rgba(20,22,35,.88)";
+    const corSombra = luz < 130 ? "rgba(0,0,0,.55)" : "rgba(255,255,255,.65)";
 
-    const raio = W * 0.052;
-    const margem = W * 0.045;
-    const cx = margem + raio, cy = H - margem - raio;
-    desenharLogoComCirculo(ctx, logo, cx, cy, raio);
-
-    const site = state.igreja?.site_url;
-    if (site) {
-      const corTexto = luz < 130 ? "rgba(255,255,255,.95)" : "rgba(20,22,35,.92)";
-      const corFundo = luz < 130 ? "rgba(0,0,0,.35)" : "rgba(255,255,255,.75)";
-      ctx.font = `700 ${Math.round(W * 0.026)}px Inter, sans-serif`;
-      const largura = ctx.measureText(site).width;
-      const padX = W * 0.02, padY = H * 0.012;
-      const boxW = largura + padX * 2, boxH = W * 0.026 + padY * 2;
-      const boxX = cx + raio + W * 0.02, boxY = cy - boxH / 2;
-      ctx.fillStyle = corFundo;
-      roundRectPath(ctx, boxX, boxY, boxW, boxH, boxH / 2);
-      ctx.fill();
-      ctx.fillStyle = corTexto;
-      ctx.textBaseline = "middle";
-      ctx.fillText(site, boxX + padX, boxY + boxH / 2);
-    }
+    ctx.font = `700 ${Math.round(W * 0.024)}px Inter, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const cx = W / 2, cy = H - H * 0.035;
+    ctx.shadowColor = corSombra;
+    ctx.shadowBlur = W * 0.01;
+    ctx.fillStyle = corTexto;
+    ctx.fillText(site, cx, cy);
+    ctx.shadowBlur = 0;
+    ctx.textAlign = "left";
   } catch (e) {
-    // se por algum motivo a marca não puder ser carimbada, o banner gerado continua utilizável sem ela
-    console.error("Não consegui carimbar a logo/site no banner:", e);
+    console.error("Não consegui carimbar o site no banner:", e);
   }
+}
+
+async function arquivoUrlParaBase64(url) {
+  const resposta = await fetch(url);
+  const blob = await resposta.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function gerarBanners() {
   const tema = document.getElementById("banner-tema").value.trim();
   if (!tema) { alert("Digite pelo menos o tema do evento."); return; }
+  const versiculo = document.getElementById("banner-versiculo").value.trim();
   const dataISO = document.getElementById("banner-data").value;
   const horario = document.getElementById("banner-horario").value.trim();
   const endereco = document.getElementById("banner-endereco").value.trim();
@@ -2728,11 +2709,16 @@ async function gerarBanners() {
   btn.disabled = true; status.style.display = "block";
   try {
     const body = {
-      tema,
+      tema, versiculo: versiculo || null,
       dataFormatada: dataISO ? formatarData(dataISO) : null,
       horario: horario || null, endereco: endereco || null, telefone: telefone || null,
+      nomeIgreja: state.igreja?.nome || null,
     };
     if (arquivo) { body.fotoBase64 = await arquivoParaBase64(arquivo); body.fotoMimeType = arquivo.type; }
+    try {
+      body.logoBase64 = await arquivoUrlParaBase64("assets/logo-claro.png");
+      body.logoMimeType = "image/png";
+    } catch (e) { console.error("Não consegui carregar a logo pra mandar como referência:", e); }
 
     const { data, error } = await sb.functions.invoke("igr-gerar-banner-ia", { body });
     if (error || !data?.ok) throw new Error(data?.error || error?.message || "erro desconhecido");
@@ -2741,7 +2727,7 @@ async function gerarBanners() {
     const canvas = document.getElementById("banner-canvas-preview");
     canvas.width = imagem.naturalWidth; canvas.height = imagem.naturalHeight;
     canvas.getContext("2d").drawImage(imagem, 0, 0);
-    await carimbarMarcaNoBanner(canvas);
+    await carimbarSiteNoBanner(canvas);
 
     document.getElementById("banner-view-form").style.display = "none";
     document.getElementById("banner-view-preview").style.display = "block";
