@@ -1060,11 +1060,21 @@ async function montarHomeMembro() {
 
   const quicklinkCelula = document.getElementById("quicklink-celula");
   if (quicklinkCelula) {
+    let minhaCelula = null;
     if (m.celula_id) {
+      const { data } = await sb.from("igr_celulas").select("id, tipo").eq("id", m.celula_id).maybeSingle();
+      minhaCelula = data;
+    }
+    if (!minhaCelula) {
+      const { data } = await sb.from("igr_celulas").select("id, tipo").eq("monitor_membro_id", m.id).limit(1).maybeSingle();
+      minhaCelula = data;
+    }
+    if (minhaCelula) {
+      state.minhaCelulaId = minhaCelula.id;
       quicklinkCelula.style.display = "flex";
-      const { data: celulaDoMembro } = await sb.from("igr_celulas").select("tipo").eq("id", m.celula_id).maybeSingle();
-      document.getElementById("quicklink-celula-texto").textContent = `Meu(a) ${celulaDoMembro?.tipo || "Célula"}`;
+      document.getElementById("quicklink-celula-texto").textContent = `Meu(a) ${minhaCelula.tipo || "Célula"}`;
     } else {
+      state.minhaCelulaId = null;
       quicklinkCelula.style.display = "none";
     }
   }
@@ -4263,7 +4273,7 @@ async function iniciar() {
   document.getElementById("btn-salvar-nome-celula")?.addEventListener("click", salvarNomeCelula);
   document.getElementById("form-celula-post")?.addEventListener("submit", enviarPostCelula);
   document.getElementById("quicklink-celula")?.addEventListener("click", () => {
-    if (state.membro?.celula_id) abrirCelula(state.membro.celula_id);
+    if (state.minhaCelulaId) abrirCelula(state.minhaCelulaId);
   });
   document.getElementById("btn-admin-novo-evento")?.addEventListener("click", () => abrirFormEvento(null));
   document.getElementById("form-evento")?.addEventListener("submit", enviarFormEvento);
