@@ -3757,6 +3757,7 @@ async function abrirGrupoDeMembros(grupoId, grupoNome) {
   estadoMembrosAdmin.grupoNome = grupoNome;
 
   document.getElementById("admin-membros-view-grupos").style.display = "none";
+  document.getElementById("admin-membros-view-ficha").style.display = "none";
   document.getElementById("admin-membros-view-lista").style.display = "block";
   document.getElementById("admin-membros-lista-titulo").textContent = `Membros · ${grupoNome}`;
 
