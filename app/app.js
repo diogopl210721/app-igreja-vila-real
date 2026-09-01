@@ -21,21 +21,74 @@ function limparTelefone(v) {
   return (v || "").replace(/\D/g, "");
 }
 
-// deixa todos os campos de arquivo do sistema com a cara do app, em português
-// campos de data usam o seletor nativo do navegador/celular (mais confiável em qualquer aparelho)
+// deixa todos os campos de data no padrão dd/mm/aaaa, digitável com barra automática,
+// com um ícone de calendário que abre o seletor nativo do celular (o input nativo fica
+// exatamente por baixo do ícone, do mesmo tamanho — o toque cai direto nele, sem
+// precisar simular clique via JS, o que é bem mais confiável em qualquer aparelho).
 function isoParaBr(iso) {
   if (!iso || !iso.includes("-")) return "";
   const [aaaa, mm, dd] = iso.split("-");
   return `${dd}/${mm}/${aaaa}`;
 }
 function estilizarInputsData() {
-  // mantido por compatibilidade; os campos de data agora usam o input nativo do navegador direto,
-  // que já abre o seletor de calendário de forma confiável em qualquer celular.
+  document.querySelectorAll('input[type="date"]').forEach(input => {
+    if (input.dataset.estilizado) return;
+    input.dataset.estilizado = "1";
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "data-input-wrapper";
+    input.parentNode.insertBefore(wrapper, input);
+
+    const textInput = document.createElement("input");
+    textInput.type = "text";
+    textInput.inputMode = "numeric";
+    textInput.placeholder = "dd/mm/aaaa";
+    textInput.maxLength = 10;
+    textInput.className = "data-input-texto";
+    if (input.value) textInput.value = isoParaBr(input.value);
+
+    const iconeWrap = document.createElement("div");
+    iconeWrap.className = "data-input-icone-wrap";
+    iconeWrap.innerHTML = '<span class="data-input-icone"><svg class="icon"><use href="#i-calendar"/></svg></span>';
+
+    wrapper.appendChild(textInput);
+    wrapper.appendChild(iconeWrap);
+    iconeWrap.appendChild(input);
+    input.classList.add("data-input-nativo");
+
+    textInput.addEventListener("input", () => {
+      let v = textInput.value.replace(/\D/g, "").slice(0, 8);
+      if (v.length >= 5) v = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4);
+      else if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+      textInput.value = v;
+      if (v.length === 10) {
+        const [dd, mm, aaaa] = v.split("/");
+        const iso = `${aaaa}-${mm}-${dd}`;
+        const d = new Date(iso + "T00:00:00");
+        if (!isNaN(d) && d.getDate() === parseInt(dd, 10) && d.getMonth() + 1 === parseInt(mm, 10)) {
+          input.value = iso;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      } else {
+        input.value = "";
+      }
+    });
+
+    // o input nativo (nao o texto) recebe o toque de verdade, entao seu proprio
+    // "change" (disparado pelo navegador ao escolher no calendario) e o unico
+    // lugar que precisa atualizar o texto visivel
+    input.addEventListener("change", () => {
+      textInput.value = input.value ? isoParaBr(input.value) : "";
+    });
+  });
 }
+
 function definirValorData(id, isoValue) {
   const input = document.getElementById(id);
   if (!input) return;
   input.value = isoValue || "";
+  const textInput = input.closest(".data-input-wrapper")?.querySelector(".data-input-texto");
+  if (textInput) textInput.value = isoValue ? isoParaBr(isoValue) : "";
 }
 
 function estilizarInputsArquivo() {
@@ -345,42 +398,45 @@ function abrirModalAniversariante(pessoa) {
   const foto = pessoa.foto_url
     ? `<img src="${pessoa.foto_url}" style="width:84px;height:84px;border-radius:50%;object-fit:cover;margin:0 auto 14px;display:block;">`
     : `<div style="width:84px;height:84px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">${avatarIniciais(pessoa.nome_completo)}</div>`;
+  const mensagemPadrao = `Oi ${primeiro}! Passando pra desejar um feliz aniversário, que Deus abençoe muito a sua vida! 🎉🙏`;
 
   const conteudo = document.getElementById("aniv-modal-conteudo");
   conteudo.innerHTML = `
     ${foto}
     <h3 style="text-align:center;margin:0 0 4px;font-family:'Montserrat',sans-serif;">🎉 ${primeiro} faz aniversário!</h3>
-    <p class="hint" style="text-align:center;margin-bottom:18px;">Manda um carinho pra ela(e).</p>
-    ${pessoa.telefone ? `<a href="${linkWhatsapp(pessoa.telefone, `Oi ${primeiro}! Passando pra desejar um feliz aniversário, que Deus abençoe muito a sua vida! 🎉🙏`)}" target="_blank" rel="noopener" class="btn btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:14px;">💬 Chamar no WhatsApp</a>` : ""}
+    <p class="hint" style="text-align:center;margin-bottom:18px;">Escreva um carinho — fica registrado no perfil ${pessoa.telefone ? "e já abre pra você mandar no WhatsApp também" : "dela(e)"}.</p>
     <div class="field" style="margin-bottom:8px;">
-      <label>Deixar uma mensagem no perfil</label>
-      <textarea id="aniv-msg-texto" rows="3" maxlength="280" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Escreva uma mensagem de carinho..."></textarea>
+      <label>Sua mensagem</label>
+      <textarea id="aniv-msg-texto" rows="3" maxlength="280" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;">${mensagemPadrao}</textarea>
     </div>
-    <button class="btn btn-primary" id="aniv-msg-enviar" type="button">Enviar mensagem</button>
+    <button class="btn btn-primary" id="aniv-msg-enviar" type="button">${pessoa.telefone ? "💬 Enviar (perfil + WhatsApp)" : "Enviar mensagem"}</button>
     <p class="hint" id="aniv-msg-status" style="text-align:center;margin-top:8px;"></p>
   `;
-  document.getElementById("aniv-msg-enviar").addEventListener("click", () => enviarMensagemPerfil(pessoa.id));
+  document.getElementById("aniv-msg-enviar").addEventListener("click", () => enviarMensagemPerfil(pessoa));
   document.getElementById("modal-aniversariante").classList.add("open");
 }
 function fecharModalAniversariante() {
   document.getElementById("modal-aniversariante").classList.remove("open");
 }
-async function enviarMensagemPerfil(destinoId) {
+async function enviarMensagemPerfil(pessoa) {
   const texto = document.getElementById("aniv-msg-texto").value.trim();
   if (!texto) return;
   const btn = document.getElementById("aniv-msg-enviar");
   btn.disabled = true; btn.textContent = "Enviando...";
   const { error } = await sb.from("igr_interacoes_perfil").insert({
-    membro_destino_id: destinoId,
+    membro_destino_id: pessoa.id,
     membro_origem_id: state.membro?.id || null,
     nome_origem: state.membro?.nome_completo || "Alguém da igreja",
     texto,
   });
-  btn.disabled = false; btn.textContent = "Enviar mensagem";
+  btn.disabled = false; btn.textContent = pessoa.telefone ? "💬 Enviar (perfil + WhatsApp)" : "Enviar mensagem";
   const statusEl = document.getElementById("aniv-msg-status");
   if (error) { statusEl.textContent = "Não deu pra enviar agora. Tente de novo."; return; }
-  statusEl.textContent = "Mensagem enviada! 💛";
-  document.getElementById("aniv-msg-texto").value = "";
+
+  if (pessoa.telefone) {
+    window.open(linkWhatsapp(pessoa.telefone, texto), "_blank", "noopener");
+  }
+  statusEl.textContent = "Mensagem salva no perfil dela(e)! 💛";
   setTimeout(fecharModalAniversariante, 1200);
 }
 
