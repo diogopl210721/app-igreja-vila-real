@@ -269,6 +269,53 @@
               <button class="btn btn-primary" type="submit">Salvar grupo</button>
             </form>
           </div>
+
+          <div class="section-label"><b>Monitores e grupos deste departamento</b></div>
+          <p class="hint" style="margin-top:-6px;">Vale pra qualquer grupo ou departamento (não só Mulheres) — cada monitor cuida do seu próprio grupo aqui dentro.</p>
+          <div id="adm-celulas-lista"></div>
+          <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
+            <h3>Escolher novo monitor</h3>
+            <div class="field" style="position:relative;">
+              <label>Buscar membro</label>
+              <input id="adm-celula-busca-monitor" autocomplete="off" placeholder="Digite o nome...">
+              <div id="adm-celula-sugestoes-monitor" class="autocomplete-lista" style="display:none;"></div>
+            </div>
+            <div id="adm-celula-monitor-selecionado" style="display:none;margin-bottom:10px;">
+              <div class="row-avatar"><div class="row-info"><b id="adm-celula-nome-monitor-selecionado"></b></div></div>
+            </div>
+            <div class="field"><label>Como esse grupo vai se chamar?</label>
+              <select id="adm-celula-tipo-nova">
+                <option value="Célula">Célula</option>
+                <option value="Grupo de Monitor">Grupo de Monitor</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom:6px;"><label>Nome (ex: Célula Ester, Grupo do João)</label><input id="adm-celula-nome-nova" placeholder="Ex: Célula Ester"></div>
+            <button class="btn btn-primary" id="adm-btn-criar-celula" type="button" disabled>Tornar monitor(a)</button>
+          </div>
+        </div>
+
+        <!-- Sub-tela 2b: editar uma celula/grupo de monitor especifico -->
+        <div id="admin-membros-view-editar-celula" style="display:none;">
+          <div class="admin-aba-voltar" data-voltar-editar-celula>← Voltar ao grupo</div>
+          <div class="card">
+            <form id="form-editar-celula-admin">
+              <div class="field"><label>Tipo</label>
+                <select id="adm-eg-celula-tipo">
+                  <option value="Célula">Célula</option>
+                  <option value="Grupo de Monitor">Grupo de Monitor</option>
+                </select>
+              </div>
+              <div class="field"><label>Nome</label><input id="adm-eg-celula-nome" required></div>
+              <div class="field" style="position:relative;margin-bottom:6px;">
+                <label>Trocar o(a) monitor(a) (opcional)</label>
+                <input id="adm-eg-celula-busca-novo-monitor" autocomplete="off" placeholder="Deixe em branco pra manter o(a) atual">
+                <div id="adm-eg-celula-sugestoes-monitor" class="autocomplete-lista" style="display:none;"></div>
+              </div>
+              <p class="hint" id="adm-eg-celula-monitor-atual" style="margin:-4px 0 12px;"></p>
+              <button class="btn btn-primary" type="submit">Salvar alterações</button>
+            </form>
+            <button class="btn btn-ghost" id="adm-btn-excluir-celula" type="button" style="margin-top:10px;color:#C0392B;">🗑 Excluir este grupo</button>
+          </div>
         </div>
 
         <!-- Sub-tela 2: lista de membros de um grupo -->

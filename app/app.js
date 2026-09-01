@@ -1521,7 +1521,7 @@ function abrirGrupoDetalhe(grupoId) {
     document.getElementById("grupo-bloco-oracao").style.display = permissoes.includes("gerenciar_oracao") ? "block" : "none";
     document.getElementById("gi-descricao").value = grupo.descricao || "";
     if (permissoes.includes("gerenciar_oracao")) carregarOracaoDoGrupo(grupo.id);
-    carregarCelulasDoGrupo(grupo.id);
+    carregarCelulasDoGrupo(grupo.id, "");
   }
 
   mostrarTela("tela-grupo-detalhe");
@@ -1565,9 +1565,13 @@ async function carregarOracaoDoGrupo(grupoId) {
 
 // ---------- células e monitores ----------
 let monitorSelecionadoCelula = null;
+let monitorSelecionadoCelulaAdmin = null;
+let monitorSelecionadoEdicaoCelula = null;
 
-async function carregarCelulasDoGrupo(grupoId) {
-  const el = document.getElementById("grupo-celulas-lista");
+async function carregarCelulasDoGrupo(grupoId, prefixo) {
+  prefixo = prefixo || "";
+  const souAdmin = prefixo === "adm-";
+  const el = document.getElementById(souAdmin ? "adm-celulas-lista" : "grupo-celulas-lista");
   const { data: celulas } = await sb.from("igr_celulas").select("*, igr_membros!igr_celulas_monitor_membro_id_fkey(nome_completo)").eq("grupo_id", grupoId).order("created_at");
   const { data: membrosDoGrupo } = await sb.from("igr_membros").select("celula_id").eq("grupo_id", grupoId).not("celula_id", "is", null);
   const contagem = {};
@@ -1577,29 +1581,69 @@ async function carregarCelulasDoGrupo(grupoId) {
     <div class="card row-avatar">
       ${avatarIniciais(c.igr_membros?.nome_completo || "?")}
       <div class="row-info"><b>${c.nome}</b><span>${c.tipo || "Célula"} · Monitor(a): ${c.igr_membros?.nome_completo || "—"} · ${contagem[c.id] || 0} membro(s)</span></div>
+      ${souAdmin ? `<button class="btn-icone-remover" data-editar-celula-admin="${c.id}" title="Editar" style="color:var(--brand);">✏️</button>` : ""}
       <button class="btn-icone-remover" data-remover-celula="${c.id}" title="Remover">✕</button>
     </div>
   `).join("") || `<p class="hint">Nenhum monitor escolhido ainda neste grupo.</p>`;
 
   el.querySelectorAll("[data-remover-celula]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      if (!confirm("Remover essa célula? Os membros dela ficarão sem célula.")) return;
+      if (!confirm("Remover esse grupo? Os membros dele ficarão sem grupo/célula.")) return;
       await sb.from("igr_celulas").delete().eq("id", btn.dataset.removerCelula);
-      carregarCelulasDoGrupo(grupoId);
+      carregarCelulasDoGrupo(grupoId, prefixo);
     });
   });
+  if (souAdmin) {
+    el.querySelectorAll("[data-editar-celula-admin]").forEach(btn => {
+      const celula = (celulas || []).find(c => c.id === btn.dataset.editarCelulaAdmin);
+      btn.addEventListener("click", () => abrirEditarCelulaAdmin(celula, grupoId));
+    });
+  }
 }
 
-function configurarBuscaMonitor() {
-  const input = document.getElementById("celula-busca-monitor");
-  const sugestoesEl = document.getElementById("celula-sugestoes-monitor");
+function abrirEditarCelulaAdmin(celula, grupoId) {
+  state.celulaEditandoAdmin = celula;
+  state.grupoDaCelulaEditandoAdmin = grupoId;
+  monitorSelecionadoEdicaoCelula = null;
+  document.getElementById("admin-membros-view-editar-grupo").style.display = "none";
+  document.getElementById("admin-membros-view-editar-celula").style.display = "block";
+  document.getElementById("adm-eg-celula-tipo").value = celula.tipo || "Célula";
+  document.getElementById("adm-eg-celula-nome").value = celula.nome;
+  document.getElementById("adm-eg-celula-busca-novo-monitor").value = "";
+  document.getElementById("adm-eg-celula-monitor-atual").textContent = `Monitor(a) atual: ${celula.igr_membros?.nome_completo || "—"}`;
+}
+
+async function salvarEdicaoCelulaAdmin(ev) {
+  ev.preventDefault();
+  const celula = state.celulaEditandoAdmin;
+  if (!celula) return;
+  const payload = {
+    tipo: document.getElementById("adm-eg-celula-tipo").value,
+    nome: document.getElementById("adm-eg-celula-nome").value.trim(),
+  };
+  if (monitorSelecionadoEdicaoCelula) payload.monitor_membro_id = monitorSelecionadoEdicaoCelula.id;
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const { error } = await sb.from("igr_celulas").update(payload).eq("id", celula.id);
+  btn.disabled = false; btn.textContent = "Salvar alterações";
+  if (error) { alert("Não deu pra salvar: " + error.message); return; }
+  if (monitorSelecionadoEdicaoCelula) {
+    enviarPush({ tipo: "membros", membro_ids: [monitorSelecionadoEdicaoCelula.id] }, `Você é a nova liderança de um(a) ${payload.tipo}! 🎉`, `Você foi escolhido(a) monitor(a) da(o) ${payload.nome}.`);
+  }
+  document.getElementById("admin-membros-view-editar-celula").style.display = "none";
+  document.getElementById("admin-membros-view-editar-grupo").style.display = "block";
+  carregarCelulasDoGrupo(state.grupoDaCelulaEditandoAdmin, "adm-");
+}
+
+function configurarBuscaMonitorEdicaoAdmin() {
+  const input = document.getElementById("adm-eg-celula-busca-novo-monitor");
+  const sugestoesEl = document.getElementById("adm-eg-celula-sugestoes-monitor");
   if (!input) return;
   let timeoutId = null;
   input.addEventListener("input", () => {
     clearTimeout(timeoutId);
     const termo = input.value.trim();
-    monitorSelecionadoCelula = null;
-    document.getElementById("btn-criar-celula").disabled = true;
+    monitorSelecionadoEdicaoCelula = null;
     if (termo.length < 2) { sugestoesEl.style.display = "none"; return; }
     timeoutId = setTimeout(async () => {
       const { data } = await sb.from("igr_membros").select("id, nome_completo")
@@ -1608,15 +1652,54 @@ function configurarBuscaMonitor() {
       sugestoesEl.style.display = data?.length ? "block" : "none";
       sugestoesEl.querySelectorAll("[data-id]").forEach(item => {
         item.addEventListener("click", () => {
-          monitorSelecionadoCelula = { id: item.dataset.id, nome: item.dataset.nome };
-          document.getElementById("celula-nome-monitor-selecionado").textContent = item.dataset.nome;
-          document.getElementById("celula-monitor-selecionado").style.display = "block";
-          if (!document.getElementById("celula-nome-nova").value) {
-            document.getElementById("celula-nome-nova").value = `Célula ${item.dataset.nome.split(" ")[0]}`;
-          }
+          monitorSelecionadoEdicaoCelula = { id: item.dataset.id, nome: item.dataset.nome };
+          input.value = item.dataset.nome;
+          sugestoesEl.style.display = "none";
+        });
+      });
+    }, 300);
+  });
+}
+
+async function excluirCelulaAdmin() {
+  const celula = state.celulaEditandoAdmin;
+  if (!celula) return;
+  if (!confirm(`Excluir "${celula.nome}"? Os membros dela ficarão sem grupo.`)) return;
+  await sb.from("igr_celulas").delete().eq("id", celula.id);
+  document.getElementById("admin-membros-view-editar-celula").style.display = "none";
+  document.getElementById("admin-membros-view-editar-grupo").style.display = "block";
+  carregarCelulasDoGrupo(state.grupoDaCelulaEditandoAdmin, "adm-");
+}
+
+function configurarBuscaMonitor(prefixo) {
+  prefixo = prefixo || "";
+  const souAdmin = prefixo === "adm-";
+  const input = document.getElementById(prefixo + "celula-busca-monitor");
+  const sugestoesEl = document.getElementById(prefixo + "celula-sugestoes-monitor");
+  if (!input) return;
+  let timeoutId = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timeoutId);
+    const termo = input.value.trim();
+    if (souAdmin) monitorSelecionadoCelulaAdmin = null; else monitorSelecionadoCelula = null;
+    document.getElementById(prefixo + "btn-criar-celula").disabled = true;
+    if (termo.length < 2) { sugestoesEl.style.display = "none"; return; }
+    timeoutId = setTimeout(async () => {
+      const { data } = await sb.from("igr_membros").select("id, nome_completo")
+        .eq("igreja_id", state.igreja.id).ilike("nome_completo", `%${termo}%`).limit(6);
+      sugestoesEl.innerHTML = (data || []).map(m => `<div class="autocomplete-item" data-id="${m.id}" data-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
+      sugestoesEl.style.display = data?.length ? "block" : "none";
+      sugestoesEl.querySelectorAll("[data-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          const sel = { id: item.dataset.id, nome: item.dataset.nome };
+          if (souAdmin) monitorSelecionadoCelulaAdmin = sel; else monitorSelecionadoCelula = sel;
+          document.getElementById(prefixo + "celula-nome-monitor-selecionado").textContent = item.dataset.nome;
+          document.getElementById(prefixo + "celula-monitor-selecionado").style.display = "block";
+          const nomeInput = document.getElementById(prefixo + "celula-nome-nova");
+          if (!nomeInput.value) nomeInput.value = `Célula ${item.dataset.nome.split(" ")[0]}`;
           input.value = "";
           sugestoesEl.style.display = "none";
-          document.getElementById("btn-criar-celula").disabled = false;
+          document.getElementById(prefixo + "btn-criar-celula").disabled = false;
         });
       });
     }, 300);
@@ -1626,24 +1709,27 @@ function configurarBuscaMonitor() {
   });
 }
 
-async function criarCelula() {
-  if (!monitorSelecionadoCelula || !state.grupoDetalheAtual) return;
-  const nome = document.getElementById("celula-nome-nova").value.trim();
-  const tipo = document.getElementById("celula-tipo-nova").value;
+async function criarCelula(grupoAlvo, prefixo) {
+  prefixo = prefixo || "";
+  const souAdmin = prefixo === "adm-";
+  const monitorSel = souAdmin ? monitorSelecionadoCelulaAdmin : monitorSelecionadoCelula;
+  if (!monitorSel || !grupoAlvo) return;
+  const nome = document.getElementById(prefixo + "celula-nome-nova").value.trim();
+  const tipo = document.getElementById(prefixo + "celula-tipo-nova").value;
   if (!nome) return;
-  const btn = document.getElementById("btn-criar-celula");
+  const btn = document.getElementById(prefixo + "btn-criar-celula");
   btn.disabled = true; btn.textContent = "Criando...";
   const { error } = await sb.from("igr_celulas").insert({
-    igreja_id: state.igreja.id, grupo_id: state.grupoDetalheAtual.id,
-    monitor_membro_id: monitorSelecionadoCelula.id, nome, tipo,
+    igreja_id: state.igreja.id, grupo_id: grupoAlvo,
+    monitor_membro_id: monitorSel.id, nome, tipo,
   });
   btn.disabled = false; btn.textContent = "Tornar monitor(a)";
   if (error) { alert("Não deu pra criar: " + error.message); return; }
-  enviarPush({ tipo: "membros", membro_ids: [monitorSelecionadoCelula.id] }, `Você é a nova liderança de um(a) ${tipo}! 🎉`, `Você foi escolhido(a) monitor(a) da(o) ${nome}. Acesse o app pra começar.`);
-  document.getElementById("celula-monitor-selecionado").style.display = "none";
-  document.getElementById("celula-nome-nova").value = "";
-  monitorSelecionadoCelula = null;
-  carregarCelulasDoGrupo(state.grupoDetalheAtual.id);
+  enviarPush({ tipo: "membros", membro_ids: [monitorSel.id] }, `Você é a nova liderança de um(a) ${tipo}! 🎉`, `Você foi escolhido(a) monitor(a) da(o) ${nome}. Acesse o app pra começar.`);
+  document.getElementById(prefixo + "celula-monitor-selecionado").style.display = "none";
+  document.getElementById(prefixo + "celula-nome-nova").value = "";
+  if (souAdmin) monitorSelecionadoCelulaAdmin = null; else monitorSelecionadoCelula = null;
+  carregarCelulasDoGrupo(grupoAlvo, prefixo);
 }
 
 async function abrirCelula(celulaId) {
@@ -2909,6 +2995,7 @@ async function abrirEdicaoGrupoAdmin(grupoId) {
   document.getElementById("admin-membros-view-editar-grupo").style.display = "block";
   document.getElementById("eg-nome").value = grupo.nome || "";
   document.getElementById("eg-descricao").value = grupo.descricao || "";
+  carregarCelulasDoGrupo(grupo.id, "adm-");
 }
 
 async function salvarEdicaoGrupoAdmin(ev) {
@@ -4074,9 +4161,18 @@ async function iniciar() {
   configurarBuscaMarcacaoFoto();
   configurarBuscaAcessos();
   document.getElementById("btn-salvar-acesso")?.addEventListener("click", salvarAcessoEspecial);
-  configurarBuscaMonitor();
+  configurarBuscaMonitor("");
+  configurarBuscaMonitor("adm-");
+  configurarBuscaMonitorEdicaoAdmin();
   configurarBuscaMembroCelula();
-  document.getElementById("btn-criar-celula")?.addEventListener("click", criarCelula);
+  document.getElementById("btn-criar-celula")?.addEventListener("click", () => criarCelula(state.grupoDetalheAtual?.id, ""));
+  document.getElementById("adm-btn-criar-celula")?.addEventListener("click", () => criarCelula(estadoMembrosAdmin.grupoEditando?.id, "adm-"));
+  document.getElementById("form-editar-celula-admin")?.addEventListener("submit", salvarEdicaoCelulaAdmin);
+  document.getElementById("adm-btn-excluir-celula")?.addEventListener("click", excluirCelulaAdmin);
+  document.querySelector("[data-voltar-editar-celula]")?.addEventListener("click", () => {
+    document.getElementById("admin-membros-view-editar-celula").style.display = "none";
+    document.getElementById("admin-membros-view-editar-grupo").style.display = "block";
+  });
   document.getElementById("btn-salvar-nome-celula")?.addEventListener("click", salvarNomeCelula);
   document.getElementById("form-celula-post")?.addEventListener("submit", enviarPostCelula);
   document.getElementById("quicklink-celula")?.addEventListener("click", () => {
