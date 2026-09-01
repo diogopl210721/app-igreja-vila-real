@@ -2260,6 +2260,7 @@ async function salvarLeituraDiario() {
   document.getElementById("diario-nota").value = "";
   document.getElementById("diario-compartilhar").checked = false;
   document.getElementById("diario-texto-preview").style.display = "none";
+  if (nota) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
   mostrarTela("tela-diario");
 }
 
@@ -2391,6 +2392,80 @@ async function criarPlanoPersonalizado() {
   document.getElementById("plano-novo-titulo").value = "";
   document.getElementById("plano-novo-dias").value = "";
   await carregarPlanos();
+}
+
+// ---------- busca por tema / gerador de estudo ----------
+function textoCompartilhavelEstudo(estudo) {
+  let txt = `${estudo.titulo}\n\n${estudo.introducao}\n\n`;
+  estudo.pontos.forEach((p, i) => { txt += `${i + 1}. ${p.subtitulo} (${p.referencia})\n${p.explicacao}\n\n`; });
+  txt += `Conclusão:\n${estudo.conclusao}`;
+  return txt;
+}
+
+async function compartilharTexto(titulo, texto) {
+  if (navigator.share) {
+    try { await navigator.share({ title: titulo, text: texto }); return; } catch { /* usuário cancelou */ }
+  }
+  try {
+    await navigator.clipboard.writeText(texto);
+    alert("Copiado! Agora é só colar onde quiser (ex: WhatsApp).");
+  } catch {
+    alert("Não deu pra copiar automaticamente. Selecione o texto manualmente.");
+  }
+}
+
+async function buscarPorTema(modo) {
+  const tema = document.getElementById("tema-input").value.trim();
+  const resultadoEl = document.getElementById("tema-resultado");
+  if (!tema) { alert("Digite um tema primeiro."); return; }
+  resultadoEl.innerHTML = `<p class="hint"><span class="loading-dot"></span> Pensando...</p>`;
+
+  const { data, error } = await sb.functions.invoke("igr-estudo-biblico", { body: { tema, modo } });
+  if (error || !data?.ok) {
+    resultadoEl.innerHTML = `<div class="empty">Não deu pra gerar agora. Tente de novo em instantes.</div>`;
+    return;
+  }
+
+  if (modo === "buscar") {
+    resultadoEl.innerHTML = `
+      <div class="section-label"><b>Versículos sobre "${tema}"</b></div>
+      ${data.versiculos.map(v => `
+        <div class="card">
+          <b style="font-size:14px;">${v.referencia}</b>
+          <p class="hint" style="margin:4px 0 8px;">${v.relacao}</p>
+          <button class="btn btn-ghost" data-ver-versiculo="${v.referencia}" style="padding:8px 12px;font-size:12.5px;width:auto;">👁️ Ver texto</button>
+          <div class="hint" data-texto-versiculo style="display:none;margin-top:8px;background:var(--bg);padding:10px 12px;border-radius:10px;"></div>
+        </div>
+      `).join("")}`;
+    resultadoEl.querySelectorAll("[data-ver-versiculo]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const alvo = btn.nextElementSibling;
+        alvo.style.display = "block";
+        alvo.innerHTML = `<span class="loading-dot"></span>`;
+        const resultado = await chamarBibliaTexto(btn.dataset.verVersiculo);
+        alvo.innerHTML = resultado?.ok ? resultado.texto : "Não consegui carregar o texto.";
+      });
+    });
+  } else {
+    resultadoEl.innerHTML = `
+      <div class="card">
+        <b style="font-size:16px;display:block;margin-bottom:8px;">${data.titulo}</b>
+        <p style="font-size:13.5px;margin:0 0 12px;">${data.introducao}</p>
+        ${data.pontos.map((p, i) => `
+          <div style="margin-bottom:12px;">
+            <b style="font-size:13.5px;">${i + 1}. ${p.subtitulo}</b> <span class="hint">(${p.referencia})</span>
+            <p style="font-size:13px;margin:4px 0 0;">${p.explicacao}</p>
+          </div>
+        `).join("")}
+        <p class="hint" style="font-weight:700;margin:10px 0 2px;">Conclusão</p>
+        <p style="font-size:13.5px;margin:0;">${data.conclusao}</p>
+      </div>
+      <button class="btn btn-ghost" id="btn-estudo-compartilhar" style="margin-bottom:8px;">📤 Compartilhar (WhatsApp, etc.)</button>
+      <button class="btn btn-ghost" id="btn-estudo-imprimir">🖨️ Salvar como PDF / Imprimir</button>`;
+    document.getElementById("btn-estudo-compartilhar").addEventListener("click", () =>
+      compartilharTexto(data.titulo, textoCompartilhavelEstudo(data)));
+    document.getElementById("btn-estudo-imprimir").addEventListener("click", () => window.print());
+  }
 }
 
 async function carregarCalendario() {
@@ -4785,6 +4860,8 @@ async function iniciar() {
   document.getElementById("plano-criar-voltar")?.addEventListener("click", carregarPlanos);
   document.getElementById("plano-voltar-lista")?.addEventListener("click", carregarPlanos);
   document.getElementById("btn-salvar-plano-novo")?.addEventListener("click", criarPlanoPersonalizado);
+  document.getElementById("btn-tema-buscar")?.addEventListener("click", () => buscarPorTema("buscar"));
+  document.getElementById("btn-tema-estudo")?.addEventListener("click", () => buscarPorTema("estudo"));
   document.getElementById("form-calendario-add")?.addEventListener("submit", enviarCalendario);
   document.getElementById("cal-mes-anterior")?.addEventListener("click", () => {
     state.calendarioMesAtual = new Date(state.calendarioMesAtual.getFullYear(), state.calendarioMesAtual.getMonth() - 1, 1);

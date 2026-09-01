@@ -1282,7 +1282,8 @@
       <p class="hint" style="margin-bottom:14px;">Registre o que você lê e o que Deus vai falando com você.</p>
       <button class="btn btn-primary" data-nav="tela-diario-registrar" style="margin-bottom:10px;">✍️ Registrar leitura de hoje</button>
       <button class="btn btn-ghost" data-nav="tela-diario-historico" style="margin-bottom:10px;">📖 Meu histórico de leitura</button>
-      <button class="btn btn-ghost" data-nav="tela-diario-planos">🗓️ Planos de leitura</button>
+      <button class="btn btn-ghost" data-nav="tela-diario-planos" style="margin-bottom:10px;">🗓️ Planos de leitura</button>
+      <button class="btn btn-ghost" data-nav="tela-diario-tema">🔍 Buscar por tema / Montar estudo</button>
     </div>
   </div>
 
@@ -1349,6 +1350,20 @@
           <button class="btn btn-primary" id="btn-salvar-plano-novo" type="button">Criar plano</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="screen" id="tela-diario-tema">
+    <div class="scroll no-nav">
+      <div class="admin-aba-voltar" data-nav="tela-diario">← Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Buscar por tema</span>
+      <p class="hint" style="margin-bottom:14px;">Ex: "amor", "obediência", "perdão"... a IA sugere versículos ou monta um estudo completo.</p>
+      <div class="card" id="tema-form-card">
+        <div class="field"><label>Tema</label><input id="tema-input" placeholder="Ex: obediência"></div>
+        <button class="btn btn-ghost" id="btn-tema-buscar" type="button" style="margin-bottom:10px;">📖 Buscar versículos sobre o tema</button>
+        <button class="btn btn-primary" id="btn-tema-estudo" type="button">📝 Montar estudo/pregação completo</button>
+      </div>
+      <div id="tema-resultado" style="margin-top:16px;"></div>
     </div>
   </div>
 

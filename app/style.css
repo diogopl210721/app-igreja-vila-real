@@ -486,3 +486,8 @@ video.capa-thumb{ height:200px; cursor:default; background:#000; }
 .evento-vagas-barra div{ height:100%; background:var(--brand); }
 .dash-inscrito-item{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
 .dash-inscrito-item:last-child{ border-bottom:none; }
+
+@media print{
+  .voltar-btn, .admin-aba-voltar, #tema-form-card, .tab-bar, .topbar{ display:none !important; }
+  body, .screen, .scroll{ overflow:visible !important; height:auto !important; }
+}
