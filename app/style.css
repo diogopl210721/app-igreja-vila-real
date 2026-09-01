@@ -441,7 +441,7 @@ video.capa-thumb{ height:200px; cursor:default; background:#000; }
 }
 .data-input-texto{
   flex:1; border:none; background:none; padding:13px 0; font-family:'Inter',sans-serif;
-  font-size:14px; color:var(--ink); min-width:0;
+  font-size:14px; color:var(--ink); min-width:88px;
 }
 .data-input-texto:focus{ outline:none; }
 .data-input-icone{

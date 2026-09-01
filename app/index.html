@@ -219,7 +219,8 @@
         <div class="card">
           <div class="field"><label>Título</label><input id="adm-cal-titulo" required placeholder="Ex: Conferência de Missões"></div>
           <div class="field"><label>Local</label><input id="adm-cal-local" required placeholder="Ex: Templo, Salão..."></div>
-          <div class="field"><label>Data</label><input id="adm-cal-data" type="date" required></div>
+          <div class="field"><label>Data (início)</label><input id="adm-cal-data" type="date" required></div>
+          <div class="field"><label>Data final (opcional — pra evento de vários dias)</label><input id="adm-cal-data-fim" type="date"></div>
           <div class="field"><label>Horário (opcional)</label><input id="adm-cal-horario" placeholder="Ex: 19h30"></div>
           <div class="field" style="margin-bottom:6px;"><label>Observações (opcional)</label><input id="adm-cal-observacoes" placeholder="Detalhes adicionais"></div>
           <button class="btn btn-primary" id="btn-adm-add-calendario" type="button">Publicar e notificar todo mundo</button>
@@ -456,6 +457,9 @@
             <div class="field"><label>Horário</label><input id="ac-horario" required placeholder="Ex: 18:00"></div>
             <div class="field"><label>Data específica (opcional — só pra culto especial, não recorrente)</label><input id="ac-data" type="date"></div>
             <p class="hint" style="margin:-4px 0 12px;">Deixe em branco se for um culto normal, que se repete toda semana nesse dia.</p>
+            <div class="field"><label>Começa em (opcional)</label><input id="ac-data-inicio" type="date"></div>
+            <div class="field"><label>Termina em (opcional)</label><input id="ac-data-fim" type="date"></div>
+            <p class="hint" style="margin:-4px 0 12px;">Pra série com prazo (ex: "Projeto de Vida" toda semana, de set. a dez.) ou campanha de alguns dias. Deixe os dois em branco se for permanente.</p>
             <div class="field"><label>Local (opcional)</label><input id="ac-local" placeholder="Ex: Templo principal"></div>
             <div class="field" style="margin-bottom:6px;"><label>Banner (opcional)</label><input id="ac-imagem" type="file" accept="image/*"></div>
             <button class="btn btn-primary" type="submit">Adicionar culto</button>
@@ -1170,7 +1174,8 @@
         <div class="card" style="border:1.5px dashed var(--brand);">
           <div class="field"><label>Título</label><input id="cal-titulo" required placeholder="Ex: Ensaio do louvor"></div>
           <div class="field"><label>Local</label><input id="cal-local" required placeholder="Ex: Templo, Salão, Sala de Juniores..."></div>
-          <div class="field"><label>Data</label><input id="cal-data" type="date" required></div>
+          <div class="field"><label>Data (início)</label><input id="cal-data" type="date" required></div>
+          <div class="field"><label>Data final (opcional — pra evento de vários dias)</label><input id="cal-data-fim" type="date"></div>
           <div class="field"><label>Horário (opcional)</label><input id="cal-horario" placeholder="Ex: 19h30"></div>
           <div class="field" style="margin-bottom:6px;"><label>Observações (opcional)</label><input id="cal-observacoes" placeholder="Detalhes adicionais"></div>
           <button class="btn btn-primary" type="submit">Salvar no calendário</button>
@@ -1470,10 +1475,8 @@
           <label>Avisar o grupo (reunião, encontro, aviso...)</label>
           <textarea id="celula-post-texto" rows="2" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Escreva o aviso..."></textarea>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:6px;">
-          <div class="field" style="flex:1;margin-bottom:0;"><label>Data (opcional)</label><input id="celula-post-data" type="date"></div>
-          <div class="field" style="flex:1;margin-bottom:0;"><label>Horário (opcional)</label><input id="celula-post-horario" placeholder="Ex: 19h30"></div>
-        </div>
+        <div class="field"><label>Data (opcional)</label><input id="celula-post-data" type="date"></div>
+        <div class="field"><label>Horário (opcional)</label><input id="celula-post-horario" placeholder="Ex: 19h30"></div>
         <p class="hint" style="margin:0 0 10px;">Colocando a data, o grupo já ganha o botão de adicionar na agenda do celular.</p>
         <button class="btn btn-primary" type="submit">Publicar e notificar o grupo</button>
       </form>

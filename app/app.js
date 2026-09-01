@@ -360,11 +360,17 @@ function adicionarEventoAgenda(titulo, dataStr, horario, local, descricao) {
   const ics = gerarICS({ titulo, local, descricao, inicio, duracaoMin: 90 });
   baixarICS(ics, `${titulo.replace(/\s+/g, "-")}.ics`);
 }
-function adicionarCalendarioAgenda(titulo, dataStr, horario, local, observacoes) {
+function adicionarCalendarioAgenda(titulo, dataStr, dataFimStr, horario, local, observacoes) {
   const [h, m] = (horario || "00:00").split(":").map(n => parseInt(n, 10) || 0);
   const inicio = new Date(dataStr + "T00:00:00");
   inicio.setHours(h, m, 0, 0);
-  const ics = gerarICS({ titulo, local, descricao: observacoes, inicio, duracaoMin: 60, alarmeMin: 5 });
+  let duracaoMin = 60;
+  if (dataFimStr && dataFimStr !== dataStr) {
+    const fim = new Date(dataFimStr + "T00:00:00");
+    fim.setHours(h, m, 0, 0);
+    duracaoMin = Math.round((fim.getTime() - inicio.getTime()) / 60000) + 60;
+  }
+  const ics = gerarICS({ titulo, local, descricao: observacoes, inicio, duracaoMin, alarmeMin: 5 });
   baixarICS(ics, `${titulo.replace(/\s+/g, "-")}.ics`);
 }
 
@@ -524,17 +530,29 @@ async function carregarIgreja() {
 
 async function carregarCultos() {
   const { data } = await sb.from("igr_cultos").select("*").eq("igreja_id", state.igreja.id).order("ordem");
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const visiveis = (data || []).filter(c => {
+    if (c.data_inicio && hojeISO < c.data_inicio) return false;
+    if (c.data_fim && hojeISO > c.data_fim) return false;
+    return true;
+  });
   const el = document.getElementById("lista-cultos");
-  el.innerHTML = (data || []).map(c => `
+  el.innerHTML = visiveis.map(c => {
+    const periodo = (c.data_inicio || c.data_fim)
+      ? `${c.data_inicio ? formatarData(c.data_inicio) : "início"} a ${c.data_fim ? formatarData(c.data_fim) : "sem data final"}`
+      : "";
+    return `
     <div class="card">
       ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
       <h3>${c.titulo}</h3>
       <p>${c.data ? formatarData(c.data) + " (especial)" : (c.dia_semana || "")} · ${c.horario || ""} · ${c.local || ""}</p>
+      ${periodo ? `<p class="hint" style="margin:2px 0 0;">📅 ${periodo}</p>` : ""}
       <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-top:8px;" data-add-agenda-culto="${c.id}">📅 Adicionar à agenda</button>
     </div>
-  `).join("") || `<div class="empty">Nenhum culto cadastrado ainda.</div>`;
+  `;
+  }).join("") || `<div class="empty">Nenhum culto cadastrado ainda.</div>`;
   el.querySelectorAll("[data-add-agenda-culto]").forEach(btn => {
-    const c = (data || []).find(x => x.id === btn.dataset.addAgendaCulto);
+    const c = visiveis.find(x => x.id === btn.dataset.addAgendaCulto);
     if (!c) return;
     btn.addEventListener("click", () => {
       if (c.data) adicionarEventoAgenda(c.titulo, c.data, c.horario, c.local, "");
@@ -2140,7 +2158,12 @@ function renderGradeCalendario() {
 
   const eventosPorDia = {};
   (state.calendarioEventos || []).forEach(ev => {
-    eventosPorDia[ev.data] = (eventosPorDia[ev.data] || 0) + 1;
+    const inicio = new Date(ev.data + "T00:00:00");
+    const fim = ev.data_fim ? new Date(ev.data_fim + "T00:00:00") : inicio;
+    for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10);
+      eventosPorDia[iso] = (eventosPorDia[iso] || 0) + 1;
+    }
   });
 
   const primeiroDia = new Date(mesRef.getFullYear(), mesRef.getMonth(), 1);
@@ -2175,12 +2198,16 @@ function abrirDiaCalendario(dataISO) {
   document.getElementById("calendario-view-dia").style.display = "block";
   document.getElementById("cal-dia-titulo").textContent = formatarData(dataISO);
 
-  const eventosDoDia = (state.calendarioEventos || []).filter(ev => ev.data === dataISO);
+  const eventosDoDia = (state.calendarioEventos || []).filter(ev => {
+    const fim = ev.data_fim || ev.data;
+    return dataISO >= ev.data && dataISO <= fim;
+  });
   const el = document.getElementById("calendario-lista");
   el.innerHTML = eventosDoDia.map(ev => `
     <div class="card">
       <b style="font-size:14.5px;">${ev.titulo}</b>
       <p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);">📍 ${ev.local}${ev.horario ? " · " + ev.horario : ""}</p>
+      ${ev.data_fim && ev.data_fim !== ev.data ? `<p class="hint" style="margin:4px 0 0;">📅 ${formatarData(ev.data)} a ${formatarData(ev.data_fim)}</p>` : ""}
       ${ev.igr_grupos?.nome ? `<span class="badge-inline" style="margin-top:6px;">${ev.igr_grupos.nome}</span>` : `<span class="badge-inline" style="margin-top:6px;">Igreja toda</span>`}
       ${ev.observacoes ? `<p style="margin:6px 0 0;font-size:12.5px;">${ev.observacoes}</p>` : ""}
       <button class="btn btn-ghost" data-add-agenda-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;margin-top:10px;">📲 Adicionar na minha agenda</button>
@@ -2190,7 +2217,7 @@ function abrirDiaCalendario(dataISO) {
   el.querySelectorAll("[data-add-agenda-calendario]").forEach(btn => {
     btn.addEventListener("click", () => {
       const ev = eventosDoDia.find(e => e.id === btn.dataset.addAgendaCalendario);
-      if (ev) adicionarCalendarioAgenda(ev.titulo, ev.data, ev.horario, ev.local, ev.observacoes);
+      if (ev) adicionarCalendarioAgenda(ev.titulo, ev.data, ev.data_fim, ev.horario, ev.local, ev.observacoes);
     });
   });
 }
@@ -2200,6 +2227,7 @@ async function enviarCalendario(ev) {
   const titulo = document.getElementById("cal-titulo").value.trim();
   const local = document.getElementById("cal-local").value.trim();
   const data = document.getElementById("cal-data").value;
+  const data_fim = document.getElementById("cal-data-fim").value || null;
   const horario = document.getElementById("cal-horario").value.trim();
   const observacoes = document.getElementById("cal-observacoes").value.trim();
   if (!titulo || !local || !data) return;
@@ -2209,7 +2237,7 @@ async function enviarCalendario(ev) {
   const { error } = await sb.from("igr_calendario_eventos").insert({
     igreja_id: state.igreja.id, grupo_id: state.membro?.grupo_id || null,
     criado_por_membro_id: state.membro?.id || null, criado_por_nome: state.membro?.nome_completo || null,
-    titulo, local, data, horario: horario || null, observacoes: observacoes || null,
+    titulo, local, data, data_fim, horario: horario || null, observacoes: observacoes || null,
   });
   btn.disabled = false; btn.textContent = "Salvar no calendário";
   if (error) { alert("Não deu pra salvar: " + error.message); return; }
@@ -2231,6 +2259,7 @@ async function enviarCalendarioAdmin() {
   const titulo = document.getElementById("adm-cal-titulo").value.trim();
   const local = document.getElementById("adm-cal-local").value.trim();
   const data = document.getElementById("adm-cal-data").value;
+  const data_fim = document.getElementById("adm-cal-data-fim").value || null;
   const horario = document.getElementById("adm-cal-horario").value.trim();
   const observacoes = document.getElementById("adm-cal-observacoes").value.trim();
   if (!titulo || !local || !data) { alert("Preencha título, local e data."); return; }
@@ -2240,7 +2269,7 @@ async function enviarCalendarioAdmin() {
   const { error } = await sb.from("igr_calendario_eventos").insert({
     igreja_id: state.igreja.id, grupo_id: null,
     criado_por_nome: state.adminNome || "Administração",
-    titulo, local, data, horario: horario || null, observacoes: observacoes || null,
+    titulo, local, data, data_fim, horario: horario || null, observacoes: observacoes || null,
   });
   btn.disabled = false; btn.textContent = "Publicar e notificar todo mundo";
   if (error) { alert("Não deu pra publicar: " + error.message); return; }
@@ -2248,6 +2277,7 @@ async function enviarCalendarioAdmin() {
   document.getElementById("adm-cal-titulo").value = "";
   document.getElementById("adm-cal-local").value = "";
   document.getElementById("adm-cal-data").value = "";
+  document.getElementById("adm-cal-data-fim").value = "";
   document.getElementById("adm-cal-horario").value = "";
   document.getElementById("adm-cal-observacoes").value = "";
   enviarPush({ tipo: "todos" }, `Novo compromisso: ${titulo}`, `📍 ${local} · ${formatarData(data)}${horario ? " às " + horario : ""}`);
@@ -3704,6 +3734,8 @@ function iniciarEdicaoCulto(item) {
   document.getElementById("ac-horario").value = item.horario || "";
   document.getElementById("ac-local").value = item.local || "";
   definirValorData("ac-data", item.data);
+  definirValorData("ac-data-inicio", item.data_inicio);
+  definirValorData("ac-data-fim", item.data_fim);
   const btn = document.querySelector("#form-admin-culto button[type=submit]");
   btn.textContent = "Salvar alterações";
   document.getElementById("ac-cancelar-edicao").style.display = "inline-block";
@@ -3722,6 +3754,8 @@ async function enviarCultoAdmin(ev) {
   const horario = document.getElementById("ac-horario").value.trim();
   const local = document.getElementById("ac-local").value.trim();
   const data_especifica = document.getElementById("ac-data").value || null;
+  const data_inicio = document.getElementById("ac-data-inicio").value || null;
+  const data_fim = document.getElementById("ac-data-fim").value || null;
   if (!titulo || !horario || (!dia_semana && !data_especifica)) {
     alert("Preencha o título, o horário, e o dia da semana (ou uma data específica).");
     return;
@@ -3735,11 +3769,11 @@ async function enviarCultoAdmin(ev) {
     const novaImagem = await uploadArquivo(arquivo, "cultos");
     if (editando) {
       const imagem_url = novaImagem || editando.imagem_url || null;
-      const { error } = await sb.from("igr_cultos").update({ titulo, dia_semana, horario, local, imagem_url, data: data_especifica }).eq("id", editando.id);
+      const { error } = await sb.from("igr_cultos").update({ titulo, dia_semana, horario, local, imagem_url, data: data_especifica, data_inicio, data_fim }).eq("id", editando.id);
       if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
       cancelarEdicaoCulto();
     } else {
-      const { error } = await sb.from("igr_cultos").insert({ igreja_id: state.igreja.id, titulo, dia_semana, horario, local, imagem_url: novaImagem, data: data_especifica, ordem: Date.now() });
+      const { error } = await sb.from("igr_cultos").insert({ igreja_id: state.igreja.id, titulo, dia_semana, horario, local, imagem_url: novaImagem, data: data_especifica, data_inicio, data_fim, ordem: Date.now() });
       if (error) { alert("Não deu pra salvar o culto: " + error.message); return; }
       ev.target.reset();
     }
