@@ -109,7 +109,7 @@
       <img src="assets/logo.png" alt="logo">
       <span id="drawer-nome">Igreja</span>
     </div>
-    <button class="drawer-item" data-nav="tela-visitante" data-close-drawer><svg class="icon"><use href="#i-home"/></svg>Início</button>
+    <button class="drawer-item" id="drawer-inicio" data-nav="tela-visitante" data-close-drawer><svg class="icon"><use href="#i-home"/></svg>Início</button>
     <button class="drawer-item" data-nav="tela-login" data-close-drawer><svg class="icon"><use href="#i-user"/></svg>Entrar / Sou membro</button>
     <button class="drawer-item" data-nav="tela-diretorio" data-close-drawer><svg class="icon"><use href="#i-user"/></svg>Diretório de Membros</button>
     <button class="drawer-item" data-nav="tela-admin-login" data-close-drawer><svg class="icon"><use href="#i-settings"/></svg>Acesso do administrador</button>
@@ -800,17 +800,16 @@
       <p class="greet-name" id="home-saudacao">Bom dia 👋</p>
       <p class="greet-sub">Que bom te ver por aqui hoje.</p>
 
-      <div class="quicklinks">
-        <button class="quicklink" data-nav="tela-membro-estudos"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Estudos</button>
-        <button class="quicklink" data-nav="tela-diario"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Meu Diário</button>
-        <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
-        <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minhas fotos</button>
-        <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
-        <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Calendário</button>
-        <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Grupos</button>
-        <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Bíblia</button>
-        <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
-        <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
+      <div class="card" id="checkin-diario-box" style="margin-top:16px;">
+        <p class="checkin-pergunta" style="font-weight:700;font-size:14.5px;margin:0 0 12px;">Como você está hoje?</p>
+        <div class="reacao-row">
+          <button class="reacao-btn" data-reacao="grato">🙏<span>Grato</span></button>
+          <button class="reacao-btn" data-reacao="esperancoso">✨<span>Esperançoso</span></button>
+          <button class="reacao-btn" data-reacao="em_paz">🕊️<span>Em paz</span></button>
+          <button class="reacao-btn" data-reacao="fortalecido">💪<span>Fortalecido</span></button>
+          <button class="reacao-btn" data-reacao="cansado">😔<span>Cansado</span></button>
+          <button class="reacao-btn" data-reacao="ansioso">😟<span>Ansioso</span></button>
+        </div>
       </div>
 
       <div class="devo-card" style="margin-top:16px;">
@@ -832,16 +831,17 @@
       </div>
       <button class="btn btn-ghost" id="btn-painel-midia" style="display:none;margin-top:10px;">🔑 Abrir Painel Administrativo</button>
 
-      <div class="card" id="checkin-diario-box" style="margin-top:16px;">
-        <p class="checkin-pergunta" style="font-weight:700;font-size:14.5px;margin:0 0 12px;">Como você está hoje?</p>
-        <div class="reacao-row">
-          <button class="reacao-btn" data-reacao="grato">🙏<span>Grato</span></button>
-          <button class="reacao-btn" data-reacao="esperancoso">✨<span>Esperançoso</span></button>
-          <button class="reacao-btn" data-reacao="em_paz">🕊️<span>Em paz</span></button>
-          <button class="reacao-btn" data-reacao="fortalecido">💪<span>Fortalecido</span></button>
-          <button class="reacao-btn" data-reacao="cansado">😔<span>Cansado</span></button>
-          <button class="reacao-btn" data-reacao="ansioso">😟<span>Ansioso</span></button>
-        </div>
+      <div class="quicklinks" style="margin-top:16px;">
+        <button class="quicklink" data-nav="tela-membro-estudos"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Estudos</button>
+        <button class="quicklink" data-nav="tela-diario"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Meu Diário</button>
+        <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
+        <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minhas fotos</button>
+        <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
+        <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Calendário</button>
+        <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Grupos</button>
+        <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Bíblia</button>
+        <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
+        <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
       </div>
 
       <div class="card" id="push-ativar-box" style="margin-top:16px;display:none;border:1.5px dashed var(--brand);">
@@ -1175,7 +1175,7 @@
   <!-- ============ EVENTOS: LISTA ============ -->
   <div class="screen" id="tela-eventos">
     <div class="scroll no-nav">
-      <div class="voltar-btn" data-nav="tela-visitante">
+      <div class="voltar-btn" id="eventos-voltar" data-nav="tela-visitante">
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Eventos</span>
@@ -1188,7 +1188,7 @@
   <!-- ============ CALENDÁRIO DA IGREJA (espaços/agenda interna) ============ -->
   <div class="screen" id="tela-calendario">
     <div class="scroll no-nav">
-      <div class="voltar-btn" data-nav="tela-visitante">
+      <div class="voltar-btn" id="calendario-voltar" data-nav="tela-visitante">
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Calendário da Igreja</span>
@@ -1490,7 +1490,7 @@
 
   <div class="screen" id="tela-diretorio">
     <div class="scroll no-nav">
-      <div class="voltar-btn" data-nav="tela-membro-home">
+      <div class="voltar-btn" id="diretorio-voltar" data-nav="tela-membro-home">
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Diretório de Membros</span>
@@ -1502,7 +1502,7 @@
 
   <div class="screen" id="tela-grupos-lista">
     <div class="scroll no-nav">
-      <div class="voltar-btn" data-nav="tela-visitante">
+      <div class="voltar-btn" data-nav="tela-membro-home">
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Grupos e Departamentos</span>
@@ -1623,7 +1623,7 @@
   <!-- ============ SOBRE A IGREJA ============ -->
   <div class="screen" id="tela-sobre-igreja">
     <div class="scroll no-nav">
-      <div class="voltar-btn" data-nav="tela-visitante">
+      <div class="voltar-btn" id="sobreigreja-voltar" data-nav="tela-visitante">
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
 

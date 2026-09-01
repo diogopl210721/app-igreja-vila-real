@@ -2049,6 +2049,7 @@ async function enviarAvisoGrupoDetalhe(ev) {
 }
 
 async function carregarSobreIgreja() {
+  document.getElementById("sobreigreja-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
   const ig = state.igreja || {};
   document.getElementById("sobre-nome-igreja").textContent = ig.nome || "";
   document.getElementById("sobre-texto").textContent = ig.sobre_texto ||
@@ -2469,6 +2470,7 @@ async function buscarPorTema(modo) {
 }
 
 async function carregarCalendario() {
+  document.getElementById("calendario-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
   const btnAdd = document.getElementById("btn-add-calendario");
   const podeAdicionar = !!(state.membro?.eh_lider);
   if (btnAdd) btnAdd.style.display = podeAdicionar ? "block" : "none";
@@ -2653,6 +2655,7 @@ async function enviarCalendarioAdmin() {
 }
 
 async function carregarEventos() {
+  document.getElementById("eventos-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
   const btnCriar = document.getElementById("btn-criar-evento");
   if (btnCriar) btnCriar.style.display = podeGerenciarEventos() ? "block" : "none";
 
@@ -4836,7 +4839,7 @@ async function iniciar() {
       if (alvo === "tela-contatos") carregarContatos();
       if (alvo === "tela-sobre-igreja") await carregarSobreIgreja();
       if (alvo === "tela-grupos-lista") await carregarGruposLista();
-      if (alvo === "tela-diretorio") configurarDiretorio();
+      if (alvo === "tela-diretorio") { configurarDiretorio(); document.getElementById("diretorio-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante"; }
       if (alvo === "tela-eventos") await carregarEventos();
       if (alvo === "tela-diario-historico") await carregarHistoricoDiario();
       if (alvo === "tela-diario-planos") await carregarPlanos();
@@ -4924,7 +4927,10 @@ async function iniciar() {
   // ---- menu lateral (drawer) ----
   const drawer = document.getElementById("drawer");
   const drawerOverlay = document.getElementById("drawer-overlay");
-  const abrirDrawer = () => { drawer.classList.add("open"); drawerOverlay.classList.add("open"); };
+  const abrirDrawer = () => {
+    document.getElementById("drawer-inicio").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
+    drawer.classList.add("open"); drawerOverlay.classList.add("open");
+  };
   const fecharDrawer = () => { drawer.classList.remove("open"); drawerOverlay.classList.remove("open"); };
   document.getElementById("btn-abrir-drawer").addEventListener("click", abrirDrawer);
   drawerOverlay.addEventListener("click", fecharDrawer);
