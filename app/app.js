@@ -3819,6 +3819,23 @@ async function abrirFichaMembro(membroId) {
   renderInteresses("fm-interesses-lista", m.interesses || []);
 }
 
+async function resetarPinMembro() {
+  const id = estadoMembrosAdmin.membroId;
+  const nome = document.getElementById("fm-nome").value.trim();
+  const telefone = limparTelefone(document.getElementById("fm-telefone").value);
+  if (!id || !telefone) return;
+  if (!confirm(`Resetar o PIN de ${nome || "este membro"}? A senha atual dele(a) para de funcionar.`)) return;
+
+  const novoPin = String(Math.floor(1000 + Math.random() * 9000));
+  const pin_hash = await sha256(novoPin + ":" + telefone);
+  const btn = document.getElementById("btn-resetar-pin-membro");
+  btn.disabled = true; btn.textContent = "Resetando...";
+  const { error } = await sb.from("igr_membros").update({ pin_hash }).eq("id", id);
+  btn.disabled = false; btn.textContent = "🔑 Resetar PIN deste membro";
+  if (error) { alert("Não deu pra resetar: " + error.message); return; }
+  alert(`PIN novo de ${nome || "este membro"}: ${novoPin}\n\nPasse esse número pra pessoa — ela pode trocar depois no próprio perfil dela.`);
+}
+
 async function salvarFichaMembro(ev) {
   ev.preventDefault();
   const id = estadoMembrosAdmin.membroId;
@@ -3979,6 +3996,9 @@ function montarGridAdmin() {
   document.querySelectorAll(".admin-painel-aba").forEach(sec => sec.style.display = "none");
   document.getElementById("admin-grid").style.display = "grid";
   document.getElementById("admin-titulo-painel").textContent = state.adminNome ? `Olá, ${state.adminNome}` : "Painel do administrador";
+  // pra quem entrou pela senha master, oferece um jeito rápido de ir pra área do membro sem sair do app;
+  // pra quem já entrou vindo da própria área do membro (acesso concedido), o botão de sair já leva de volta pra lá
+  document.getElementById("btn-admin-area-membro").style.display = state.entrouPainelComoMembro ? "none" : "flex";
 }
 
 // entrada de acesso especial pro MEMBRO (sem senha separada — usa o proprio login dele),
@@ -4823,6 +4843,10 @@ async function iniciar() {
   document.getElementById("btn-exportar-grupo-membros")?.addEventListener("click", exportarGrupoMembrosCSV);
   document.getElementById("form-ficha-membro")?.addEventListener("submit", salvarFichaMembro);
   document.getElementById("btn-excluir-membro")?.addEventListener("click", excluirMembroAdmin);
+  document.getElementById("btn-resetar-pin-membro")?.addEventListener("click", resetarPinMembro);
+  document.getElementById("btn-admin-area-membro")?.addEventListener("click", () => {
+    mostrarTela(state.membro ? "tela-membro-home" : "tela-login");
+  });
   document.querySelector("[data-voltar-lista-membros]")?.addEventListener("click", () => carregarMembrosAdminGrupos());
   document.querySelector("[data-voltar-editar-grupo]")?.addEventListener("click", () => carregarMembrosAdminGrupos());
   document.getElementById("form-editar-grupo")?.addEventListener("submit", salvarEdicaoGrupoAdmin);

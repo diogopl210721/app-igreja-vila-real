@@ -193,7 +193,10 @@
     <div class="scroll no-nav">
       <div class="topbar">
         <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:18px;" id="admin-titulo-painel">Painel do administrador</span>
-        <button class="navitem" style="width:auto;flex:none;" data-nav="tela-visitante" id="btn-sair-admin"><svg class="icon"><use href="#i-logout"/></svg></button>
+        <div style="display:flex;gap:6px;">
+          <button class="navitem" style="width:auto;flex:none;" id="btn-admin-area-membro" title="Área do membro"><svg class="icon"><use href="#i-user"/></svg></button>
+          <button class="navitem" style="width:auto;flex:none;" data-nav="tela-visitante" id="btn-sair-admin"><svg class="icon"><use href="#i-logout"/></svg></button>
+        </div>
       </div>
 
       <div class="admin-grid" id="admin-grid">
@@ -427,6 +430,7 @@
 
               <button class="btn btn-primary" type="submit">Salvar alterações</button>
             </form>
+            <button class="btn btn-ghost" id="btn-resetar-pin-membro" type="button" style="margin-top:10px;">🔑 Resetar PIN deste membro</button>
             <button class="btn btn-ghost" id="btn-excluir-membro" type="button" style="margin-top:10px;color:#C0392B;">🗑 Excluir cadastro deste membro</button>
           </div>
         </div>
@@ -676,6 +680,7 @@
           </div>
           <p class="error-msg" id="login-erro-pin"></p>
           <button class="btn btn-primary" type="submit">Entrar</button>
+          <p class="hint" style="text-align:center;margin-top:10px;">Esqueceu sua senha? Fale com um líder ou com a administração da igreja pra resetar.</p>
         </div>
       </form>
 
