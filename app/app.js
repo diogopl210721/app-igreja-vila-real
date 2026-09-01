@@ -1124,13 +1124,20 @@ async function montarHomeMembro() {
     .filter(x => x.data_nascimento && (new Date(x.data_nascimento + "T00:00:00").getMonth() + 1) === mesAtual)
     .sort((a, b) => new Date(a.data_nascimento).getDate() - new Date(b.data_nascimento).getDate());
   const bdayEl = document.getElementById("home-aniversariantes");
+  const MESES_ABREV = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
   bdayEl.innerHTML = aniversariantes.map(a => {
-    const dia = new Date(a.data_nascimento + "T00:00:00").getDate();
+    const dataObj = new Date(a.data_nascimento + "T00:00:00");
+    const dia = dataObj.getDate();
+    const mesAbrev = MESES_ABREV[dataObj.getMonth()];
     const primeiro = a.nome_completo.split(" ")[0];
     const foto = a.foto_url
       ? `<img src="${a.foto_url}" class="bday-foto" alt="">`
       : avatarIniciais(a.nome_completo);
-    return `<div class="bday" data-aniv-id="${a.id}" style="cursor:pointer;"><div class="circle">${foto}</div><span>${primeiro} · ${dia}</span></div>`;
+    return `<div class="bday" data-aniv-id="${a.id}" style="cursor:pointer;">
+      <div class="circle">${foto}</div>
+      <b class="bday-nome">${primeiro}</b>
+      <span class="bday-data">${dia} ${mesAbrev}</span>
+    </div>`;
   }).join("") || `<div class="empty" style="padding:14px;">Ninguém faz aniversário este mês.</div>`;
 
   bdayEl.querySelectorAll("[data-aniv-id]").forEach(el => {
