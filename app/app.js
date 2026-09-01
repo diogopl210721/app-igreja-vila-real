@@ -322,7 +322,7 @@ function proximaOcorrencia(diaSemanaTexto, horarioTexto) {
   d.setHours(h, m, 0, 0);
   return d;
 }
-function gerarICS({ titulo, descricao, local, inicio, duracaoMin, semanal }) {
+function gerarICS({ titulo, descricao, local, inicio, duracaoMin, semanal, alarmeMin }) {
   const pad = n => String(n).padStart(2, "0");
   const fmt = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
   const fim = new Date(inicio.getTime() + (duracaoMin || 60) * 60000);
@@ -335,6 +335,9 @@ function gerarICS({ titulo, descricao, local, inicio, duracaoMin, semanal }) {
   if (descricao) linhas.push(`DESCRIPTION:${descricao.replace(/\n/g, " ")}`);
   if (local) linhas.push(`LOCATION:${local.replace(/\n/g, " ")}`);
   if (semanal) linhas.push("RRULE:FREQ=WEEKLY");
+  if (alarmeMin) {
+    linhas.push("BEGIN:VALARM", `TRIGGER:-PT${alarmeMin}M`, "ACTION:AUDIO", "END:VALARM");
+  }
   linhas.push("END:VEVENT", "END:VCALENDAR");
   return linhas.join("\r\n");
 }
@@ -355,6 +358,13 @@ function adicionarEventoAgenda(titulo, dataStr, horario, local, descricao) {
   const inicio = new Date(dataStr + "T00:00:00");
   inicio.setHours(h, m, 0, 0);
   const ics = gerarICS({ titulo, local, descricao, inicio, duracaoMin: 90 });
+  baixarICS(ics, `${titulo.replace(/\s+/g, "-")}.ics`);
+}
+function adicionarCalendarioAgenda(titulo, dataStr, horario, local, observacoes) {
+  const [h, m] = (horario || "00:00").split(":").map(n => parseInt(n, 10) || 0);
+  const inicio = new Date(dataStr + "T00:00:00");
+  inicio.setHours(h, m, 0, 0);
+  const ics = gerarICS({ titulo, local, descricao: observacoes, inicio, duracaoMin: 60, alarmeMin: 5 });
   baixarICS(ics, `${titulo.replace(/\s+/g, "-")}.ics`);
 }
 
@@ -1836,6 +1846,8 @@ async function carregarFeedCelula(celulaId) {
           <div class="row-info"><b>${p.autor_nome}</b><span>${tempoRelativo(p.created_at)}</span></div>
         </div>
         <p style="margin:10px 0;font-size:13.5px;">${p.texto}</p>
+        ${p.data_evento ? `<p style="margin:-4px 0 8px;font-size:12.5px;color:var(--brand);font-weight:600;">📅 ${formatarData(p.data_evento)}${p.hora_evento ? " às " + p.hora_evento : ""}</p>
+        <button class="btn btn-ghost" data-add-agenda-celula='${JSON.stringify({ t: p.texto.slice(0, 60), d: p.data_evento, h: p.hora_evento || "" }).replace(/'/g, "&#39;")}' style="width:auto;padding:7px 14px;font-size:12px;margin-bottom:8px;">📲 Adicionar na minha agenda</button>` : ""}
         ${souMonitor
           ? `<p class="hint" style="margin:-4px 0 8px;">✓ ${checksDoPost.length} confirmaram: ${checksDoPost.map(c => c.igr_membros?.nome_completo?.split(" ")[0]).filter(Boolean).join(", ") || "ninguém ainda"}</p>`
           : `<button class="btn ${euConfirmei ? "" : "btn-primary"}" data-confirmar-post="${p.id}" ${euConfirmei ? "disabled" : ""} style="width:auto;padding:8px 16px;font-size:12.5px;margin-bottom:8px;">${euConfirmei ? "✓ Você confirmou" : "Confirmar recebimento"}</button>`
@@ -1859,6 +1871,12 @@ async function carregarFeedCelula(celulaId) {
   el.querySelectorAll("[data-confirmar-post]").forEach(btn => {
     btn.addEventListener("click", () => confirmarRecebimentoPost(btn.dataset.confirmarPost, celulaId));
   });
+  el.querySelectorAll("[data-add-agenda-celula]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const info = JSON.parse(btn.dataset.addAgendaCelula);
+      adicionarEventoAgenda(info.t, info.d, info.h, state.celulaAtual?.nome || "", "");
+    });
+  });
 }
 
 async function confirmarRecebimentoPost(postId, celulaId) {
@@ -1870,12 +1888,16 @@ async function confirmarRecebimentoPost(postId, celulaId) {
 async function enviarPostCelula(ev) {
   ev.preventDefault();
   const texto = document.getElementById("celula-post-texto").value.trim();
+  const data_evento = document.getElementById("celula-post-data").value || null;
+  const hora_evento = document.getElementById("celula-post-horario").value.trim() || null;
   if (!texto || !state.celulaAtual || !state.membro) return;
   await sb.from("igr_celula_posts").insert({
     celula_id: state.celulaAtual.id, autor_membro_id: state.membro.id,
-    autor_nome: state.membro.nome_completo, texto,
+    autor_nome: state.membro.nome_completo, texto, data_evento, hora_evento,
   });
   document.getElementById("celula-post-texto").value = "";
+  document.getElementById("celula-post-data").value = "";
+  document.getElementById("celula-post-horario").value = "";
   carregarFeedCelula(state.celulaAtual.id);
 
   const { data: membrosCelula } = await sb.from("igr_membros").select("id").eq("celula_id", state.celulaAtual.id);
@@ -2090,19 +2112,80 @@ async function carregarCalendario() {
   const podeAdicionar = !!(state.membro?.eh_lider);
   if (btnAdd) btnAdd.style.display = podeAdicionar ? "block" : "none";
 
-  const hoje = new Date().toISOString().slice(0, 10);
   const { data } = await sb.from("igr_calendario_eventos").select("*, igr_grupos(nome)")
-    .eq("igreja_id", state.igreja.id).gte("data", hoje).order("data").order("horario");
+    .eq("igreja_id", state.igreja.id).order("data").order("horario");
+  state.calendarioEventos = data || [];
 
+  if (!state.calendarioMesAtual) {
+    const hoje = new Date();
+    state.calendarioMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  }
+  document.getElementById("calendario-view-dia").style.display = "none";
+  document.getElementById("calendario-view-mes").style.display = "block";
+  renderGradeCalendario();
+}
+
+function renderGradeCalendario() {
+  const mesRef = state.calendarioMesAtual;
+  const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  document.getElementById("cal-mes-titulo").textContent = `${meses[mesRef.getMonth()]} ${mesRef.getFullYear()}`;
+  document.getElementById("cal-dias-semana").innerHTML = ["D","S","T","Q","Q","S","S"].map(d => `<span>${d}</span>`).join("");
+
+  const eventosPorDia = {};
+  (state.calendarioEventos || []).forEach(ev => {
+    eventosPorDia[ev.data] = (eventosPorDia[ev.data] || 0) + 1;
+  });
+
+  const primeiroDia = new Date(mesRef.getFullYear(), mesRef.getMonth(), 1);
+  const ultimoDia = new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 0);
+  const offset = primeiroDia.getDay();
+  const hojeStr = new Date().toISOString().slice(0, 10);
+
+  const celulas = [];
+  for (let i = 0; i < offset; i++) celulas.push("");
+  for (let dia = 1; dia <= ultimoDia.getDate(); dia++) celulas.push(dia);
+
+  document.getElementById("cal-grade-mes").innerHTML = celulas.map(dia => {
+    if (!dia) return `<div></div>`;
+    const dataISO = `${mesRef.getFullYear()}-${String(mesRef.getMonth() + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+    const temEvento = !!eventosPorDia[dataISO];
+    const ehHoje = dataISO === hojeStr;
+    return `
+      <button data-dia-calendario="${dataISO}" style="aspect-ratio:1;border-radius:10px;border:1.5px solid ${ehHoje ? "var(--brand)" : "var(--line)"};background:${temEvento ? "var(--brand-soft)" : "#fff"};font-size:13px;font-weight:${temEvento ? "700" : "400"};color:${temEvento ? "var(--brand)" : "var(--ink)"};cursor:pointer;position:relative;">
+        ${dia}
+        ${temEvento ? `<span style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--coral);"></span>` : ""}
+      </button>
+    `;
+  }).join("");
+
+  document.querySelectorAll("[data-dia-calendario]").forEach(btn => {
+    btn.addEventListener("click", () => abrirDiaCalendario(btn.dataset.diaCalendario));
+  });
+}
+
+function abrirDiaCalendario(dataISO) {
+  document.getElementById("calendario-view-mes").style.display = "none";
+  document.getElementById("calendario-view-dia").style.display = "block";
+  document.getElementById("cal-dia-titulo").textContent = formatarData(dataISO);
+
+  const eventosDoDia = (state.calendarioEventos || []).filter(ev => ev.data === dataISO);
   const el = document.getElementById("calendario-lista");
-  el.innerHTML = (data || []).map(ev => `
+  el.innerHTML = eventosDoDia.map(ev => `
     <div class="card">
       <b style="font-size:14.5px;">${ev.titulo}</b>
-      <p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);">📍 ${ev.local} · ${formatarData(ev.data)}${ev.horario ? " às " + ev.horario : ""}</p>
-      ${ev.igr_grupos?.nome ? `<span class="badge-inline" style="margin-top:6px;">${ev.igr_grupos.nome}</span>` : ""}
+      <p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);">📍 ${ev.local}${ev.horario ? " · " + ev.horario : ""}</p>
+      ${ev.igr_grupos?.nome ? `<span class="badge-inline" style="margin-top:6px;">${ev.igr_grupos.nome}</span>` : `<span class="badge-inline" style="margin-top:6px;">Igreja toda</span>`}
       ${ev.observacoes ? `<p style="margin:6px 0 0;font-size:12.5px;">${ev.observacoes}</p>` : ""}
+      <button class="btn btn-ghost" data-add-agenda-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;margin-top:10px;">📲 Adicionar na minha agenda</button>
     </div>
-  `).join("") || `<div class="empty">Nada marcado no calendário por enquanto.</div>`;
+  `).join("") || `<div class="empty">Nada marcado pra esse dia.</div>`;
+
+  el.querySelectorAll("[data-add-agenda-calendario]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ev = eventosDoDia.find(e => e.id === btn.dataset.addAgendaCalendario);
+      if (ev) adicionarCalendarioAgenda(ev.titulo, ev.data, ev.horario, ev.local, ev.observacoes);
+    });
+  });
 }
 
 async function enviarCalendario(ev) {
@@ -2135,6 +2218,33 @@ async function enviarCalendario(ev) {
       enviarPush({ tipo: "membros", membro_ids: ids }, `Novo compromisso: ${titulo}`, `📍 ${local} · ${formatarData(data)}${horario ? " às " + horario : ""}`);
     }
   }
+}
+
+async function enviarCalendarioAdmin() {
+  const titulo = document.getElementById("adm-cal-titulo").value.trim();
+  const local = document.getElementById("adm-cal-local").value.trim();
+  const data = document.getElementById("adm-cal-data").value;
+  const horario = document.getElementById("adm-cal-horario").value.trim();
+  const observacoes = document.getElementById("adm-cal-observacoes").value.trim();
+  if (!titulo || !local || !data) { alert("Preencha título, local e data."); return; }
+
+  const btn = document.getElementById("btn-adm-add-calendario");
+  btn.disabled = true; btn.textContent = "Publicando...";
+  const { error } = await sb.from("igr_calendario_eventos").insert({
+    igreja_id: state.igreja.id, grupo_id: null,
+    criado_por_nome: state.adminNome || "Administração",
+    titulo, local, data, horario: horario || null, observacoes: observacoes || null,
+  });
+  btn.disabled = false; btn.textContent = "Publicar e notificar todo mundo";
+  if (error) { alert("Não deu pra publicar: " + error.message); return; }
+
+  document.getElementById("adm-cal-titulo").value = "";
+  document.getElementById("adm-cal-local").value = "";
+  document.getElementById("adm-cal-data").value = "";
+  document.getElementById("adm-cal-horario").value = "";
+  document.getElementById("adm-cal-observacoes").value = "";
+  enviarPush({ tipo: "todos" }, `Novo compromisso: ${titulo}`, `📍 ${local} · ${formatarData(data)}${horario ? " às " + horario : ""}`);
+  alert("Publicado! Notificação enviada a todos os membros.");
 }
 
 async function carregarEventos() {
@@ -4305,6 +4415,19 @@ async function iniciar() {
     form.style.display = form.style.display === "none" ? "block" : "none";
   });
   document.getElementById("form-calendario-add")?.addEventListener("submit", enviarCalendario);
+  document.getElementById("cal-mes-anterior")?.addEventListener("click", () => {
+    state.calendarioMesAtual = new Date(state.calendarioMesAtual.getFullYear(), state.calendarioMesAtual.getMonth() - 1, 1);
+    renderGradeCalendario();
+  });
+  document.getElementById("cal-mes-proximo")?.addEventListener("click", () => {
+    state.calendarioMesAtual = new Date(state.calendarioMesAtual.getFullYear(), state.calendarioMesAtual.getMonth() + 1, 1);
+    renderGradeCalendario();
+  });
+  document.getElementById("cal-voltar-mes")?.addEventListener("click", () => {
+    document.getElementById("calendario-view-dia").style.display = "none";
+    document.getElementById("calendario-view-mes").style.display = "block";
+  });
+  document.getElementById("btn-adm-add-calendario")?.addEventListener("click", enviarCalendarioAdmin);
   document.getElementById("biblia-voltar")?.addEventListener("click", () => mostrarTela(state.membro ? "tela-membro-home" : "tela-visitante"));
   document.getElementById("biblia-voltar-livros")?.addEventListener("click", () => abrirBibliaLivros());
   document.getElementById("biblia-voltar-capitulos")?.addEventListener("click", () => {

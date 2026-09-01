@@ -209,6 +209,21 @@
         <button class="admin-grid-card" data-secao="igreja" data-papel="geral"><svg class="icon"><use href="#i-settings"/></svg>Igreja</button>
         <button class="admin-grid-card" data-secao="oracao" data-papel="geral"><svg class="icon"><use href="#i-heart"/></svg>Oração</button>
         <button class="admin-grid-card" data-secao="eventos" data-papel="geral"><svg class="icon"><use href="#i-plus"/></svg>Eventos</button>
+        <button class="admin-grid-card" data-secao="calendario" data-papel="geral"><svg class="icon"><use href="#i-calendar"/></svg>Calendário</button>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="calendario" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Publicar no calendário (todos os membros)</b></div>
+        <p class="hint" style="margin-top:-6px;">Diferente do calendário do líder (que avisa só o grupo dele), isso aqui notifica a igreja inteira.</p>
+        <div class="card">
+          <div class="field"><label>Título</label><input id="adm-cal-titulo" required placeholder="Ex: Conferência de Missões"></div>
+          <div class="field"><label>Local</label><input id="adm-cal-local" required placeholder="Ex: Templo, Salão..."></div>
+          <div class="field"><label>Data</label><input id="adm-cal-data" type="date" required></div>
+          <div class="field"><label>Horário (opcional)</label><input id="adm-cal-horario" placeholder="Ex: 19h30"></div>
+          <div class="field" style="margin-bottom:6px;"><label>Observações (opcional)</label><input id="adm-cal-observacoes" placeholder="Detalhes adicionais"></div>
+          <button class="btn btn-primary" id="btn-adm-add-calendario" type="button">Publicar e notificar todo mundo</button>
+        </div>
       </div>
 
       <div class="admin-painel-aba" data-admin-painel="lideres" style="display:none;">
@@ -1162,7 +1177,23 @@
         </div>
       </form>
 
-      <div id="calendario-lista"><p class="hint"><span class="loading-dot"></span></p></div>
+      <!-- VISAO: MES (grade com marcacoes) -->
+      <div id="calendario-view-mes">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <button class="btn-icone-remover" id="cal-mes-anterior" style="color:var(--brand);font-size:18px;">‹</button>
+          <span id="cal-mes-titulo" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:16px;"></span>
+          <button class="btn-icone-remover" id="cal-mes-proximo" style="color:var(--brand);font-size:18px;">›</button>
+        </div>
+        <div id="cal-dias-semana" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;font-size:10.5px;color:var(--ink-soft);text-align:center;font-weight:700;"></div>
+        <div id="cal-grade-mes" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+      </div>
+
+      <!-- VISAO: DIA (lista do dia escolhido) -->
+      <div id="calendario-view-dia" style="display:none;">
+        <div class="admin-aba-voltar" id="cal-voltar-mes">← Voltar pro calendário</div>
+        <span id="cal-dia-titulo" style="font-weight:700;font-size:16px;display:block;margin-bottom:10px;"></span>
+        <div id="calendario-lista"></div>
+      </div>
     </div>
   </div>
 
@@ -1439,6 +1470,11 @@
           <label>Avisar o grupo (reunião, encontro, aviso...)</label>
           <textarea id="celula-post-texto" rows="2" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Escreva o aviso..."></textarea>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:6px;">
+          <div class="field" style="flex:1;margin-bottom:0;"><label>Data (opcional)</label><input id="celula-post-data" type="date"></div>
+          <div class="field" style="flex:1;margin-bottom:0;"><label>Horário (opcional)</label><input id="celula-post-horario" placeholder="Ex: 19h30"></div>
+        </div>
+        <p class="hint" style="margin:0 0 10px;">Colocando a data, o grupo já ganha o botão de adicionar na agenda do celular.</p>
         <button class="btn btn-primary" type="submit">Publicar e notificar o grupo</button>
       </form>
 
