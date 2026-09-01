@@ -2118,9 +2118,11 @@ async function abrirBibliaLivros() {
 }
 
 function renderLivrosBiblia() {
-  document.getElementById("biblia-lista-livros").innerHTML = state.bibliaLivros.map(l => `
+  const termo = (document.getElementById("biblia-busca-livro")?.value || "").trim().toLowerCase();
+  const lista = termo ? state.bibliaLivros.filter(l => l.nome.toLowerCase().includes(termo)) : state.bibliaLivros;
+  document.getElementById("biblia-lista-livros").innerHTML = lista.map(l => `
     <button class="admin-grid-card" data-livro-biblia="${l.id}" style="padding:14px 6px;font-size:12px;">${l.nome}</button>
-  `).join("");
+  `).join("") || `<p class="hint">Nenhum livro encontrado.</p>`;
   document.querySelectorAll("[data-livro-biblia]").forEach(btn => {
     btn.addEventListener("click", () => abrirBibliaCapitulos(btn.dataset.livroBiblia));
   });
@@ -2155,6 +2157,7 @@ async function abrirBibliaTexto(livroId, capitulo) {
   document.getElementById("biblia-view-capitulos").style.display = "none";
   document.getElementById("biblia-view-texto").style.display = "block";
   document.getElementById("biblia-versiculos").innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  document.getElementById("biblia-marcar-painel").style.display = "none";
 
   const resultado = await chamarBiblia({ acao: "texto", livroId, capitulo });
   if (!resultado?.versiculos) {
@@ -2162,10 +2165,55 @@ async function abrirBibliaTexto(livroId, capitulo) {
     return;
   }
   document.getElementById("biblia-referencia").textContent = resultado.referencia;
-  document.getElementById("biblia-versiculos").innerHTML = resultado.versiculos.map(v =>
-    `<sup style="color:var(--brand);font-weight:700;margin-right:2px;">${v.numero}</sup>${v.texto} `
+
+  const livro = state.bibliaLivroAtual;
+  let versiculosLidos = new Set();
+  if (state.membro) {
+    const { data: leituras } = await sb.from("igr_leituras").select("versiculo_inicio")
+      .eq("membro_id", state.membro.id).eq("livro", livro.nome).eq("capitulo", parseInt(capitulo))
+      .not("versiculo_inicio", "is", null);
+    versiculosLidos = new Set((leituras || []).map(l => l.versiculo_inicio));
+  }
+
+  document.getElementById("biblia-versiculos").innerHTML = resultado.versiculos.map(v => `
+    <span data-versiculo-biblia="${v.numero}" style="cursor:pointer;${versiculosLidos.has(parseInt(v.numero)) ? "background:var(--brand-soft);border-radius:4px;" : ""}">
+      <sup style="color:var(--brand);font-weight:700;margin-right:2px;">${v.numero}${versiculosLidos.has(parseInt(v.numero)) ? " ✅" : ""}</sup>${v.texto}
+    </span> `
   ).join("");
   document.getElementById("biblia-copyright").textContent = resultado.copyright || "";
+
+  document.querySelectorAll("[data-versiculo-biblia]").forEach(span => {
+    span.addEventListener("click", () => abrirMarcarVersiculo(livro.nome, capitulo, span.dataset.versiculoBiblia));
+  });
+}
+
+function abrirMarcarVersiculo(livroNome, capitulo, versiculo) {
+  if (!state.membro) { alert("Faça login pra marcar sua leitura."); return; }
+  state.bibliaVersiculoMarcando = { livroNome, capitulo, versiculo };
+  document.getElementById("biblia-marcar-referencia").textContent = `${livroNome} ${capitulo}:${versiculo}`;
+  document.getElementById("biblia-marcar-lido").checked = true;
+  document.getElementById("biblia-marcar-nota").value = "";
+  document.getElementById("biblia-marcar-compartilhar").checked = false;
+  document.getElementById("biblia-marcar-painel").style.display = "block";
+  document.getElementById("biblia-marcar-painel").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function salvarMarcarVersiculo() {
+  const alvo = state.bibliaVersiculoMarcando;
+  if (!alvo || !state.membro) return;
+  const nota = document.getElementById("biblia-marcar-nota").value.trim() || null;
+  const compartilhado = document.getElementById("biblia-marcar-compartilhar").checked;
+  const btn = document.getElementById("btn-biblia-marcar-salvar");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  await sb.from("igr_leituras").insert({
+    igreja_id: state.igreja.id, membro_id: state.membro.id,
+    livro: alvo.livroNome, capitulo: parseInt(alvo.capitulo), versiculo_inicio: parseInt(alvo.versiculo),
+    nota, compartilhado,
+  });
+  btn.disabled = false; btn.textContent = "Salvar";
+  document.getElementById("biblia-marcar-painel").style.display = "none";
+  if (nota) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
+  await abrirBibliaTexto(state.bibliaLivroAtual.id, alvo.capitulo);
 }
 
 // ---------- diário de leitura ----------
@@ -4843,6 +4891,9 @@ async function iniciar() {
       if (alvo === "tela-eventos") await carregarEventos();
       if (alvo === "tela-diario-historico") await carregarHistoricoDiario();
       if (alvo === "tela-diario-planos") await carregarPlanos();
+      if (alvo === "tela-diario-tema") {
+        document.getElementById("tema-voltar").dataset.nav = btn.closest("#tela-biblia") ? "tela-biblia" : "tela-diario";
+      }
     });
   });
   document.querySelectorAll("[data-close-a2hs]").forEach(b => b.addEventListener("click", fecharA2HS));
@@ -4880,6 +4931,11 @@ async function iniciar() {
   });
   document.getElementById("btn-adm-add-calendario")?.addEventListener("click", enviarCalendarioAdmin);
   document.getElementById("biblia-voltar")?.addEventListener("click", () => mostrarTela(state.membro ? "tela-membro-home" : "tela-visitante"));
+  document.getElementById("biblia-busca-livro")?.addEventListener("input", renderLivrosBiblia);
+  document.getElementById("btn-biblia-marcar-salvar")?.addEventListener("click", salvarMarcarVersiculo);
+  document.getElementById("btn-biblia-marcar-cancelar")?.addEventListener("click", () => {
+    document.getElementById("biblia-marcar-painel").style.display = "none";
+  });
   document.getElementById("biblia-voltar-livros")?.addEventListener("click", () => abrirBibliaLivros());
   document.getElementById("biblia-voltar-capitulos")?.addEventListener("click", () => {
     document.getElementById("biblia-view-texto").style.display = "none";

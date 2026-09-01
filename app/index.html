@@ -1251,9 +1251,11 @@
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Bíblia Sagrada</span>
-      <p class="hint" id="biblia-subtitulo" style="margin-bottom:14px;">Escolha um livro pra começar a ler.</p>
+      <p class="hint" id="biblia-subtitulo" style="margin-bottom:10px;">Escolha um livro pra começar a ler.</p>
+      <button class="btn btn-ghost" data-nav="tela-diario-tema" style="margin-bottom:14px;">🔍 Buscar por tema / Montar estudo</button>
 
       <div id="biblia-view-livros">
+        <div class="field"><input id="biblia-busca-livro" autocomplete="off" placeholder="Buscar livro..."></div>
         <div id="biblia-lista-livros" class="admin-grid" style="grid-template-columns:1fr 1fr 1fr;"><p class="hint"><span class="loading-dot"></span></p></div>
       </div>
 
@@ -1265,9 +1267,22 @@
 
       <div id="biblia-view-texto" style="display:none;">
         <div class="admin-aba-voltar" id="biblia-voltar-capitulos">← Escolher outro capítulo</div>
+        <p class="hint" style="margin:-4px 0 10px;">Toque num versículo pra marcar como lido ou anotar.</p>
         <div class="card">
           <span id="biblia-referencia" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:18px;display:block;margin-bottom:12px;"></span>
-          <div id="biblia-versiculos" style="font-size:15px;line-height:1.75;"></div>
+          <div id="biblia-versiculos" style="font-size:15px;line-height:1.9;"></div>
+        </div>
+        <div class="card" id="biblia-marcar-painel" style="display:none;margin-top:12px;border:1.5px dashed var(--brand);">
+          <b id="biblia-marcar-referencia" style="font-size:14px;display:block;margin-bottom:10px;"></b>
+          <label class="interesse-item"><input type="checkbox" id="biblia-marcar-lido" checked> ✅ Já li esse versículo</label>
+          <div class="field" style="margin-top:10px;"><label>O que Deus falou com você? (opcional)</label>
+            <textarea id="biblia-marcar-nota" rows="3" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Anote o que ficou no seu coração..."></textarea>
+          </div>
+          <label class="interesse-item" style="margin:10px 0 14px;"><input type="checkbox" id="biblia-marcar-compartilhar"> 🔓 Compartilhar com o líder</label>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" id="btn-biblia-marcar-cancelar" type="button" style="flex:1;">Cancelar</button>
+            <button class="btn btn-primary" id="btn-biblia-marcar-salvar" type="button" style="flex:1;">Salvar</button>
+          </div>
         </div>
         <p class="hint" id="biblia-copyright" style="margin-top:10px;text-align:center;"></p>
       </div>
@@ -1355,7 +1370,7 @@
 
   <div class="screen" id="tela-diario-tema">
     <div class="scroll no-nav">
-      <div class="admin-aba-voltar" data-nav="tela-diario">← Voltar</div>
+      <div class="admin-aba-voltar" id="tema-voltar" data-nav="tela-diario">← Voltar</div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Buscar por tema</span>
       <p class="hint" style="margin-bottom:14px;">Ex: "amor", "obediência", "perdão"... a IA sugere versículos ou monta um estudo completo.</p>
       <div class="card" id="tema-form-card">
