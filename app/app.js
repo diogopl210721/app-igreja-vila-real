@@ -2102,30 +2102,71 @@ async function chamarBiblia(payload) {
 
 async function abrirBibliaLivros() {
   document.getElementById("biblia-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
-  document.getElementById("biblia-subtitulo").textContent = "Escolha um livro pra começar a ler.";
+  document.getElementById("biblia-subtitulo").textContent = "Digite o livro (e o capítulo, se já souber) pra ir direto pra leitura.";
   document.getElementById("biblia-view-capitulos").style.display = "none";
   document.getElementById("biblia-view-texto").style.display = "none";
   document.getElementById("biblia-view-livros").style.display = "block";
+  document.getElementById("biblia-busca-livro").value = "";
+  document.getElementById("biblia-busca-capitulo").value = "";
+  document.getElementById("biblia-busca-versiculo").value = "";
+  state.bibliaLivroSelecionadoId = null;
 
-  if (state.bibliaLivros) { renderLivrosBiblia(); return; }
+  if (state.bibliaLivros) return;
   const resultado = await chamarBiblia({ acao: "livros" });
   if (!resultado?.livros) {
-    document.getElementById("biblia-lista-livros").innerHTML = `<div class="empty">Não deu pra carregar a Bíblia agora. Verifique sua internet e tente de novo.</div>`;
+    document.getElementById("biblia-subtitulo").textContent = "Não deu pra carregar a Bíblia agora. Verifique sua internet e tente de novo.";
     return;
   }
   state.bibliaLivros = resultado.livros;
-  renderLivrosBiblia();
 }
 
-function renderLivrosBiblia() {
-  const termo = (document.getElementById("biblia-busca-livro")?.value || "").trim().toLowerCase();
-  const lista = termo ? state.bibliaLivros.filter(l => l.nome.toLowerCase().includes(termo)) : state.bibliaLivros;
-  document.getElementById("biblia-lista-livros").innerHTML = lista.map(l => `
-    <button class="admin-grid-card" data-livro-biblia="${l.id}" style="padding:14px 6px;font-size:12px;">${l.nome}</button>
-  `).join("") || `<p class="hint">Nenhum livro encontrado.</p>`;
-  document.querySelectorAll("[data-livro-biblia]").forEach(btn => {
-    btn.addEventListener("click", () => abrirBibliaCapitulos(btn.dataset.livroBiblia));
+function configurarAutocompleteLivroBiblia() {
+  const input = document.getElementById("biblia-busca-livro");
+  const sugestoesEl = document.getElementById("biblia-livro-sugestoes");
+  if (!input) return;
+  input.addEventListener("input", () => {
+    state.bibliaLivroSelecionadoId = null;
+    const termo = input.value.trim().toLowerCase();
+    if (!termo || !state.bibliaLivros) { sugestoesEl.style.display = "none"; return; }
+    const bateram = state.bibliaLivros.filter(l => l.nome.toLowerCase().includes(termo)).slice(0, 8);
+    if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
+    sugestoesEl.innerHTML = bateram.map(l => `<div class="autocomplete-item" data-livro-id="${l.id}" data-livro-nome="${l.nome}">${l.nome}</div>`).join("");
+    sugestoesEl.style.display = "block";
+    sugestoesEl.querySelectorAll("[data-livro-id]").forEach(item => {
+      item.addEventListener("click", () => {
+        input.value = item.dataset.livroNome;
+        state.bibliaLivroSelecionadoId = item.dataset.livroId;
+        sugestoesEl.style.display = "none";
+        document.getElementById("biblia-busca-capitulo").focus();
+      });
+    });
   });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+
+async function irParaReferenciaBiblia() {
+  let livroId = state.bibliaLivroSelecionadoId;
+  const termo = document.getElementById("biblia-busca-livro").value.trim().toLowerCase();
+  if (!livroId && termo && state.bibliaLivros) {
+    const bateu = state.bibliaLivros.find(l => l.nome.toLowerCase() === termo) ||
+      state.bibliaLivros.find(l => l.nome.toLowerCase().startsWith(termo));
+    if (bateu) livroId = bateu.id;
+  }
+  if (!livroId) { alert("Digite o nome de um livro válido e escolha uma sugestão."); return; }
+
+  const capitulo = document.getElementById("biblia-busca-capitulo").value.trim();
+  const versiculo = document.getElementById("biblia-busca-versiculo").value.trim();
+  if (capitulo) {
+    await abrirBibliaTexto(livroId, capitulo);
+    if (versiculo) {
+      const alvo = document.querySelector(`[data-versiculo-biblia="${versiculo}"]`);
+      if (alvo) { alvo.scrollIntoView({ behavior: "smooth", block: "center" }); alvo.click(); }
+    }
+  } else {
+    await abrirBibliaCapitulos(livroId);
+  }
 }
 
 async function abrirBibliaCapitulos(livroId) {
@@ -2445,8 +2486,25 @@ async function criarPlanoPersonalizado() {
 
 // ---------- busca por tema / gerador de estudo ----------
 function textoCompartilhavelEstudo(estudo) {
-  let txt = `${estudo.titulo}\n\n${estudo.introducao}\n\n`;
-  estudo.pontos.forEach((p, i) => { txt += `${i + 1}. ${p.subtitulo} (${p.referencia})\n${p.explicacao}\n\n`; });
+  const ch = estudo.contexto_historico || {};
+  let txt = `${estudo.titulo}\n\n`;
+  txt += `📍 Contexto histórico (${ch.base_referencia || ""})\n`;
+  if (ch.autor) txt += `Autor: ${ch.autor}\n`;
+  if (ch.publico_original) txt += `Público original: ${ch.publico_original}\n`;
+  if (ch.data_aproximada) txt += `Data aproximada: ${ch.data_aproximada}\n`;
+  if (ch.local) txt += `Local: ${ch.local}\n`;
+  txt += `\n${estudo.introducao}\n\n`;
+  if (estudo.curiosidades?.length) {
+    txt += `💡 Curiosidades\n`;
+    estudo.curiosidades.forEach(c => { txt += `- ${c}\n`; });
+    txt += `\n`;
+  }
+  estudo.pontos.forEach((p, i) => {
+    txt += `${i + 1}. ${p.subtitulo} (${p.referencia})\n${p.explicacao}\n`;
+    if (p.palavra_original) txt += `No original: ${p.palavra_original}\n`;
+    if (p.aplicacao_atual) txt += `Aplicação hoje: ${p.aplicacao_atual}\n`;
+    txt += `\n`;
+  });
   txt += `Conclusão:\n${estudo.conclusao}`;
   return txt;
 }
@@ -2496,14 +2554,33 @@ async function buscarPorTema(modo) {
       });
     });
   } else {
+    const ch = data.contexto_historico || {};
     resultadoEl.innerHTML = `
       <div class="card">
-        <b style="font-size:16px;display:block;margin-bottom:8px;">${data.titulo}</b>
+        <b style="font-size:16px;display:block;margin-bottom:10px;">${data.titulo}</b>
+
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
+          <p class="hint" style="font-weight:700;margin:0 0 6px;color:var(--ink);">📍 Contexto histórico — ${ch.base_referencia || ""}</p>
+          ${ch.autor ? `<p class="hint" style="margin:2px 0;">✍️ <b>Autor:</b> ${ch.autor}</p>` : ""}
+          ${ch.publico_original ? `<p class="hint" style="margin:2px 0;">👥 <b>Escrito para:</b> ${ch.publico_original}</p>` : ""}
+          ${ch.data_aproximada ? `<p class="hint" style="margin:2px 0;">🗓️ <b>Data aproximada:</b> ${ch.data_aproximada}</p>` : ""}
+          ${ch.local ? `<p class="hint" style="margin:2px 0;">🗺️ <b>Local:</b> ${ch.local}</p>` : ""}
+        </div>
+
         <p style="font-size:13.5px;margin:0 0 12px;">${data.introducao}</p>
+
+        ${data.curiosidades?.length ? `
+          <div style="background:var(--brand-soft);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+            <p class="hint" style="font-weight:700;margin:0 0 6px;color:var(--ink);">💡 Curiosidades</p>
+            ${data.curiosidades.map(c => `<p style="font-size:13px;margin:4px 0;">• ${c}</p>`).join("")}
+          </div>` : ""}
+
         ${data.pontos.map((p, i) => `
-          <div style="margin-bottom:12px;">
+          <div style="margin-bottom:14px;">
             <b style="font-size:13.5px;">${i + 1}. ${p.subtitulo}</b> <span class="hint">(${p.referencia})</span>
             <p style="font-size:13px;margin:4px 0 0;">${p.explicacao}</p>
+            ${p.palavra_original ? `<p class="hint" style="margin:4px 0 0;font-style:italic;">📖 No original: ${p.palavra_original}</p>` : ""}
+            ${p.aplicacao_atual ? `<p style="font-size:12.5px;margin:4px 0 0;color:var(--brand);">➡️ Hoje: ${p.aplicacao_atual}</p>` : ""}
           </div>
         `).join("")}
         <p class="hint" style="font-weight:700;margin:10px 0 2px;">Conclusão</p>
@@ -4956,7 +5033,8 @@ async function iniciar() {
   });
   document.getElementById("btn-adm-add-calendario")?.addEventListener("click", enviarCalendarioAdmin);
   document.getElementById("biblia-voltar")?.addEventListener("click", () => mostrarTela(state.membro ? "tela-membro-home" : "tela-visitante"));
-  document.getElementById("biblia-busca-livro")?.addEventListener("input", renderLivrosBiblia);
+  configurarAutocompleteLivroBiblia();
+  document.getElementById("btn-biblia-ir")?.addEventListener("click", irParaReferenciaBiblia);
   document.getElementById("btn-biblia-marcar-salvar")?.addEventListener("click", salvarMarcarVersiculo);
   document.getElementById("btn-biblia-marcar-cancelar")?.addEventListener("click", () => {
     document.getElementById("biblia-marcar-painel").style.display = "none";

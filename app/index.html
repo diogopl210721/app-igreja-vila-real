@@ -1260,8 +1260,19 @@
       <button class="btn btn-ghost" data-nav="tela-diario-tema" style="margin-bottom:14px;">🔍 Buscar por tema / Montar estudo</button>
 
       <div id="biblia-view-livros">
-        <div class="field"><input id="biblia-busca-livro" autocomplete="off" placeholder="Buscar livro..."></div>
-        <div id="biblia-lista-livros" class="admin-grid" style="grid-template-columns:1fr 1fr 1fr;"><p class="hint"><span class="loading-dot"></span></p></div>
+        <div class="card">
+          <div class="field" style="position:relative;">
+            <label>Livro</label>
+            <input id="biblia-busca-livro" autocomplete="off" placeholder="Digite o nome do livro...">
+            <div id="biblia-livro-sugestoes" class="autocomplete-lista" style="display:none;"></div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <div class="field" style="flex:1;"><label>Capítulo (opcional)</label><input id="biblia-busca-capitulo" type="number" min="1" placeholder="Ex: 3"></div>
+            <div class="field" style="flex:1;"><label>Versículo (opcional)</label><input id="biblia-busca-versiculo" type="number" min="1" placeholder="Ex: 16"></div>
+          </div>
+          <button class="btn btn-primary" id="btn-biblia-ir" type="button">Ir</button>
+          <p class="hint" style="margin:10px 0 0;">Deixe capítulo em branco pra escolher numa lista depois de digitar o livro.</p>
+        </div>
       </div>
 
       <div id="biblia-view-capitulos" style="display:none;">
