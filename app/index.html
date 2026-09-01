@@ -875,6 +875,8 @@
         </form>
       </div>
 
+      <button class="btn btn-ghost" id="btn-abrir-banner-lider" style="display:none;margin-top:10px;border:1.5px dashed var(--brand);">🎨 Criar banner de divulgação</button>
+
       <div id="lider-visitantes-box" style="display:none;">
         <div class="section-label"><b>Seus novos visitantes</b></div>
         <div id="lider-visitantes-lista"></div>
@@ -1395,6 +1397,40 @@
         <button class="btn btn-primary" id="btn-tema-estudo" type="button">📝 Montar estudo/pregação completo</button>
       </div>
       <div id="tema-resultado" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ============ BANNER DE DIVULGAÇÃO (LÍDER) ============ -->
+  <div class="screen" id="tela-lider-banner">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-home"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Criar banner de divulgação</span>
+      <p class="hint" style="margin-bottom:14px;">Preenche os dados, escolhe um estilo e já baixa ou publica pro seu grupo.</p>
+
+      <div id="banner-view-form">
+        <div class="card">
+          <div class="field"><label>Tema / Título do evento</label><input id="banner-tema" required placeholder="Ex: Culto de Jovens"></div>
+          <div class="field"><label>Data</label><input id="banner-data" type="date" required></div>
+          <div class="field"><label>Horário</label><input id="banner-horario" required placeholder="Ex: 19h30"></div>
+          <div class="field"><label>Endereço</label><input id="banner-endereco" required placeholder="Ex: Rua Exemplo, 123"></div>
+          <div class="field"><label>Telefone / contato</label><input id="banner-telefone" required placeholder="Ex: (41) 99999-9999"></div>
+          <div class="field" style="margin-bottom:6px;"><label>Imagem sugerida</label><input id="banner-imagem" type="file" accept="image/*" required></div>
+          <button class="btn btn-primary" id="btn-gerar-banners" type="button">✨ Gerar banners</button>
+        </div>
+      </div>
+
+      <div id="banner-view-escolher" style="display:none;">
+        <div class="admin-aba-voltar" id="banner-voltar-form">← Editar dados</div>
+        <p class="hint" style="margin-bottom:10px;">Toque no estilo que você mais gostou.</p>
+        <div id="banner-opcoes" style="display:flex;flex-direction:column;gap:14px;"></div>
+      </div>
+
+      <div id="banner-view-preview" style="display:none;">
+        <div class="admin-aba-voltar" id="banner-voltar-escolher">← Escolher outro estilo</div>
+        <canvas id="banner-canvas-preview" style="width:100%;border-radius:16px;box-shadow:var(--shadow);"></canvas>
+        <button class="btn btn-ghost" id="btn-banner-baixar" style="margin-top:14px;">⬇️ Baixar imagem</button>
+        <button class="btn btn-primary" id="btn-banner-aprovar" style="margin-top:8px;">✅ Aprovar e publicar pro grupo</button>
+      </div>
     </div>
   </div>
 

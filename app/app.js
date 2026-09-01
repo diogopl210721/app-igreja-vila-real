@@ -1193,6 +1193,8 @@ async function montarHomeMembro() {
 
   const liderBox = document.getElementById("lider-postar-box");
   if (liderBox) liderBox.style.display = m.eh_lider ? "block" : "none";
+  const btnBannerLider = document.getElementById("btn-abrir-banner-lider");
+  if (btnBannerLider) btnBannerLider.style.display = m.eh_lider ? "block" : "none";
   const liderVisitantesBox = document.getElementById("lider-visitantes-box");
   if (liderVisitantesBox) {
     liderVisitantesBox.style.display = m.eh_lider ? "block" : "none";
@@ -2592,6 +2594,258 @@ async function buscarPorTema(modo) {
       compartilharTexto(data.titulo, textoCompartilhavelEstudo(data)));
     document.getElementById("btn-estudo-imprimir").addEventListener("click", () => window.print());
   }
+}
+
+// ---------- banner de divulgação (líder) ----------
+function carregarImagemEl(src, crossOrigin) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    if (crossOrigin) img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function desenharFotoCover(ctx, foto, W, H) {
+  const escala = Math.max(W / foto.naturalWidth, H / foto.naturalHeight);
+  const w = foto.naturalWidth * escala, h = foto.naturalHeight * escala;
+  ctx.drawImage(foto, (W - w) / 2, (H - h) / 2, w, h);
+}
+
+function quebrarTextoCanvas(ctx, texto, maxWidth) {
+  const palavras = texto.split(" ");
+  const linhas = [];
+  let atual = "";
+  palavras.forEach(p => {
+    const teste = atual ? atual + " " + p : p;
+    if (ctx.measureText(teste).width > maxWidth && atual) { linhas.push(atual); atual = p; }
+    else atual = teste;
+  });
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function desenharLogoComCirculo(ctx, logo, cx, cy, raio) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+  ctx.clip();
+  const escala = Math.max((raio * 2 * 0.86) / logo.naturalWidth, (raio * 2 * 0.86) / logo.naturalHeight);
+  const w = logo.naturalWidth * escala, h = logo.naturalHeight * escala;
+  ctx.drawImage(logo, cx - w / 2, cy - h / 2, w, h);
+  ctx.restore();
+}
+
+function novoCanvasBanner() {
+  const c = document.createElement("canvas");
+  c.width = 1080; c.height = 1920;
+  return c;
+}
+
+// Template A — fundo escuro elegante, degradê de baixo pra cima
+function desenharBannerA(foto, logo, d) {
+  const c = novoCanvasBanner(); const ctx = c.getContext("2d"); const W = c.width, H = c.height;
+  desenharFotoCover(ctx, foto, W, H);
+  const grad = ctx.createLinearGradient(0, H * 0.4, 0, H);
+  grad.addColorStop(0, "rgba(10,12,25,0)"); grad.addColorStop(1, "rgba(5,6,15,0.94)");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  desenharLogoComCirculo(ctx, logo, 96, 96, 56);
+  ctx.fillStyle = "#fff"; ctx.font = "700 30px Inter, sans-serif"; ctx.textBaseline = "middle";
+  ctx.fillText(d.nomeIgreja, 168, 96);
+
+  ctx.fillStyle = "#0026B7"; roundRectPath(ctx, 64, H - 700, 260, 56, 28); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.font = "800 24px Inter, sans-serif"; ctx.textBaseline = "middle";
+  ctx.fillText("📢 DIVULGAÇÃO", 92, H - 672);
+
+  ctx.fillStyle = "#fff"; ctx.font = "800 74px Montserrat, sans-serif"; ctx.textBaseline = "alphabetic";
+  const linhasTema = quebrarTextoCanvas(ctx, d.tema, W - 128);
+  let y = H - 560;
+  linhasTema.forEach(l => { ctx.fillText(l, 64, y); y += 84; });
+
+  y += 26;
+  ctx.font = "600 40px Inter, sans-serif"; ctx.fillStyle = "rgba(255,255,255,.96)";
+  const infos = [`📅  ${d.dataFormatada}  •  🕒 ${d.horario}`, `📍  ${d.endereco}`, `📞  ${d.telefone}`];
+  infos.forEach(l => { ctx.fillText(l, 64, y); y += 58; });
+  return c;
+}
+
+// Template B — faixa colorida moderna + barra inferior sólida
+function desenharBannerB(foto, logo, d) {
+  const c = novoCanvasBanner(); const ctx = c.getContext("2d"); const W = c.width, H = c.height;
+  desenharFotoCover(ctx, foto, W, H);
+  ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(0, H * 0.5); ctx.rotate(-0.045);
+  ctx.fillStyle = "rgba(0,38,183,.92)";
+  ctx.fillRect(-40, -120, W + 80, 260);
+  ctx.fillStyle = "#fff"; ctx.font = "800 68px Montserrat, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "center";
+  const linhasTema = quebrarTextoCanvas(ctx, d.tema, W - 140);
+  const alturaLinha = 74;
+  const inicioY = -((linhasTema.length - 1) * alturaLinha) / 2;
+  linhasTema.forEach((l, i) => ctx.fillText(l, W / 2, inicioY + i * alturaLinha));
+  ctx.restore();
+  ctx.textAlign = "left";
+
+  ctx.fillStyle = "#0026B7"; ctx.fillRect(0, H - 360, W, 360);
+  ctx.fillStyle = "#fff"; ctx.font = "600 38px Inter, sans-serif"; ctx.textBaseline = "middle";
+  const infos = [`📅  ${d.dataFormatada}   🕒  ${d.horario}`, `📍  ${d.endereco}`, `📞  ${d.telefone}`];
+  let y = H - 270;
+  infos.forEach(l => { ctx.fillText(l, 64, y); y += 66; });
+
+  desenharLogoComCirculo(ctx, logo, W - 120, H - 340, 68);
+  return c;
+}
+
+// Template C — cartão flutuante branco na parte inferior
+function desenharBannerC(foto, logo, d) {
+  const c = novoCanvasBanner(); const ctx = c.getContext("2d"); const W = c.width, H = c.height;
+  desenharFotoCover(ctx, foto, W, H);
+  ctx.fillStyle = "rgba(10,12,25,.35)"; ctx.fillRect(0, 0, W, H);
+
+  const cardY = H * 0.54, cardH = H * 0.4, cardX = 48, cardW = W - 96;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12;
+  ctx.fillStyle = "#fff"; roundRectPath(ctx, cardX, cardY, cardW, cardH, 40); ctx.fill();
+  ctx.restore();
+
+  desenharLogoComCirculo(ctx, logo, W / 2, cardY, 64);
+  ctx.fillStyle = "#171923"; ctx.font = "700 24px Inter, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(d.nomeIgreja, W / 2, cardY + 92);
+
+  ctx.font = "800 58px Montserrat, sans-serif";
+  const linhasTema = quebrarTextoCanvas(ctx, d.tema, cardW - 80);
+  let y = cardY + 168;
+  linhasTema.forEach(l => { ctx.fillText(l, W / 2, y); y += 62; });
+
+  y += 30;
+  ctx.font = "600 34px Inter, sans-serif"; ctx.fillStyle = "#4B5060";
+  const infos = [`📅 ${d.dataFormatada}  •  🕒 ${d.horario}`, `📍 ${d.endereco}`, `📞 ${d.telefone}`];
+  infos.forEach(l => { ctx.fillText(l, W / 2, y); y += 52; });
+  ctx.textAlign = "left";
+  return c;
+}
+
+async function carregarFontesBanner() {
+  await Promise.all([
+    document.fonts.load("800 74px Montserrat"), document.fonts.load("700 24px Inter"),
+    document.fonts.load("600 40px Inter"), document.fonts.load("800 24px Inter"),
+  ]);
+}
+
+async function gerarBanners() {
+  const tema = document.getElementById("banner-tema").value.trim();
+  const dataISO = document.getElementById("banner-data").value;
+  const horario = document.getElementById("banner-horario").value.trim();
+  const endereco = document.getElementById("banner-endereco").value.trim();
+  const telefone = document.getElementById("banner-telefone").value.trim();
+  const arquivo = document.getElementById("banner-imagem").files[0];
+  if (!tema || !dataISO || !horario || !endereco || !telefone || !arquivo) {
+    alert("Preenche todos os campos e escolhe uma imagem primeiro.");
+    return;
+  }
+  const btn = document.getElementById("btn-gerar-banners");
+  btn.disabled = true; btn.textContent = "Gerando...";
+  try {
+    await carregarFontesBanner();
+    const fotoUrl = URL.createObjectURL(arquivo);
+    const foto = await carregarImagemEl(fotoUrl);
+    const logo = await carregarImagemEl(state.igreja?.logo_url || "assets/logo.png", true);
+    URL.revokeObjectURL(fotoUrl);
+
+    const dados = { tema, horario, endereco, telefone, dataFormatada: formatarData(dataISO), nomeIgreja: state.igreja?.nome || "" };
+    state.bannerCanvases = [desenharBannerA(foto, logo, dados), desenharBannerB(foto, logo, dados), desenharBannerC(foto, logo, dados)];
+
+    const nomes = ["Escuro & Elegante", "Faixa Moderna", "Cartão Flutuante"];
+    const opcoesEl = document.getElementById("banner-opcoes");
+    opcoesEl.innerHTML = state.bannerCanvases.map((cv, i) => `
+      <div class="card" data-escolher-banner="${i}" style="cursor:pointer;padding:10px;">
+        <img src="${cv.toDataURL("image/jpeg", 0.7)}" style="width:100%;border-radius:12px;display:block;">
+        <p style="text-align:center;font-weight:700;font-size:13px;margin:8px 0 0;">${nomes[i]}</p>
+      </div>
+    `).join("");
+    opcoesEl.querySelectorAll("[data-escolher-banner]").forEach(card => {
+      card.addEventListener("click", () => selecionarBannerEstilo(parseInt(card.dataset.escolherBanner)));
+    });
+
+    document.getElementById("banner-view-form").style.display = "none";
+    document.getElementById("banner-view-escolher").style.display = "block";
+  } catch (e) {
+    console.error("Erro ao gerar banners:", e);
+    alert("Não deu pra gerar os banners agora. Tenta com outra imagem ou de novo em instantes.");
+  } finally {
+    btn.disabled = false; btn.textContent = "✨ Gerar banners";
+  }
+}
+
+function selecionarBannerEstilo(idx) {
+  state.bannerEscolhido = idx;
+  const origem = state.bannerCanvases[idx];
+  const preview = document.getElementById("banner-canvas-preview");
+  preview.width = origem.width; preview.height = origem.height;
+  preview.getContext("2d").drawImage(origem, 0, 0);
+  document.getElementById("banner-view-escolher").style.display = "none";
+  document.getElementById("banner-view-preview").style.display = "block";
+}
+
+function baixarBanner() {
+  const canvas = document.getElementById("banner-canvas-preview");
+  canvas.toBlob(blob => {
+    if (!blob) { alert("Não deu pra baixar. Tenta de novo."); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `banner-${Date.now()}.jpg`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }, "image/jpeg", 0.92);
+}
+
+async function aprovarBanner() {
+  const canvas = document.getElementById("banner-canvas-preview");
+  const btn = document.getElementById("btn-banner-aprovar");
+  btn.disabled = true; btn.textContent = "Publicando...";
+  canvas.toBlob(async blob => {
+    if (!blob) { alert("Não deu pra publicar. Tenta de novo."); btn.disabled = false; btn.textContent = "✅ Aprovar e publicar pro grupo"; return; }
+    const arquivo = new File([blob], `banner-${Date.now()}.jpg`, { type: "image/jpeg" });
+    const imagem_url = await uploadArquivo(arquivo, "avisos");
+    const tema = document.getElementById("banner-tema").value.trim();
+    const dataISO = document.getElementById("banner-data").value;
+    const horario = document.getElementById("banner-horario").value.trim();
+    const endereco = document.getElementById("banner-endereco").value.trim();
+    const telefone = document.getElementById("banner-telefone").value.trim();
+    const texto = `📅 ${formatarData(dataISO)} • 🕒 ${horario}\n📍 ${endereco}\n📞 ${telefone}`;
+    const { error } = await sb.from("igr_avisos").insert({
+      igreja_id: state.igreja.id, titulo: tema, texto, imagem_url,
+      grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id,
+    });
+    btn.disabled = false; btn.textContent = "✅ Aprovar e publicar pro grupo";
+    if (error) { alert("Não deu pra publicar agora. Tenta de novo."); return; }
+    enviarPush({ tipo: "grupo", grupo_id: state.membro.grupo_id }, tema, texto);
+    alert("Banner publicado no grupo! 🎉");
+    document.getElementById("banner-tema").value = "";
+    document.getElementById("banner-data").value = "";
+    document.getElementById("banner-horario").value = "";
+    document.getElementById("banner-endereco").value = "";
+    document.getElementById("banner-telefone").value = "";
+    document.getElementById("banner-imagem").value = "";
+    document.getElementById("banner-view-preview").style.display = "none";
+    document.getElementById("banner-view-form").style.display = "block";
+    mostrarTela("tela-membro-home");
+  }, "image/jpeg", 0.92);
 }
 
 async function carregarCalendario() {
@@ -5018,6 +5272,23 @@ async function iniciar() {
   document.getElementById("btn-salvar-plano-novo")?.addEventListener("click", criarPlanoPersonalizado);
   document.getElementById("btn-tema-buscar")?.addEventListener("click", () => buscarPorTema("buscar"));
   document.getElementById("btn-tema-estudo")?.addEventListener("click", () => buscarPorTema("estudo"));
+  document.getElementById("btn-abrir-banner-lider")?.addEventListener("click", () => {
+    document.getElementById("banner-view-form").style.display = "block";
+    document.getElementById("banner-view-escolher").style.display = "none";
+    document.getElementById("banner-view-preview").style.display = "none";
+    mostrarTela("tela-lider-banner");
+  });
+  document.getElementById("btn-gerar-banners")?.addEventListener("click", gerarBanners);
+  document.getElementById("banner-voltar-form")?.addEventListener("click", () => {
+    document.getElementById("banner-view-escolher").style.display = "none";
+    document.getElementById("banner-view-form").style.display = "block";
+  });
+  document.getElementById("banner-voltar-escolher")?.addEventListener("click", () => {
+    document.getElementById("banner-view-preview").style.display = "none";
+    document.getElementById("banner-view-escolher").style.display = "block";
+  });
+  document.getElementById("btn-banner-baixar")?.addEventListener("click", baixarBanner);
+  document.getElementById("btn-banner-aprovar")?.addEventListener("click", aprovarBanner);
   document.getElementById("form-calendario-add")?.addEventListener("submit", enviarCalendario);
   document.getElementById("cal-mes-anterior")?.addEventListener("click", () => {
     state.calendarioMesAtual = new Date(state.calendarioMesAtual.getFullYear(), state.calendarioMesAtual.getMonth() - 1, 1);
