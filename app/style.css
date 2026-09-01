@@ -134,8 +134,14 @@ body{
 
 .bday-row{ display:flex; gap:11px; overflow-x:auto; padding-bottom:4px; }
 .bday{ flex-shrink:0; width:58px; text-align:center; }
-.bday .circle{ width:48px;height:48px;border-radius:50%; background:var(--gold-soft); display:flex;align-items:center;justify-content:center; font-family:'Montserrat',sans-serif;font-weight:700;font-size:14px;color:#B36B00; margin:0 auto 6px; border:2px solid #fff; box-shadow:0 0 0 1px var(--line); }
+.bday .circle{ width:48px;height:48px;border-radius:50%; background:var(--gold-soft); display:flex;align-items:center;justify-content:center; font-family:'Montserrat',sans-serif;font-weight:700;font-size:14px;color:#B36B00; margin:0 auto 6px; border:2px solid #fff; box-shadow:0 0 0 1px var(--line); overflow:hidden; }
+.bday-foto{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
 .bday span{ font-size:10px; font-weight:600; color:var(--ink-soft); }
+
+.modal-overlay{ position:fixed; inset:0; background:rgba(13,13,13,.6); display:none; align-items:center; justify-content:center; z-index:200; padding:20px; }
+.modal-overlay.open{ display:flex; }
+.modal-card{ background:#fff; border-radius:20px; padding:26px 22px; max-width:380px; width:100%; position:relative; max-height:85vh; overflow-y:auto; }
+.modal-fechar{ position:absolute; top:14px; right:14px; background:var(--bg); border:none; border-radius:999px; width:30px; height:30px; font-size:14px; cursor:pointer; }
 
 .prayer-item{ display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); }
 .prayer-item:last-child{ border-bottom:none; }

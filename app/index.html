@@ -80,6 +80,14 @@
     </div>
   </div>
 
+  <!-- ============ MODAL ANIVERSARIANTE ============ -->
+  <div class="modal-overlay" id="modal-aniversariante">
+    <div class="modal-card">
+      <button class="modal-fechar" id="aniv-modal-fechar" aria-label="Fechar">✕</button>
+      <div id="aniv-modal-conteudo"></div>
+    </div>
+  </div>
+
   <!-- ============ AJUSTAR FOTO DE PERFIL ============ -->
   <div class="foto-editor-overlay" id="foto-editor-overlay">
     <div class="foto-editor-box">
@@ -802,6 +810,9 @@
         <p class="error-msg" id="ep-erro"></p>
         <button class="btn btn-primary" type="submit">Salvar alterações</button>
       </form>
+
+      <div class="section-label" style="margin-top:22px;"><b>💛 Mensagens que você recebeu</b></div>
+      <div id="ep-mensagens-recebidas"><p class="hint">Nenhuma mensagem recebida ainda.</p></div>
 
       <p style="text-align:center;margin-top:20px;"><a class="linklike" id="link-trocar-senha" style="font-size:13px;">🔒 Trocar senha</a></p>
       <form id="form-trocar-senha" style="display:none;margin-top:10px;">

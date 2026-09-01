@@ -338,6 +338,65 @@ function linkWhatsapp(telefone, mensagem) {
   return `https://wa.me/${comDDI}?text=${encodeURIComponent(mensagem)}`;
 }
 
+// ---------- modal do aniversariante ----------
+function abrirModalAniversariante(pessoa) {
+  if (!pessoa) return;
+  const primeiro = pessoa.nome_completo.split(" ")[0];
+  const foto = pessoa.foto_url
+    ? `<img src="${pessoa.foto_url}" style="width:84px;height:84px;border-radius:50%;object-fit:cover;margin:0 auto 14px;display:block;">`
+    : `<div style="width:84px;height:84px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">${avatarIniciais(pessoa.nome_completo)}</div>`;
+
+  const conteudo = document.getElementById("aniv-modal-conteudo");
+  conteudo.innerHTML = `
+    ${foto}
+    <h3 style="text-align:center;margin:0 0 4px;font-family:'Montserrat',sans-serif;">🎉 ${primeiro} faz aniversário!</h3>
+    <p class="hint" style="text-align:center;margin-bottom:18px;">Manda um carinho pra ela(e).</p>
+    ${pessoa.telefone ? `<a href="${linkWhatsapp(pessoa.telefone, `Oi ${primeiro}! Passando pra desejar um feliz aniversário, que Deus abençoe muito a sua vida! 🎉🙏`)}" target="_blank" rel="noopener" class="btn btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:14px;">💬 Chamar no WhatsApp</a>` : ""}
+    <div class="field" style="margin-bottom:8px;">
+      <label>Deixar uma mensagem no perfil</label>
+      <textarea id="aniv-msg-texto" rows="3" maxlength="280" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Escreva uma mensagem de carinho..."></textarea>
+    </div>
+    <button class="btn btn-primary" id="aniv-msg-enviar" type="button">Enviar mensagem</button>
+    <p class="hint" id="aniv-msg-status" style="text-align:center;margin-top:8px;"></p>
+  `;
+  document.getElementById("aniv-msg-enviar").addEventListener("click", () => enviarMensagemPerfil(pessoa.id));
+  document.getElementById("modal-aniversariante").classList.add("open");
+}
+function fecharModalAniversariante() {
+  document.getElementById("modal-aniversariante").classList.remove("open");
+}
+async function enviarMensagemPerfil(destinoId) {
+  const texto = document.getElementById("aniv-msg-texto").value.trim();
+  if (!texto) return;
+  const btn = document.getElementById("aniv-msg-enviar");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  const { error } = await sb.from("igr_interacoes_perfil").insert({
+    membro_destino_id: destinoId,
+    membro_origem_id: state.membro?.id || null,
+    nome_origem: state.membro?.nome_completo || "Alguém da igreja",
+    texto,
+  });
+  btn.disabled = false; btn.textContent = "Enviar mensagem";
+  const statusEl = document.getElementById("aniv-msg-status");
+  if (error) { statusEl.textContent = "Não deu pra enviar agora. Tente de novo."; return; }
+  statusEl.textContent = "Mensagem enviada! 💛";
+  document.getElementById("aniv-msg-texto").value = "";
+  setTimeout(fecharModalAniversariante, 1200);
+}
+
+async function carregarMensagensRecebidas() {
+  const el = document.getElementById("ep-mensagens-recebidas");
+  if (!el || !state.membro) return;
+  const { data } = await sb.from("igr_interacoes_perfil").select("*").eq("membro_destino_id", state.membro.id).order("created_at", { ascending: false });
+  el.innerHTML = (data || []).map(m => `
+    <div class="card">
+      <b style="font-size:13px;">${m.nome_origem}</b>
+      <p style="margin:4px 0 0;font-size:13px;">${m.texto}</p>
+      <span class="hint">${formatarData(m.created_at)}</span>
+    </div>
+  `).join("") || `<p class="hint">Nenhuma mensagem recebida ainda.</p>`;
+}
+
 function formatarData(dataIso) {
   if (!dataIso) return "";
   const d = new Date(dataIso + "T00:00:00");
@@ -649,6 +708,7 @@ function abrirEditarPerfil() {
   state.parentesOriginaisPerfil = [];
   document.getElementById("ep-parentes-selecionados").innerHTML = "";
   carregarParentesExistentes(m.id);
+  carregarMensagensRecebidas();
 
   document.getElementById("ep-erro").classList.remove("show");
   document.getElementById("ep-senha-erro").classList.remove("show");
@@ -946,18 +1006,25 @@ async function montarHomeMembro() {
 
   // aniversariantes do mês
   const mesAtual = new Date().getMonth() + 1;
-  const { data: membros } = await sb.from("igr_membros").select("nome_completo,data_nascimento")
+  const { data: membros } = await sb.from("igr_membros").select("id,nome_completo,data_nascimento,telefone,foto_url")
     .eq("igreja_id", state.igreja.id).not("data_nascimento", "is", null);
   const aniversariantes = (membros || [])
     .filter(x => x.data_nascimento && (new Date(x.data_nascimento + "T00:00:00").getMonth() + 1) === mesAtual)
     .sort((a, b) => new Date(a.data_nascimento).getDate() - new Date(b.data_nascimento).getDate());
   const bdayEl = document.getElementById("home-aniversariantes");
   bdayEl.innerHTML = aniversariantes.map(a => {
-    const iniciais = a.nome_completo.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase();
     const dia = new Date(a.data_nascimento + "T00:00:00").getDate();
     const primeiro = a.nome_completo.split(" ")[0];
-    return `<div class="bday"><div class="circle">${iniciais}</div><span>${primeiro} · ${dia}</span></div>`;
+    const foto = a.foto_url
+      ? `<img src="${a.foto_url}" class="bday-foto" alt="">`
+      : avatarIniciais(a.nome_completo);
+    return `<div class="bday" data-aniv-id="${a.id}" style="cursor:pointer;"><div class="circle">${foto}</div><span>${primeiro} · ${dia}</span></div>`;
   }).join("") || `<div class="empty" style="padding:14px;">Ninguém faz aniversário este mês.</div>`;
+
+  bdayEl.querySelectorAll("[data-aniv-id]").forEach(el => {
+    const pessoa = aniversariantes.find(x => x.id === el.dataset.anivId);
+    el.addEventListener("click", () => abrirModalAniversariante(pessoa));
+  });
 
   await carregarAvisos("home-avisos");
   await carregarPedidosOracao();
@@ -3556,6 +3623,10 @@ async function iniciar() {
 
   // ---- lightbox de fotos ----
   document.getElementById("lightbox-fechar").addEventListener("click", fecharLightbox);
+  document.getElementById("aniv-modal-fechar").addEventListener("click", fecharModalAniversariante);
+  document.getElementById("modal-aniversariante").addEventListener("click", (ev) => {
+    if (ev.target.id === "modal-aniversariante") fecharModalAniversariante();
+  });
   document.getElementById("lightbox-prev").addEventListener("click", () => lightboxProxima(-1));
   document.getElementById("lightbox-next").addEventListener("click", () => lightboxProxima(1));
   document.getElementById("lightbox-overlay").addEventListener("click", (ev) => {
