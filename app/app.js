@@ -2731,7 +2731,7 @@ async function gerarBanners() {
     document.getElementById("banner-view-preview").style.display = "block";
   } catch (e) {
     console.error("Erro ao gerar banner:", e);
-    alert("Não deu pra gerar o banner agora. Tenta de novo em instantes.");
+    alert(e.message && e.message !== "erro desconhecido" ? e.message : "Não deu pra gerar o banner agora. Tenta de novo em instantes.");
   } finally {
     btn.disabled = false; status.style.display = "none";
   }
