@@ -1820,11 +1820,16 @@ async function abrirCelula(celulaId) {
   state.celulaAtual = celula;
   const souMonitor = state.membro && celula.monitor_membro_id === state.membro.id;
   const rotulo = celula.tipo || "Célula";
+  const rotuloMin = rotulo.toLowerCase();
+  const artigoDe = celula.tipo === "Grupo de Monitor" ? "do" : "da";
 
   document.getElementById("celula-titulo").textContent = celula.nome;
   document.getElementById("celula-subtitulo").textContent = souMonitor ? `Você é o(a) monitor(a) desse ${rotulo}.` : `Bem-vindo(a) ao seu ${rotulo}.`;
   document.getElementById("celula-bloco-monitor").style.display = souMonitor ? "block" : "none";
   document.getElementById("form-celula-post").style.display = souMonitor ? "block" : "none";
+  document.getElementById("celula-label-gerenciar").textContent = `Gerenciar ${rotuloMin}`;
+  document.getElementById("celula-label-nome").textContent = `Nome ${artigoDe} ${rotuloMin}`;
+  document.getElementById("celula-label-membros").textContent = `Membros ${artigoDe} ${rotuloMin}`;
   if (souMonitor) {
     document.getElementById("celula-editar-nome").value = celula.nome;
     carregarMembrosDaCelula(celulaId);
