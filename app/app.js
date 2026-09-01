@@ -1104,12 +1104,12 @@ async function montarHomeMembro() {
     lembreteBox.onclick = () => abrirEditarPerfil();
   }
 
-  // acessos especiais (ex: midia) — mesmo login do membro, sem senha separada
+  // acesso ao painel administrativo (concedido pelo admin master) — mesmo login do membro, sem senha separada
   const btnPainelMidia = document.getElementById("btn-painel-midia");
-  const temMidia = (m.papeis_especiais || []).includes("midia");
+  const temAcessoPainel = (m.papeis_especiais || []).length > 0;
   if (btnPainelMidia) {
-    btnPainelMidia.style.display = temMidia ? "block" : "none";
-    btnPainelMidia.onclick = () => abrirPainelEspecial("midia");
+    btnPainelMidia.style.display = temAcessoPainel ? "block" : "none";
+    btnPainelMidia.onclick = () => abrirPainelEspecial(m.papeis_especiais || []);
   }
 
   const quicklinkCelula = document.getElementById("quicklink-celula");
@@ -1135,15 +1135,14 @@ async function montarHomeMembro() {
   const avisoNovoBox = document.getElementById("acesso-novo-box");
   if (avisoNovoBox) {
     if (m.papeis_especiais_novo && (m.papeis_especiais || []).length) {
-      const nomes = { midia: "Mídia" };
       document.getElementById("acesso-novo-texto").textContent =
-        `Você agora tem acesso a: ${(m.papeis_especiais || []).map(p => nomes[p] || p).join(", ")}. Toque pra ver.`;
+        `Você agora tem acesso a: ${(m.papeis_especiais || []).map(p => SECOES_ADMIN_INFO[p] || p).join(", ")}. Toque pra ver.`;
       avisoNovoBox.style.display = "flex";
       avisoNovoBox.onclick = async () => {
         avisoNovoBox.style.display = "none";
         m.papeis_especiais_novo = false;
         await sb.from("igr_membros").update({ papeis_especiais_novo: false }).eq("id", m.id);
-        if (temMidia) abrirPainelEspecial("midia");
+        if (temAcessoPainel) abrirPainelEspecial(m.papeis_especiais || []);
       };
     } else {
       avisoNovoBox.style.display = "none";
@@ -3602,21 +3601,29 @@ async function exportarMembrosCSV() {
   }
 }
 
+// nomes amigaveis das secoes do painel admin, usados na tela de Acessos especiais
+const SECOES_ADMIN_INFO = {
+  lideres: "👤 Líderes", membros: "👤 Membros", visitantes: "❤️ Visitantes",
+  cultos: "📖 Cultos", avisos: "🔔 Avisos", pastor: "🎙️ Pastor", estudos: "✨ Estudos",
+  fotos: "📷 Fotos", igreja: "⚙️ Igreja", oracao: "🙏 Oração", eventos: "➕ Eventos", calendario: "📅 Calendário",
+};
+
 // ---------- admin: alternador de abas ----------
 function montarGridAdmin() {
-  const papel = state.adminPapel || "geral";
+  const secoesPermitidas = state.adminPapel === "geral" ? null : (state.adminSecoes || []);
   document.querySelectorAll("#admin-grid [data-secao]").forEach(card => {
-    const papeisPermitidos = card.dataset.papel.split(",");
-    card.style.display = papeisPermitidos.includes(papel) ? "flex" : "none";
+    card.style.display = (secoesPermitidas === null || secoesPermitidas.includes(card.dataset.secao)) ? "flex" : "none";
   });
   document.querySelectorAll(".admin-painel-aba").forEach(sec => sec.style.display = "none");
   document.getElementById("admin-grid").style.display = "grid";
   document.getElementById("admin-titulo-painel").textContent = state.adminNome ? `Olá, ${state.adminNome}` : "Painel do administrador";
 }
 
-// entrada de acesso especial pro MEMBRO (sem senha separada — usa o proprio login dele)
-function abrirPainelEspecial(papel) {
-  state.adminPapel = papel;
+// entrada de acesso especial pro MEMBRO (sem senha separada — usa o proprio login dele),
+// so enxerga as secoes especificas que o admin master concedeu
+function abrirPainelEspecial(secoes) {
+  state.adminPapel = "custom";
+  state.adminSecoes = secoes || [];
   state.adminNome = state.membro?.nome_completo?.split(" ")[0] || "";
   state.entrouPainelComoMembro = true;
   document.getElementById("btn-sair-admin").dataset.nav = "tela-membro-home";
@@ -3646,10 +3653,12 @@ function configurarBuscaAcessos() {
       sugestoesEl.querySelectorAll("[data-id]").forEach(item => {
         item.addEventListener("click", () => {
           membroSelecionadoAcesso = { id: item.dataset.id, nome: item.dataset.nome };
-          const papeisAtuais = JSON.parse(item.dataset.papeis || "[]");
+          const secoesAtuais = JSON.parse(item.dataset.papeis || "[]");
           document.getElementById("acesso-nome-selecionado").textContent = item.dataset.nome;
           document.getElementById("acesso-membro-selecionado").style.display = "block";
-          document.getElementById("acesso-check-midia").checked = papeisAtuais.includes("midia");
+          document.querySelectorAll(".acesso-check-secao").forEach(chk => {
+            chk.checked = secoesAtuais.includes(chk.value);
+          });
           input.value = "";
           sugestoesEl.style.display = "none";
           document.getElementById("btn-salvar-acesso").disabled = false;
@@ -3664,16 +3673,16 @@ function configurarBuscaAcessos() {
 
 async function salvarAcessoEspecial() {
   if (!membroSelecionadoAcesso) return;
-  const papeis = [];
-  if (document.getElementById("acesso-check-midia").checked) papeis.push("midia");
+  const secoes = Array.from(document.querySelectorAll(".acesso-check-secao:checked")).map(chk => chk.value);
   const btn = document.getElementById("btn-salvar-acesso");
   btn.disabled = true; btn.textContent = "Salvando...";
   const { error } = await sb.from("igr_membros").update({
-    papeis_especiais: papeis, papeis_especiais_novo: papeis.length > 0,
+    papeis_especiais: secoes, papeis_especiais_novo: secoes.length > 0,
   }).eq("id", membroSelecionadoAcesso.id);
   btn.disabled = false; btn.textContent = "Salvar acesso";
   if (error) { alert("Não deu pra salvar: " + error.message); return; }
   document.getElementById("acesso-membro-selecionado").style.display = "none";
+  document.querySelectorAll(".acesso-check-secao").forEach(chk => chk.checked = false);
   membroSelecionadoAcesso = null;
   carregarAcessosAtuais();
 }
@@ -3683,17 +3692,16 @@ async function carregarAcessosAtuais() {
   const { data } = await sb.from("igr_membros").select("id, nome_completo, papeis_especiais")
     .eq("igreja_id", state.igreja.id);
   const comAcesso = (data || []).filter(m => (m.papeis_especiais || []).length);
-  const nomes = { midia: "🎬 Mídia" };
   el.innerHTML = comAcesso.map(m => `
     <div class="card row-avatar">
       ${avatarIniciais(m.nome_completo)}
-      <div class="row-info"><b>${m.nome_completo}</b><span>${(m.papeis_especiais || []).map(p => nomes[p] || p).join(", ")}</span></div>
+      <div class="row-info"><b>${m.nome_completo}</b><span>${(m.papeis_especiais || []).map(p => SECOES_ADMIN_INFO[p] || p).join(", ")}</span></div>
       <button class="btn-icone-remover" data-revogar="${m.id}" title="Revogar acesso">✕</button>
     </div>
-  `).join("") || `<p class="hint">Ninguém com acesso especial no momento.</p>`;
+  `).join("") || `<p class="hint">Ninguém com acesso ao painel no momento.</p>`;
   el.querySelectorAll("[data-revogar]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      if (!confirm("Remover esse acesso especial da pessoa?")) return;
+      if (!confirm("Remover o acesso dessa pessoa ao painel?")) return;
       await sb.from("igr_membros").update({ papeis_especiais: [] }).eq("id", btn.dataset.revogar);
       carregarAcessosAtuais();
     });
