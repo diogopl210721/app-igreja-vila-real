@@ -2887,8 +2887,66 @@ async function carregarPainelAdmin() {
     selectGrupo.innerHTML = `<option value="">Selecione</option>` +
       (state.grupos || []).map(g => `<option value="${g.id}">${g.nome}</option>`).join("");
   }
+  const selectGrupoPromo = document.getElementById("promo-lider-grupo");
+  if (selectGrupoPromo) {
+    selectGrupoPromo.innerHTML = `<option value="">Selecione</option>` +
+      (state.grupos || []).map(g => `<option value="${g.id}">${g.nome}</option>`).join("");
+  }
 
   await carregarLideresAtivos();
+}
+
+let membroSelecionadoPromoLider = null;
+function configurarBuscaPromoverLider() {
+  const input = document.getElementById("promo-lider-busca");
+  const sugestoesEl = document.getElementById("promo-lider-sugestoes");
+  if (!input) return;
+  let timeoutId = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timeoutId);
+    const termo = input.value.trim();
+    membroSelecionadoPromoLider = null;
+    document.getElementById("btn-promover-lider").disabled = true;
+    if (termo.length < 2) { sugestoesEl.style.display = "none"; return; }
+    timeoutId = setTimeout(async () => {
+      const { data } = await sb.from("igr_membros").select("id, nome_completo, grupo_id")
+        .eq("igreja_id", state.igreja.id).ilike("nome_completo", `%${termo}%`).limit(6);
+      sugestoesEl.innerHTML = (data || []).map(m => `<div class="autocomplete-item" data-id="${m.id}" data-nome="${m.nome_completo}" data-grupo="${m.grupo_id || ""}">${m.nome_completo}</div>`).join("");
+      sugestoesEl.style.display = data?.length ? "block" : "none";
+      sugestoesEl.querySelectorAll("[data-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          membroSelecionadoPromoLider = { id: item.dataset.id, nome: item.dataset.nome };
+          document.getElementById("promo-lider-nome-selecionado").textContent = item.dataset.nome;
+          document.getElementById("promo-lider-selecionado").style.display = "block";
+          if (item.dataset.grupo) document.getElementById("promo-lider-grupo").value = item.dataset.grupo;
+          input.value = "";
+          sugestoesEl.style.display = "none";
+          document.getElementById("btn-promover-lider").disabled = false;
+        });
+      });
+    }, 300);
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+
+async function promoverMembroALider() {
+  if (!membroSelecionadoPromoLider) return;
+  const grupo_id = document.getElementById("promo-lider-grupo").value;
+  if (!grupo_id) { alert("Escolha o grupo/departamento."); return; }
+  const permissoes = Array.from(document.querySelectorAll("#promo-lider-permissoes input:checked")).map(c => c.value);
+  const btn = document.getElementById("btn-promover-lider");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const { error } = await sb.from("igr_membros").update({
+    eh_lider: true, lider_status: "aprovado", grupo_id, permissoes,
+  }).eq("id", membroSelecionadoPromoLider.id);
+  btn.disabled = false; btn.textContent = "Tornar líder";
+  if (error) { alert("Não deu pra promover: " + error.message); return; }
+  enviarPush({ tipo: "membros", membro_ids: [membroSelecionadoPromoLider.id] }, "Você agora é líder! 🎉", "Você foi promovido(a) a líder de grupo. Acesse o app pra começar.");
+  document.getElementById("promo-lider-selecionado").style.display = "none";
+  membroSelecionadoPromoLider = null;
+  carregarPainelAdmin();
 }
 
 const LABELS_PERMISSOES = {
@@ -4260,6 +4318,8 @@ async function iniciar() {
   document.getElementById("btn-salvar-acesso")?.addEventListener("click", salvarAcessoEspecial);
   configurarBuscaMonitor("");
   configurarBuscaMonitor("adm-");
+  configurarBuscaPromoverLider();
+  document.getElementById("btn-promover-lider")?.addEventListener("click", promoverMembroALider);
   configurarBuscaMonitorEdicaoAdmin();
   configurarBuscaMembroCelula();
   document.getElementById("btn-criar-celula")?.addEventListener("click", () => criarCelula(state.grupoDetalheAtual?.id, ""));

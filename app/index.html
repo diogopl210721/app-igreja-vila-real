@@ -224,6 +224,30 @@
         <p class="hint" style="margin-top:-6px;">Toque em "Editar" pra trocar o grupo, as permissões, ou remover a liderança.</p>
         <div id="admin-lideres-ativos"><p class="hint"><span class="loading-dot"></span></p></div>
 
+        <div class="section-label"><b>Promover um membro já cadastrado a líder</b></div>
+        <p class="hint" style="margin-top:-6px;">Pra quando a pessoa já é membro — busca o nome dela, sem criar cadastro novo.</p>
+        <div class="card">
+          <div class="field" style="position:relative;">
+            <label>Buscar membro</label>
+            <input id="promo-lider-busca" autocomplete="off" placeholder="Digite o nome...">
+            <div id="promo-lider-sugestoes" class="autocomplete-lista" style="display:none;"></div>
+          </div>
+          <div id="promo-lider-selecionado" style="display:none;margin-bottom:10px;">
+            <div class="row-avatar"><div class="row-info"><b id="promo-lider-nome-selecionado"></b></div></div>
+          </div>
+          <div class="field"><label>Grupo/Departamento</label>
+            <select id="promo-lider-grupo" required><option value="">Selecione</option></select>
+          </div>
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;">O que esse líder pode acessar?</label>
+          <div class="interesses-grid" id="promo-lider-permissoes" style="margin-bottom:14px;">
+            <label class="interesse-item"><input type="checkbox" value="editar_grupo" checked> Editar capa e descrição do grupo</label>
+            <label class="interesse-item"><input type="checkbox" value="postar_avisos" checked> Postar avisos do grupo</label>
+            <label class="interesse-item"><input type="checkbox" value="gerenciar_oracao" checked> Ver pedidos de oração do grupo</label>
+            <label class="interesse-item"><input type="checkbox" value="gerenciar_louvor"> Gerenciar escala/repertório (só se for do Louvor)</label>
+          </div>
+          <button class="btn btn-primary" id="btn-promover-lider" type="button" disabled>Tornar líder</button>
+        </div>
+
         <div class="section-label"><b>Adicionar líder diretamente</b></div>
         <p class="hint" style="margin-top:-6px;">Pra quando a pessoa ainda não se cadastrou — você cria o acesso e passa o telefone + senha pra ela.</p>
         <div class="card">
