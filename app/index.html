@@ -197,6 +197,7 @@
       <div class="admin-grid" id="admin-grid">
         <button class="admin-grid-card" data-secao="lideres" data-papel="geral"><svg class="icon"><use href="#i-user"/></svg>Líderes</button>
         <button class="admin-grid-card" data-secao="membros" data-papel="geral"><svg class="icon"><use href="#i-user"/></svg>Membros</button>
+        <button class="admin-grid-card" data-secao="acessos" data-papel="geral"><svg class="icon"><use href="#i-settings"/></svg>Acessos especiais</button>
         <button class="admin-grid-card" data-secao="visitantes" data-papel="geral"><svg class="icon"><use href="#i-heart"/></svg>Visitantes</button>
         <button class="admin-grid-card" data-secao="cultos" data-papel="geral,midia"><svg class="icon"><use href="#i-book"/></svg>Cultos</button>
         <button class="admin-grid-card" data-secao="avisos" data-papel="geral,midia"><svg class="icon"><use href="#i-bell"/></svg>Avisos</button>
@@ -325,6 +326,29 @@
             <button class="btn btn-ghost" id="btn-excluir-membro" type="button" style="margin-top:10px;color:#C0392B;">🗑 Excluir cadastro deste membro</button>
           </div>
         </div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="acessos" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Conceder acesso especial</b></div>
+        <p class="hint" style="margin-top:-6px;">Dá acesso extra a um membro (ex: Mídia), usando o login normal dele — não precisa de senha separada.</p>
+        <div class="card">
+          <div class="field" style="position:relative;">
+            <label>Buscar membro</label>
+            <input id="acesso-busca-membro" autocomplete="off" placeholder="Digite o nome...">
+            <div id="acesso-sugestoes" class="autocomplete-lista" style="display:none;"></div>
+          </div>
+          <div id="acesso-membro-selecionado" style="display:none;margin-bottom:14px;">
+            <div class="row-avatar"><div class="row-info"><b id="acesso-nome-selecionado"></b></div></div>
+          </div>
+          <label class="interesse-item" style="margin-bottom:14px;">
+            <input type="checkbox" id="acesso-check-midia" value="midia"> 🎬 Mídia (fotos, avisos com foto/vídeo, cultos)
+          </label>
+          <button class="btn btn-primary" id="btn-salvar-acesso" type="button" disabled>Salvar acesso</button>
+        </div>
+
+        <div class="section-label"><b>Quem tem acesso especial hoje</b></div>
+        <div id="acessos-lista-atual"><p class="hint"><span class="loading-dot"></span></p></div>
       </div>
 
       <div class="admin-painel-aba" data-admin-painel="visitantes" style="display:none;">
@@ -681,6 +705,12 @@
         <span style="font-size:20px;">📋</span>
         <div class="txt"><b>Complete seu perfil</b><span>Batismo e família na igreja — leva 1 minuto</span></div>
       </div>
+
+      <div class="perfil-lembrete" id="acesso-novo-box" style="display:none;margin-top:16px;background:var(--brand-soft);cursor:pointer;">
+        <span style="font-size:20px;">🎉</span>
+        <div class="txt"><b>Você ganhou um novo acesso!</b><span id="acesso-novo-texto"></span></div>
+      </div>
+      <button class="btn btn-ghost" id="btn-painel-midia" style="display:none;margin-top:10px;">🎬 Abrir Painel de Mídia</button>
 
       <div class="card" id="checkin-diario-box" style="margin-top:16px;">
         <p class="checkin-pergunta" style="font-weight:700;font-size:14.5px;margin:0 0 12px;">Como você está hoje?</p>
