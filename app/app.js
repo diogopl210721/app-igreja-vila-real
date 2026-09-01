@@ -1909,6 +1909,59 @@ function podeEditarEvento(evento) {
   return !!(state.membro && evento.criado_por_membro_id === state.membro.id);
 }
 
+// ---------- calendario da igreja (espacos/agenda interna) ----------
+async function carregarCalendario() {
+  const btnAdd = document.getElementById("btn-add-calendario");
+  const podeAdicionar = !!(state.membro?.eh_lider);
+  if (btnAdd) btnAdd.style.display = podeAdicionar ? "block" : "none";
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data } = await sb.from("igr_calendario_eventos").select("*, igr_grupos(nome)")
+    .eq("igreja_id", state.igreja.id).gte("data", hoje).order("data").order("horario");
+
+  const el = document.getElementById("calendario-lista");
+  el.innerHTML = (data || []).map(ev => `
+    <div class="card">
+      <b style="font-size:14.5px;">${ev.titulo}</b>
+      <p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);">📍 ${ev.local} · ${formatarData(ev.data)}${ev.horario ? " às " + ev.horario : ""}</p>
+      ${ev.igr_grupos?.nome ? `<span class="badge-inline" style="margin-top:6px;">${ev.igr_grupos.nome}</span>` : ""}
+      ${ev.observacoes ? `<p style="margin:6px 0 0;font-size:12.5px;">${ev.observacoes}</p>` : ""}
+    </div>
+  `).join("") || `<div class="empty">Nada marcado no calendário por enquanto.</div>`;
+}
+
+async function enviarCalendario(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("cal-titulo").value.trim();
+  const local = document.getElementById("cal-local").value.trim();
+  const data = document.getElementById("cal-data").value;
+  const horario = document.getElementById("cal-horario").value.trim();
+  const observacoes = document.getElementById("cal-observacoes").value.trim();
+  if (!titulo || !local || !data) return;
+
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const { error } = await sb.from("igr_calendario_eventos").insert({
+    igreja_id: state.igreja.id, grupo_id: state.membro?.grupo_id || null,
+    criado_por_membro_id: state.membro?.id || null, criado_por_nome: state.membro?.nome_completo || null,
+    titulo, local, data, horario: horario || null, observacoes: observacoes || null,
+  });
+  btn.disabled = false; btn.textContent = "Salvar no calendário";
+  if (error) { alert("Não deu pra salvar: " + error.message); return; }
+
+  ev.target.reset();
+  document.getElementById("form-calendario-add").style.display = "none";
+  carregarCalendario();
+
+  if (state.membro?.grupo_id) {
+    const { data: membrosDoGrupo } = await sb.from("igr_membros").select("id").eq("grupo_id", state.membro.grupo_id);
+    const ids = (membrosDoGrupo || []).map(m => m.id).filter(id => id !== state.membro.id);
+    if (ids.length) {
+      enviarPush({ tipo: "membros", membro_ids: ids }, `Novo compromisso: ${titulo}`, `📍 ${local} · ${formatarData(data)}${horario ? " às " + horario : ""}`);
+    }
+  }
+}
+
 async function carregarEventos() {
   const btnCriar = document.getElementById("btn-criar-evento");
   if (btnCriar) btnCriar.style.display = podeGerenciarEventos() ? "block" : "none";
@@ -4000,6 +4053,7 @@ async function iniciar() {
       if (alvo === "tela-membro-louvor") await carregarLouvor();
       if (alvo === "tela-membro-pastor") await carregarMensagensPastor();
       if (alvo === "tela-fotos") await carregarAlbuns();
+      if (alvo === "tela-calendario") await carregarCalendario();
       if (alvo === "tela-minhas-fotos") await carregarMinhasFotos();
       if (alvo === "tela-contatos") carregarContatos();
       if (alvo === "tela-sobre-igreja") await carregarSobreIgreja();
@@ -4011,6 +4065,11 @@ async function iniciar() {
   document.querySelectorAll("[data-close-a2hs]").forEach(b => b.addEventListener("click", fecharA2HS));
   document.getElementById("btn-instalar-agora")?.addEventListener("click", instalarAgora);
   document.getElementById("btn-criar-evento")?.addEventListener("click", () => abrirFormEvento(null));
+  document.getElementById("btn-add-calendario")?.addEventListener("click", () => {
+    const form = document.getElementById("form-calendario-add");
+    form.style.display = form.style.display === "none" ? "block" : "none";
+  });
+  document.getElementById("form-calendario-add")?.addEventListener("submit", enviarCalendario);
   document.getElementById("mf-album-selecionado")?.addEventListener("change", (ev) => carregarFotosParaMarcacao(ev.target.value));
   configurarBuscaMarcacaoFoto();
   configurarBuscaAcessos();

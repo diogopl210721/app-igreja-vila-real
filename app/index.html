@@ -131,6 +131,7 @@
         <a href="#secao-avisos" class="quicklink"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Avisos</a>
         <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
+        <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Calendário</button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
         <a href="#form-visitante" class="quicklink"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Contato</a>
         <button class="quicklink" data-nav="tela-login"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Entrar / Cadastro</button>
@@ -689,6 +690,7 @@
         <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
         <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minhas fotos</button>
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
+        <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Calendário</button>
         <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Grupos</button>
         <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
@@ -1063,6 +1065,31 @@
       <p class="hint" style="margin-bottom:14px;">Confira e se inscreva nos próximos eventos.</p>
       <button class="btn btn-primary" id="btn-criar-evento" style="display:none;margin-bottom:16px;">+ Criar evento</button>
       <div id="eventos-lista"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <!-- ============ CALENDÁRIO DA IGREJA (espaços/agenda interna) ============ -->
+  <div class="screen" id="tela-calendario">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-visitante">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Calendário da Igreja</span>
+      <p class="hint" style="margin-bottom:14px;">O que está reservado, em cada lugar, em cada data — pra ninguém marcar em cima.</p>
+      <button class="btn btn-primary" id="btn-add-calendario" style="display:none;margin-bottom:16px;">+ Adicionar ao calendário</button>
+
+      <form id="form-calendario-add" style="display:none;margin-bottom:18px;">
+        <div class="card" style="border:1.5px dashed var(--brand);">
+          <div class="field"><label>Título</label><input id="cal-titulo" required placeholder="Ex: Ensaio do louvor"></div>
+          <div class="field"><label>Local</label><input id="cal-local" required placeholder="Ex: Templo, Salão, Sala de Juniores..."></div>
+          <div class="field"><label>Data</label><input id="cal-data" type="date" required></div>
+          <div class="field"><label>Horário (opcional)</label><input id="cal-horario" placeholder="Ex: 19h30"></div>
+          <div class="field" style="margin-bottom:6px;"><label>Observações (opcional)</label><input id="cal-observacoes" placeholder="Detalhes adicionais"></div>
+          <button class="btn btn-primary" type="submit">Salvar no calendário</button>
+        </div>
+      </form>
+
+      <div id="calendario-lista"><p class="hint"><span class="loading-dot"></span></p></div>
     </div>
   </div>
 
