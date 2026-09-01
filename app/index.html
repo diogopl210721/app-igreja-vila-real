@@ -690,6 +690,7 @@
         <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minhas fotos</button>
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
         <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Grupos</button>
+        <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minha Célula</button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
       </div>
 
@@ -1251,7 +1252,60 @@
           <div class="section-label"><b>Pedidos de oração do grupo</b></div>
           <div id="grupo-detalhe-oracao"></div>
         </div>
+
+        <div class="section-label"><b>Monitores e células</b></div>
+        <p class="hint" style="margin-top:-6px;">Cada monitor cuida de um pequeno grupo (célula) dentro do seu grupo.</p>
+        <div id="grupo-celulas-lista"></div>
+        <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
+          <h3>Escolher novo monitor</h3>
+          <div class="field" style="position:relative;">
+            <label>Buscar membro</label>
+            <input id="celula-busca-monitor" autocomplete="off" placeholder="Digite o nome...">
+            <div id="celula-sugestoes-monitor" class="autocomplete-lista" style="display:none;"></div>
+          </div>
+          <div id="celula-monitor-selecionado" style="display:none;margin-bottom:10px;">
+            <div class="row-avatar"><div class="row-info"><b id="celula-nome-monitor-selecionado"></b></div></div>
+          </div>
+          <div class="field" style="margin-bottom:6px;"><label>Nome da célula</label><input id="celula-nome-nova" placeholder="Ex: Célula Ester"></div>
+          <button class="btn btn-primary" id="btn-criar-celula" type="button" disabled>Tornar monitor(a)</button>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ CELULA (mural do monitor + membros) ============ -->
+  <div class="screen" id="tela-celula">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-home">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <span id="celula-titulo" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:20px;display:block;margin-bottom:4px;"></span>
+      <p class="hint" id="celula-subtitulo" style="margin-bottom:14px;"></p>
+
+      <div id="celula-bloco-monitor" style="display:none;margin-bottom:16px;">
+        <div class="card" style="border:1.5px dashed var(--brand);">
+          <h3>Gerenciar célula</h3>
+          <div class="field" style="margin-bottom:8px;"><label>Nome da célula</label><input id="celula-editar-nome"></div>
+          <button class="btn btn-ghost" id="btn-salvar-nome-celula" type="button" style="margin-bottom:14px;">Salvar nome</button>
+
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;">Membros da célula</label>
+          <div id="celula-membros-lista" style="margin-bottom:10px;"></div>
+          <div class="field" style="position:relative;">
+            <label>Adicionar membro</label>
+            <input id="celula-busca-membro" autocomplete="off" placeholder="Digite o nome...">
+            <div id="celula-sugestoes-membro" class="autocomplete-lista" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <form id="form-celula-post" style="margin-bottom:16px;">
+        <div class="field" style="margin-bottom:6px;">
+          <textarea id="celula-post-texto" rows="2" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Escreva algo pra célula..."></textarea>
+        </div>
+        <button class="btn btn-primary" type="submit">Publicar</button>
+      </form>
+
+      <div id="celula-feed"><p class="hint"><span class="loading-dot"></span></p></div>
     </div>
   </div>
 

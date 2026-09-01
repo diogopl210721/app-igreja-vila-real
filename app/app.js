@@ -1057,6 +1057,9 @@ async function montarHomeMembro() {
     btnPainelMidia.style.display = temMidia ? "block" : "none";
     btnPainelMidia.onclick = () => abrirPainelEspecial("midia");
   }
+
+  const quicklinkCelula = document.getElementById("quicklink-celula");
+  if (quicklinkCelula) quicklinkCelula.style.display = m.celula_id ? "flex" : "none";
   const avisoNovoBox = document.getElementById("acesso-novo-box");
   if (avisoNovoBox) {
     if (m.papeis_especiais_novo && (m.papeis_especiais || []).length) {
@@ -1510,6 +1513,7 @@ function abrirGrupoDetalhe(grupoId) {
     document.getElementById("grupo-bloco-oracao").style.display = permissoes.includes("gerenciar_oracao") ? "block" : "none";
     document.getElementById("gi-descricao").value = grupo.descricao || "";
     if (permissoes.includes("gerenciar_oracao")) carregarOracaoDoGrupo(grupo.id);
+    carregarCelulasDoGrupo(grupo.id);
   }
 
   mostrarTela("tela-grupo-detalhe");
@@ -1549,6 +1553,216 @@ async function carregarOracaoDoGrupo(grupoId) {
       carregarOracaoDoGrupo(grupoId);
     });
   });
+}
+
+// ---------- células e monitores ----------
+let monitorSelecionadoCelula = null;
+
+async function carregarCelulasDoGrupo(grupoId) {
+  const el = document.getElementById("grupo-celulas-lista");
+  const { data: celulas } = await sb.from("igr_celulas").select("*, igr_membros!igr_celulas_monitor_membro_id_fkey(nome_completo)").eq("grupo_id", grupoId).order("created_at");
+  const { data: membrosDoGrupo } = await sb.from("igr_membros").select("celula_id").eq("grupo_id", grupoId).not("celula_id", "is", null);
+  const contagem = {};
+  (membrosDoGrupo || []).forEach(m => { contagem[m.celula_id] = (contagem[m.celula_id] || 0) + 1; });
+
+  el.innerHTML = (celulas || []).map(c => `
+    <div class="card row-avatar">
+      ${avatarIniciais(c.igr_membros?.nome_completo || "?")}
+      <div class="row-info"><b>${c.nome}</b><span>Monitor(a): ${c.igr_membros?.nome_completo || "—"} · ${contagem[c.id] || 0} membro(s)</span></div>
+      <button class="btn-icone-remover" data-remover-celula="${c.id}" title="Remover célula">✕</button>
+    </div>
+  `).join("") || `<p class="hint">Nenhuma célula criada ainda neste grupo.</p>`;
+
+  el.querySelectorAll("[data-remover-celula]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Remover essa célula? Os membros dela ficarão sem célula.")) return;
+      await sb.from("igr_celulas").delete().eq("id", btn.dataset.removerCelula);
+      carregarCelulasDoGrupo(grupoId);
+    });
+  });
+}
+
+function configurarBuscaMonitor() {
+  const input = document.getElementById("celula-busca-monitor");
+  const sugestoesEl = document.getElementById("celula-sugestoes-monitor");
+  if (!input) return;
+  let timeoutId = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timeoutId);
+    const termo = input.value.trim();
+    monitorSelecionadoCelula = null;
+    document.getElementById("btn-criar-celula").disabled = true;
+    if (termo.length < 2) { sugestoesEl.style.display = "none"; return; }
+    timeoutId = setTimeout(async () => {
+      const { data } = await sb.from("igr_membros").select("id, nome_completo")
+        .eq("igreja_id", state.igreja.id).ilike("nome_completo", `%${termo}%`).limit(6);
+      sugestoesEl.innerHTML = (data || []).map(m => `<div class="autocomplete-item" data-id="${m.id}" data-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
+      sugestoesEl.style.display = data?.length ? "block" : "none";
+      sugestoesEl.querySelectorAll("[data-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          monitorSelecionadoCelula = { id: item.dataset.id, nome: item.dataset.nome };
+          document.getElementById("celula-nome-monitor-selecionado").textContent = item.dataset.nome;
+          document.getElementById("celula-monitor-selecionado").style.display = "block";
+          if (!document.getElementById("celula-nome-nova").value) {
+            document.getElementById("celula-nome-nova").value = `Célula ${item.dataset.nome.split(" ")[0]}`;
+          }
+          input.value = "";
+          sugestoesEl.style.display = "none";
+          document.getElementById("btn-criar-celula").disabled = false;
+        });
+      });
+    }, 300);
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+
+async function criarCelula() {
+  if (!monitorSelecionadoCelula || !state.grupoDetalheAtual) return;
+  const nome = document.getElementById("celula-nome-nova").value.trim();
+  if (!nome) return;
+  const btn = document.getElementById("btn-criar-celula");
+  btn.disabled = true; btn.textContent = "Criando...";
+  const { error } = await sb.from("igr_celulas").insert({
+    igreja_id: state.igreja.id, grupo_id: state.grupoDetalheAtual.id,
+    monitor_membro_id: monitorSelecionadoCelula.id, nome,
+  });
+  btn.disabled = false; btn.textContent = "Tornar monitor(a)";
+  if (error) { alert("Não deu pra criar: " + error.message); return; }
+  enviarPush({ tipo: "membros", membro_ids: [monitorSelecionadoCelula.id] }, "Você é a nova liderança de uma célula! 🎉", `Você foi escolhido(a) monitor(a) da ${nome}. Acesse o app pra começar.`);
+  document.getElementById("celula-monitor-selecionado").style.display = "none";
+  document.getElementById("celula-nome-nova").value = "";
+  monitorSelecionadoCelula = null;
+  carregarCelulasDoGrupo(state.grupoDetalheAtual.id);
+}
+
+async function abrirCelula(celulaId) {
+  const { data: celula } = await sb.from("igr_celulas").select("*").eq("id", celulaId).single();
+  if (!celula) return;
+  state.celulaAtual = celula;
+  const souMonitor = state.membro && celula.monitor_membro_id === state.membro.id;
+
+  document.getElementById("celula-titulo").textContent = celula.nome;
+  document.getElementById("celula-subtitulo").textContent = souMonitor ? "Você é o(a) monitor(a) dessa célula." : "Bem-vindo(a) à sua célula.";
+  document.getElementById("celula-bloco-monitor").style.display = souMonitor ? "block" : "none";
+  if (souMonitor) {
+    document.getElementById("celula-editar-nome").value = celula.nome;
+    carregarMembrosDaCelula(celulaId);
+  }
+  mostrarTela("tela-celula");
+  carregarFeedCelula(celulaId);
+}
+
+async function salvarNomeCelula() {
+  const novoNome = document.getElementById("celula-editar-nome").value.trim();
+  if (!novoNome || !state.celulaAtual) return;
+  await sb.from("igr_celulas").update({ nome: novoNome }).eq("id", state.celulaAtual.id);
+  state.celulaAtual.nome = novoNome;
+  document.getElementById("celula-titulo").textContent = novoNome;
+}
+
+async function carregarMembrosDaCelula(celulaId) {
+  const { data } = await sb.from("igr_membros").select("id, nome_completo").eq("celula_id", celulaId).order("nome_completo");
+  const el = document.getElementById("celula-membros-lista");
+  el.innerHTML = (data || []).map(m => `
+    <div class="row-avatar" style="margin-bottom:8px;">
+      ${avatarIniciais(m.nome_completo)}
+      <div class="row-info"><b style="font-size:13px;">${m.nome_completo}</b></div>
+      <button class="btn-icone-remover" data-remover-membro-celula="${m.id}" title="Remover da célula">✕</button>
+    </div>
+  `).join("") || `<p class="hint">Nenhum membro na célula ainda.</p>`;
+  el.querySelectorAll("[data-remover-membro-celula]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await sb.from("igr_membros").update({ celula_id: null }).eq("id", btn.dataset.removerMembroCelula);
+      carregarMembrosDaCelula(celulaId);
+    });
+  });
+}
+
+function configurarBuscaMembroCelula() {
+  const input = document.getElementById("celula-busca-membro");
+  const sugestoesEl = document.getElementById("celula-sugestoes-membro");
+  if (!input) return;
+  let timeoutId = null;
+  input.addEventListener("input", () => {
+    clearTimeout(timeoutId);
+    const termo = input.value.trim();
+    if (termo.length < 2 || !state.celulaAtual) { sugestoesEl.style.display = "none"; return; }
+    timeoutId = setTimeout(async () => {
+      const { data } = await sb.from("igr_membros").select("id, nome_completo")
+        .eq("igreja_id", state.igreja.id).ilike("nome_completo", `%${termo}%`).limit(6);
+      sugestoesEl.innerHTML = (data || []).map(m => `<div class="autocomplete-item" data-id="${m.id}" data-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
+      sugestoesEl.style.display = data?.length ? "block" : "none";
+      sugestoesEl.querySelectorAll("[data-id]").forEach(item => {
+        item.addEventListener("click", async () => {
+          const celulaId = state.celulaAtual.id;
+          const celulaNome = state.celulaAtual.nome;
+          await sb.from("igr_membros").update({ celula_id: celulaId }).eq("id", item.dataset.id);
+          enviarPush({ tipo: "membros", membro_ids: [item.dataset.id] }, "Você agora faz parte de uma célula! 🙌", `Você foi adicionado(a) à ${celulaNome}. Acesse o app pra se conectar com o grupo.`);
+          input.value = "";
+          sugestoesEl.style.display = "none";
+          carregarMembrosDaCelula(celulaId);
+        });
+      });
+    }, 300);
+  });
+}
+
+async function carregarFeedCelula(celulaId) {
+  const el = document.getElementById("celula-feed");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const { data: posts } = await sb.from("igr_celula_posts").select("*").eq("celula_id", celulaId).order("created_at", { ascending: false });
+  const { data: comentarios } = await sb.from("igr_celula_comentarios").select("*").in("post_id", (posts || []).map(p => p.id).length ? (posts || []).map(p => p.id) : ["00000000-0000-0000-0000-000000000000"]).order("created_at");
+
+  el.innerHTML = (posts || []).map(p => {
+    const comentariosDoPost = (comentarios || []).filter(c => c.post_id === p.id);
+    return `
+      <div class="card" style="margin-bottom:12px;">
+        <div class="row-avatar" style="align-items:flex-start;">
+          ${avatarIniciais(p.autor_nome)}
+          <div class="row-info"><b>${p.autor_nome}</b><span>${tempoRelativo(p.created_at)}</span></div>
+        </div>
+        <p style="margin:10px 0;font-size:13.5px;">${p.texto}</p>
+        ${p.imagem_url ? `<img class="capa-thumb" src="${p.imagem_url}" alt="">` : ""}
+        <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px;">
+          ${comentariosDoPost.map(c => `
+            <div style="margin-bottom:8px;font-size:12.5px;"><b>${c.autor_nome}:</b> ${c.texto}</div>
+          `).join("")}
+          <div style="display:flex;gap:6px;">
+            <input type="text" class="celula-comentario-input" data-post-id="${p.id}" placeholder="Escreva um comentário..." style="flex:1;padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);font-size:12.5px;">
+            <button class="btn btn-ghost" data-enviar-comentario="${p.id}" style="width:auto;padding:9px 14px;font-size:12.5px;">Enviar</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("") || `<div class="empty">Ninguém postou nada na célula ainda. Comece você!</div>`;
+
+  el.querySelectorAll("[data-enviar-comentario]").forEach(btn => {
+    btn.addEventListener("click", () => enviarComentarioCelula(btn.dataset.enviarComentario, celulaId));
+  });
+}
+
+async function enviarPostCelula(ev) {
+  ev.preventDefault();
+  const texto = document.getElementById("celula-post-texto").value.trim();
+  if (!texto || !state.celulaAtual || !state.membro) return;
+  await sb.from("igr_celula_posts").insert({
+    celula_id: state.celulaAtual.id, autor_membro_id: state.membro.id,
+    autor_nome: state.membro.nome_completo, texto,
+  });
+  document.getElementById("celula-post-texto").value = "";
+  carregarFeedCelula(state.celulaAtual.id);
+}
+
+async function enviarComentarioCelula(postId, celulaId) {
+  const input = document.querySelector(`.celula-comentario-input[data-post-id="${postId}"]`);
+  const texto = input.value.trim();
+  if (!texto || !state.membro) return;
+  await sb.from("igr_celula_comentarios").insert({
+    post_id: postId, autor_membro_id: state.membro.id, autor_nome: state.membro.nome_completo, texto,
+  });
+  carregarFeedCelula(celulaId);
 }
 
 async function carregarAvisosDoGrupoDetalhe(grupoId) {
@@ -3767,6 +3981,14 @@ async function iniciar() {
   configurarBuscaMarcacaoFoto();
   configurarBuscaAcessos();
   document.getElementById("btn-salvar-acesso")?.addEventListener("click", salvarAcessoEspecial);
+  configurarBuscaMonitor();
+  configurarBuscaMembroCelula();
+  document.getElementById("btn-criar-celula")?.addEventListener("click", criarCelula);
+  document.getElementById("btn-salvar-nome-celula")?.addEventListener("click", salvarNomeCelula);
+  document.getElementById("form-celula-post")?.addEventListener("submit", enviarPostCelula);
+  document.getElementById("quicklink-celula")?.addEventListener("click", () => {
+    if (state.membro?.celula_id) abrirCelula(state.membro.celula_id);
+  });
   document.getElementById("btn-admin-novo-evento")?.addEventListener("click", () => abrirFormEvento(null));
   document.getElementById("form-evento")?.addEventListener("submit", enviarFormEvento);
   document.getElementById("ev-gratuito")?.addEventListener("change", (ev) => {
