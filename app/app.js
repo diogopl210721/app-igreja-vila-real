@@ -2596,7 +2596,7 @@ async function buscarPorTema(modo) {
   }
 }
 
-// ---------- banner de divulgação (líder) ----------
+// ---------- banner de divulgação (líder), gerado por IA (Gemini / Nano Banana Pro) ----------
 function carregarImagemEl(src, crossOrigin) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -2607,23 +2607,13 @@ function carregarImagemEl(src, crossOrigin) {
   });
 }
 
-function desenharFotoCover(ctx, foto, W, H) {
-  const escala = Math.max(W / foto.naturalWidth, H / foto.naturalHeight);
-  const w = foto.naturalWidth * escala, h = foto.naturalHeight * escala;
-  ctx.drawImage(foto, (W - w) / 2, (H - h) / 2, w, h);
-}
-
-function quebrarTextoCanvas(ctx, texto, maxWidth) {
-  const palavras = texto.split(" ");
-  const linhas = [];
-  let atual = "";
-  palavras.forEach(p => {
-    const teste = atual ? atual + " " + p : p;
-    if (ctx.measureText(teste).width > maxWidth && atual) { linhas.push(atual); atual = p; }
-    else atual = teste;
+function arquivoParaBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
-  if (atual) linhas.push(atual);
-  return linhas;
 }
 
 function roundRectPath(ctx, x, y, w, h, r) {
@@ -2640,7 +2630,7 @@ function desenharLogoComCirculo(ctx, logo, cx, cy, raio) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, raio, 0, Math.PI * 2);
-  ctx.fillStyle = "#fff";
+  ctx.fillStyle = "rgba(255,255,255,.95)";
   ctx.fill();
   ctx.clip();
   const escala = Math.max((raio * 2 * 0.86) / logo.naturalWidth, (raio * 2 * 0.86) / logo.naturalHeight);
@@ -2649,157 +2639,102 @@ function desenharLogoComCirculo(ctx, logo, cx, cy, raio) {
   ctx.restore();
 }
 
-function novoCanvasBanner() {
-  const c = document.createElement("canvas");
-  c.width = 1080; c.height = 1920;
-  return c;
-}
-
-// Template A — fundo escuro elegante, degradê de baixo pra cima
-function desenharBannerA(foto, logo, d) {
-  const c = novoCanvasBanner(); const ctx = c.getContext("2d"); const W = c.width, H = c.height;
-  desenharFotoCover(ctx, foto, W, H);
-  const grad = ctx.createLinearGradient(0, H * 0.4, 0, H);
-  grad.addColorStop(0, "rgba(10,12,25,0)"); grad.addColorStop(1, "rgba(5,6,15,0.94)");
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-
-  desenharLogoComCirculo(ctx, logo, 96, 96, 56);
-  ctx.fillStyle = "#fff"; ctx.font = "700 30px Inter, sans-serif"; ctx.textBaseline = "middle";
-  ctx.fillText(d.nomeIgreja, 168, 96);
-
-  ctx.fillStyle = "#0026B7"; roundRectPath(ctx, 64, H - 700, 260, 56, 28); ctx.fill();
-  ctx.fillStyle = "#fff"; ctx.font = "800 24px Inter, sans-serif"; ctx.textBaseline = "middle";
-  ctx.fillText("📢 DIVULGAÇÃO", 92, H - 672);
-
-  ctx.fillStyle = "#fff"; ctx.font = "800 74px Montserrat, sans-serif"; ctx.textBaseline = "alphabetic";
-  const linhasTema = quebrarTextoCanvas(ctx, d.tema, W - 128);
-  let y = H - 560;
-  linhasTema.forEach(l => { ctx.fillText(l, 64, y); y += 84; });
-
-  y += 26;
-  ctx.font = "600 40px Inter, sans-serif"; ctx.fillStyle = "rgba(255,255,255,.96)";
-  const infos = [`📅  ${d.dataFormatada}  •  🕒 ${d.horario}`, `📍  ${d.endereco}`, `📞  ${d.telefone}`];
-  infos.forEach(l => { ctx.fillText(l, 64, y); y += 58; });
-  return c;
-}
-
-// Template B — faixa colorida moderna + barra inferior sólida
-function desenharBannerB(foto, logo, d) {
-  const c = novoCanvasBanner(); const ctx = c.getContext("2d"); const W = c.width, H = c.height;
-  desenharFotoCover(ctx, foto, W, H);
-  ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(0, 0, W, H);
-
-  ctx.save();
-  ctx.translate(0, H * 0.5); ctx.rotate(-0.045);
-  ctx.fillStyle = "rgba(0,38,183,.92)";
-  ctx.fillRect(-40, -120, W + 80, 260);
-  ctx.fillStyle = "#fff"; ctx.font = "800 68px Montserrat, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "center";
-  const linhasTema = quebrarTextoCanvas(ctx, d.tema, W - 140);
-  const alturaLinha = 74;
-  const inicioY = -((linhasTema.length - 1) * alturaLinha) / 2;
-  linhasTema.forEach((l, i) => ctx.fillText(l, W / 2, inicioY + i * alturaLinha));
-  ctx.restore();
-  ctx.textAlign = "left";
-
-  ctx.fillStyle = "#0026B7"; ctx.fillRect(0, H - 360, W, 360);
-  ctx.fillStyle = "#fff"; ctx.font = "600 38px Inter, sans-serif"; ctx.textBaseline = "middle";
-  const infos = [`📅  ${d.dataFormatada}   🕒  ${d.horario}`, `📍  ${d.endereco}`, `📞  ${d.telefone}`];
-  let y = H - 270;
-  infos.forEach(l => { ctx.fillText(l, 64, y); y += 66; });
-
-  desenharLogoComCirculo(ctx, logo, W - 120, H - 340, 68);
-  return c;
-}
-
-// Template C — cartão flutuante branco na parte inferior
-function desenharBannerC(foto, logo, d) {
-  const c = novoCanvasBanner(); const ctx = c.getContext("2d"); const W = c.width, H = c.height;
-  desenharFotoCover(ctx, foto, W, H);
-  ctx.fillStyle = "rgba(10,12,25,.35)"; ctx.fillRect(0, 0, W, H);
-
-  const cardY = H * 0.54, cardH = H * 0.4, cardX = 48, cardW = W - 96;
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12;
-  ctx.fillStyle = "#fff"; roundRectPath(ctx, cardX, cardY, cardW, cardH, 40); ctx.fill();
-  ctx.restore();
-
-  desenharLogoComCirculo(ctx, logo, W / 2, cardY, 64);
-  ctx.fillStyle = "#171923"; ctx.font = "700 24px Inter, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(d.nomeIgreja, W / 2, cardY + 92);
-
-  ctx.font = "800 58px Montserrat, sans-serif";
-  const linhasTema = quebrarTextoCanvas(ctx, d.tema, cardW - 80);
-  let y = cardY + 168;
-  linhasTema.forEach(l => { ctx.fillText(l, W / 2, y); y += 62; });
-
-  y += 30;
-  ctx.font = "600 34px Inter, sans-serif"; ctx.fillStyle = "#4B5060";
-  const infos = [`📅 ${d.dataFormatada}  •  🕒 ${d.horario}`, `📍 ${d.endereco}`, `📞 ${d.telefone}`];
-  infos.forEach(l => { ctx.fillText(l, W / 2, y); y += 52; });
-  ctx.textAlign = "left";
-  return c;
+// mede o quao claro/escuro esta o canto onde a marca vai entrar, pra escolher a variante de logo certa
+function medirLuminosidadeCanto(ctx, W, H) {
+  try {
+    const tam = Math.round(W * 0.32);
+    const dados = ctx.getImageData(0, H - tam, tam, tam).data;
+    let soma = 0, n = 0;
+    for (let i = 0; i < dados.length; i += 4 * 37) {
+      soma += 0.299 * dados[i] + 0.587 * dados[i + 1] + 0.114 * dados[i + 2];
+      n++;
+    }
+    return n ? soma / n : 128;
+  } catch (e) {
+    console.error("Não consegui medir a luminosidade do banner, usando padrão:", e);
+    return 100; // padrão: assume fundo escuro (mais comum em artes de evento) e usa a logo clara
+  }
 }
 
 async function carregarFontesBanner() {
-  await Promise.all([
-    document.fonts.load("800 74px Montserrat"), document.fonts.load("700 24px Inter"),
-    document.fonts.load("600 40px Inter"), document.fonts.load("800 24px Inter"),
-  ]);
+  await Promise.all([document.fonts.load("700 30px Inter"), document.fonts.load("600 30px Inter")]);
+}
+
+// carimba a logo da igreja (variante clara ou escura, conforme o fundo) + o site, sempre garantidos
+async function carimbarMarcaNoBanner(canvas) {
+  try {
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+    await carregarFontesBanner();
+
+    const luz = medirLuminosidadeCanto(ctx, W, H);
+    const logoSrc = luz < 130 ? "assets/logo-escuro.png" : "assets/logo-claro.png";
+    const logo = await carregarImagemEl(logoSrc, true);
+
+    const raio = W * 0.052;
+    const margem = W * 0.045;
+    const cx = margem + raio, cy = H - margem - raio;
+    desenharLogoComCirculo(ctx, logo, cx, cy, raio);
+
+    const site = state.igreja?.site_url;
+    if (site) {
+      const corTexto = luz < 130 ? "rgba(255,255,255,.95)" : "rgba(20,22,35,.92)";
+      const corFundo = luz < 130 ? "rgba(0,0,0,.35)" : "rgba(255,255,255,.75)";
+      ctx.font = `700 ${Math.round(W * 0.026)}px Inter, sans-serif`;
+      const largura = ctx.measureText(site).width;
+      const padX = W * 0.02, padY = H * 0.012;
+      const boxW = largura + padX * 2, boxH = W * 0.026 + padY * 2;
+      const boxX = cx + raio + W * 0.02, boxY = cy - boxH / 2;
+      ctx.fillStyle = corFundo;
+      roundRectPath(ctx, boxX, boxY, boxW, boxH, boxH / 2);
+      ctx.fill();
+      ctx.fillStyle = corTexto;
+      ctx.textBaseline = "middle";
+      ctx.fillText(site, boxX + padX, boxY + boxH / 2);
+    }
+  } catch (e) {
+    // se por algum motivo a marca não puder ser carimbada, o banner gerado continua utilizável sem ela
+    console.error("Não consegui carimbar a logo/site no banner:", e);
+  }
 }
 
 async function gerarBanners() {
   const tema = document.getElementById("banner-tema").value.trim();
+  if (!tema) { alert("Digite pelo menos o tema do evento."); return; }
   const dataISO = document.getElementById("banner-data").value;
   const horario = document.getElementById("banner-horario").value.trim();
   const endereco = document.getElementById("banner-endereco").value.trim();
   const telefone = document.getElementById("banner-telefone").value.trim();
   const arquivo = document.getElementById("banner-imagem").files[0];
-  if (!tema || !dataISO || !horario || !endereco || !telefone || !arquivo) {
-    alert("Preenche todos os campos e escolhe uma imagem primeiro.");
-    return;
-  }
+
   const btn = document.getElementById("btn-gerar-banners");
-  btn.disabled = true; btn.textContent = "Gerando...";
+  const status = document.getElementById("banner-gerando-status");
+  btn.disabled = true; status.style.display = "block";
   try {
-    await carregarFontesBanner();
-    const fotoUrl = URL.createObjectURL(arquivo);
-    const foto = await carregarImagemEl(fotoUrl);
-    const logo = await carregarImagemEl(state.igreja?.logo_url || "assets/logo.png", true);
-    URL.revokeObjectURL(fotoUrl);
+    const body = {
+      tema,
+      dataFormatada: dataISO ? formatarData(dataISO) : null,
+      horario: horario || null, endereco: endereco || null, telefone: telefone || null,
+    };
+    if (arquivo) { body.fotoBase64 = await arquivoParaBase64(arquivo); body.fotoMimeType = arquivo.type; }
 
-    const dados = { tema, horario, endereco, telefone, dataFormatada: formatarData(dataISO), nomeIgreja: state.igreja?.nome || "" };
-    state.bannerCanvases = [desenharBannerA(foto, logo, dados), desenharBannerB(foto, logo, dados), desenharBannerC(foto, logo, dados)];
+    const { data, error } = await sb.functions.invoke("igr-gerar-banner-ia", { body });
+    if (error || !data?.ok) throw new Error(data?.error || error?.message || "erro desconhecido");
 
-    const nomes = ["Escuro & Elegante", "Faixa Moderna", "Cartão Flutuante"];
-    const opcoesEl = document.getElementById("banner-opcoes");
-    opcoesEl.innerHTML = state.bannerCanvases.map((cv, i) => `
-      <div class="card" data-escolher-banner="${i}" style="cursor:pointer;padding:10px;">
-        <img src="${cv.toDataURL("image/jpeg", 0.7)}" style="width:100%;border-radius:12px;display:block;">
-        <p style="text-align:center;font-weight:700;font-size:13px;margin:8px 0 0;">${nomes[i]}</p>
-      </div>
-    `).join("");
-    opcoesEl.querySelectorAll("[data-escolher-banner]").forEach(card => {
-      card.addEventListener("click", () => selecionarBannerEstilo(parseInt(card.dataset.escolherBanner)));
-    });
+    const imagem = await carregarImagemEl(`data:${data.mimeType};base64,${data.imagemBase64}`);
+    const canvas = document.getElementById("banner-canvas-preview");
+    canvas.width = imagem.naturalWidth; canvas.height = imagem.naturalHeight;
+    canvas.getContext("2d").drawImage(imagem, 0, 0);
+    await carimbarMarcaNoBanner(canvas);
 
     document.getElementById("banner-view-form").style.display = "none";
-    document.getElementById("banner-view-escolher").style.display = "block";
+    document.getElementById("banner-view-preview").style.display = "block";
   } catch (e) {
-    console.error("Erro ao gerar banners:", e);
-    alert("Não deu pra gerar os banners agora. Tenta com outra imagem ou de novo em instantes.");
+    console.error("Erro ao gerar banner:", e);
+    alert("Não deu pra gerar o banner agora. Tenta de novo em instantes.");
   } finally {
-    btn.disabled = false; btn.textContent = "✨ Gerar banners";
+    btn.disabled = false; status.style.display = "none";
   }
-}
-
-function selecionarBannerEstilo(idx) {
-  state.bannerEscolhido = idx;
-  const origem = state.bannerCanvases[idx];
-  const preview = document.getElementById("banner-canvas-preview");
-  preview.width = origem.width; preview.height = origem.height;
-  preview.getContext("2d").drawImage(origem, 0, 0);
-  document.getElementById("banner-view-escolher").style.display = "none";
-  document.getElementById("banner-view-preview").style.display = "block";
 }
 
 function baixarBanner() {
@@ -2827,7 +2762,11 @@ async function aprovarBanner() {
     const horario = document.getElementById("banner-horario").value.trim();
     const endereco = document.getElementById("banner-endereco").value.trim();
     const telefone = document.getElementById("banner-telefone").value.trim();
-    const texto = `📅 ${formatarData(dataISO)} • 🕒 ${horario}\n📍 ${endereco}\n📞 ${telefone}`;
+    const partesTexto = [];
+    if (dataISO || horario) partesTexto.push(`📅 ${dataISO ? formatarData(dataISO) : ""}${horario ? " • 🕒 " + horario : ""}`.trim());
+    if (endereco) partesTexto.push(`📍 ${endereco}`);
+    if (telefone) partesTexto.push(`📞 ${telefone}`);
+    const texto = partesTexto.join("\n");
     const { error } = await sb.from("igr_avisos").insert({
       igreja_id: state.igreja.id, titulo: tema, texto, imagem_url,
       grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id,
@@ -5275,19 +5214,15 @@ async function iniciar() {
   document.getElementById("btn-abrir-aviso-lider")?.addEventListener("click", () => mostrarTela("tela-lider-aviso"));
   document.getElementById("btn-abrir-banner-lider")?.addEventListener("click", () => {
     document.getElementById("banner-view-form").style.display = "block";
-    document.getElementById("banner-view-escolher").style.display = "none";
     document.getElementById("banner-view-preview").style.display = "none";
     mostrarTela("tela-lider-banner");
   });
   document.getElementById("btn-gerar-banners")?.addEventListener("click", gerarBanners);
   document.getElementById("banner-voltar-form")?.addEventListener("click", () => {
-    document.getElementById("banner-view-escolher").style.display = "none";
+    document.getElementById("banner-view-preview").style.display = "none";
     document.getElementById("banner-view-form").style.display = "block";
   });
-  document.getElementById("banner-voltar-escolher")?.addEventListener("click", () => {
-    document.getElementById("banner-view-preview").style.display = "none";
-    document.getElementById("banner-view-escolher").style.display = "block";
-  });
+  document.getElementById("btn-banner-gerar-novo")?.addEventListener("click", gerarBanners);
   document.getElementById("btn-banner-baixar")?.addEventListener("click", baixarBanner);
   document.getElementById("btn-banner-aprovar")?.addEventListener("click", aprovarBanner);
   document.getElementById("form-calendario-add")?.addEventListener("submit", enviarCalendario);
