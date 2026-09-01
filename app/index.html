@@ -802,6 +802,7 @@
 
       <div class="quicklinks">
         <button class="quicklink" data-nav="tela-membro-estudos"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Estudos</button>
+        <button class="quicklink" data-nav="tela-diario"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Meu Diário</button>
         <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
         <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minhas fotos</button>
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
@@ -1269,6 +1270,84 @@
           <div id="biblia-versiculos" style="font-size:15px;line-height:1.75;"></div>
         </div>
         <p class="hint" id="biblia-copyright" style="margin-top:10px;text-align:center;"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MEU DIÁRIO COM DEUS ============ -->
+  <div class="screen" id="tela-diario">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-home"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Meu diário com Deus</span>
+      <p class="hint" style="margin-bottom:14px;">Registre o que você lê e o que Deus vai falando com você.</p>
+      <button class="btn btn-primary" data-nav="tela-diario-registrar" style="margin-bottom:10px;">✍️ Registrar leitura de hoje</button>
+      <button class="btn btn-ghost" data-nav="tela-diario-historico" style="margin-bottom:10px;">📖 Meu histórico de leitura</button>
+      <button class="btn btn-ghost" data-nav="tela-diario-planos">🗓️ Planos de leitura</button>
+    </div>
+  </div>
+
+  <div class="screen" id="tela-diario-registrar">
+    <div class="scroll no-nav">
+      <div class="admin-aba-voltar" data-nav="tela-diario">← Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:12px;">Registrar leitura</span>
+      <div class="card">
+        <div class="field" style="position:relative;">
+          <label>Livro (opcional)</label>
+          <input id="diario-livro" autocomplete="off" placeholder="Ex: João, Salmos, Gênesis...">
+          <div id="diario-livro-sugestoes" class="autocomplete-lista" style="display:none;"></div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <div class="field" style="flex:1;"><label>Capítulo</label><input id="diario-capitulo" type="number" min="1" placeholder="Ex: 3"></div>
+          <div class="field" style="flex:1;"><label>Versículo (opcional)</label><input id="diario-versiculo" type="number" min="1" placeholder="Ex: 16"></div>
+        </div>
+        <button class="btn btn-ghost" id="btn-ver-texto-diario" type="button" style="margin-bottom:14px;">👁️ Ver texto</button>
+        <div id="diario-texto-preview" class="hint" style="display:none;margin:-6px 0 14px;background:var(--bg);padding:10px 12px;border-radius:10px;"></div>
+        <div class="field"><label>O que Deus falou com você? (opcional)</label>
+          <textarea id="diario-nota" rows="4" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Anote o que ficou no seu coração..."></textarea>
+        </div>
+        <label class="interesse-item" style="margin-bottom:14px;"><input type="checkbox" id="diario-compartilhar"> 🔓 Compartilhar essa anotação com o líder</label>
+        <button class="btn btn-primary" id="btn-salvar-diario" type="button">Salvar no meu diário</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="tela-diario-historico">
+    <div class="scroll no-nav">
+      <div class="admin-aba-voltar" data-nav="tela-diario">← Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:12px;">Meu histórico de leitura</span>
+      <div class="field"><input id="diario-busca-historico" autocomplete="off" placeholder="Buscar por livro, palavra na nota..."></div>
+      <div id="diario-lista-historico"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <div class="screen" id="tela-diario-planos">
+    <div class="scroll no-nav">
+      <div class="admin-aba-voltar" data-nav="tela-diario">← Voltar</div>
+      <div id="planos-view-lista">
+        <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:12px;">Planos de leitura</span>
+        <div class="section-label"><b>Meus planos em andamento</b></div>
+        <div id="planos-meus" style="margin-bottom:14px;"><p class="hint">Nenhum plano em andamento ainda.</p></div>
+        <div class="section-label"><b>Planos prontos</b></div>
+        <div id="planos-catalogo"><p class="hint"><span class="loading-dot"></span></p></div>
+        <button class="btn btn-ghost" id="btn-criar-plano" style="margin-top:12px;">➕ Criar meu próprio plano</button>
+      </div>
+      <div id="planos-view-detalhe" style="display:none;">
+        <div class="admin-aba-voltar" id="plano-voltar-lista">← Voltar aos planos</div>
+        <span id="plano-titulo-detalhe" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:18px;display:block;margin-bottom:4px;"></span>
+        <p class="hint" id="plano-descricao-detalhe" style="margin-bottom:10px;"></p>
+        <div style="background:var(--bg);border-radius:8px;height:8px;overflow:hidden;margin-bottom:14px;"><div id="plano-barra-progresso" style="height:100%;background:var(--brand);width:0%;"></div></div>
+        <div id="plano-dias-lista"></div>
+      </div>
+      <div id="planos-view-criar" style="display:none;">
+        <div class="admin-aba-voltar" id="plano-criar-voltar">← Voltar aos planos</div>
+        <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:18px;display:block;margin-bottom:10px;">Criar meu plano</span>
+        <div class="card">
+          <div class="field"><label>Título</label><input id="plano-novo-titulo" placeholder="Ex: Minha jornada em Provérbios"></div>
+          <div class="field"><label>Um item por linha (ex: João 1, depois João 2...)</label>
+            <textarea id="plano-novo-dias" rows="8" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="João 1&#10;João 2&#10;João 3"></textarea>
+          </div>
+          <button class="btn btn-primary" id="btn-salvar-plano-novo" type="button">Criar plano</button>
+        </div>
       </div>
     </div>
   </div>

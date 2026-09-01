@@ -1359,6 +1359,11 @@ async function configurarReacoesDevocional() {
 }
 
 // ---------- check-in diário de humor ----------
+const HUMOR_LABELS = {
+  grato: "grato(a)", esperancoso: "esperançoso(a)", em_paz: "em paz",
+  fortalecido: "fortalecido(a)", cansado: "cansado(a)", ansioso: "ansioso(a)",
+};
+
 async function configurarCheckinDiario() {
   const box = document.getElementById("checkin-diario-box");
   if (!box || !state.membro) return;
@@ -1372,7 +1377,12 @@ async function configurarCheckinDiario() {
     return;
   }
   box.style.display = "block";
-  box.querySelector(".checkin-pergunta").textContent = "Como você está hoje?";
+  const { data: anterior } = await sb.from("igr_checkins_diarios").select("humor, data")
+    .eq("membro_id", state.membro.id).lt("data", hoje).order("data", { ascending: false }).limit(1).maybeSingle();
+  const primeiroNome = state.membro?.nome_completo?.split(" ")[0] || "";
+  box.querySelector(".checkin-pergunta").textContent = anterior
+    ? `${primeiroNome}, da última vez você disse que estava ${HUMOR_LABELS[anterior.humor] || anterior.humor}. Como você está hoje?`
+    : "Como você está hoje?";
   const botoes = box.querySelectorAll(".reacao-btn");
   botoes.forEach(b => b.classList.remove("on"));
 
@@ -2155,6 +2165,232 @@ async function abrirBibliaTexto(livroId, capitulo) {
     `<sup style="color:var(--brand);font-weight:700;margin-right:2px;">${v.numero}</sup>${v.texto} `
   ).join("");
   document.getElementById("biblia-copyright").textContent = resultado.copyright || "";
+}
+
+// ---------- diário de leitura ----------
+const LIVROS_BIBLICOS_NOMES = [
+  "Gênesis","Êxodo","Levítico","Números","Deuteronômio","Josué","Juízes","Rute","1 Samuel","2 Samuel",
+  "1 Reis","2 Reis","1 Crônicas","2 Crônicas","Esdras","Neemias","Ester","Jó","Salmos","Provérbios",
+  "Eclesiastes","Cantares","Isaías","Jeremias","Lamentações","Ezequiel","Daniel","Oseias","Joel","Amós",
+  "Obadias","Jonas","Miqueias","Naum","Habacuque","Sofonias","Ageu","Zacarias","Malaquias",
+  "Mateus","Marcos","Lucas","João","Atos","Romanos","1 Coríntios","2 Coríntios","Gálatas","Efésios",
+  "Filipenses","Colossenses","1 Tessalonicenses","2 Tessalonicenses","1 Timóteo","2 Timóteo","Tito","Filemom","Hebreus",
+  "Tiago","1 Pedro","2 Pedro","1 João","2 João","3 João","Judas","Apocalipse",
+];
+
+async function chamarBibliaTexto(referencia) {
+  try {
+    const { data, error } = await sb.functions.invoke("igr-biblia-texto", { body: { referencia } });
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    console.error("Erro ao buscar texto:", e);
+    return null;
+  }
+}
+
+function configurarAutocompleteLivroDiario() {
+  const input = document.getElementById("diario-livro");
+  const sugestoesEl = document.getElementById("diario-livro-sugestoes");
+  if (!input) return;
+  input.addEventListener("input", () => {
+    const termo = input.value.trim().toLowerCase();
+    if (!termo) { sugestoesEl.style.display = "none"; return; }
+    const bateram = LIVROS_BIBLICOS_NOMES.filter(l => l.toLowerCase().startsWith(termo)).slice(0, 6);
+    if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
+    sugestoesEl.innerHTML = bateram.map(l => `<div class="autocomplete-item" data-livro="${l}">${l}</div>`).join("");
+    sugestoesEl.style.display = "block";
+    sugestoesEl.querySelectorAll("[data-livro]").forEach(item => {
+      item.addEventListener("click", () => {
+        input.value = item.dataset.livro;
+        sugestoesEl.style.display = "none";
+      });
+    });
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+
+function montarReferenciaDiario() {
+  const livro = document.getElementById("diario-livro").value.trim();
+  const capitulo = document.getElementById("diario-capitulo").value.trim();
+  const versiculo = document.getElementById("diario-versiculo").value.trim();
+  if (!livro || !capitulo) return null;
+  return versiculo ? `${livro} ${capitulo}:${versiculo}` : `${livro} ${capitulo}`;
+}
+
+async function verTextoDiario() {
+  const ref = montarReferenciaDiario();
+  const preview = document.getElementById("diario-texto-preview");
+  if (!ref) { alert("Preencha o livro e o capítulo primeiro."); return; }
+  preview.style.display = "block";
+  preview.innerHTML = `<span class="loading-dot"></span>`;
+  const resultado = await chamarBibliaTexto(ref);
+  if (!resultado?.ok) {
+    preview.innerHTML = "Não consegui encontrar essa referência. Confira o livro e o capítulo.";
+    return;
+  }
+  preview.innerHTML = `<b>${resultado.referencia}</b><br>${resultado.texto}`;
+}
+
+async function salvarLeituraDiario() {
+  if (!state.membro) return;
+  const livro = document.getElementById("diario-livro").value.trim() || null;
+  const capitulo = document.getElementById("diario-capitulo").value.trim() || null;
+  const versiculo = document.getElementById("diario-versiculo").value.trim() || null;
+  const nota = document.getElementById("diario-nota").value.trim() || null;
+  const compartilhado = document.getElementById("diario-compartilhar").checked;
+  if (!livro && !nota) { alert("Registre pelo menos um livro lido ou uma nota."); return; }
+
+  const btn = document.getElementById("btn-salvar-diario");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const { error } = await sb.from("igr_leituras").insert({
+    igreja_id: state.igreja.id, membro_id: state.membro.id,
+    livro, capitulo: capitulo ? parseInt(capitulo) : null,
+    versiculo_inicio: versiculo ? parseInt(versiculo) : null,
+    nota, compartilhado,
+  });
+  btn.disabled = false; btn.textContent = "Salvar no meu diário";
+  if (error) { alert("Não deu pra salvar: " + error.message); return; }
+
+  document.getElementById("diario-livro").value = "";
+  document.getElementById("diario-capitulo").value = "";
+  document.getElementById("diario-versiculo").value = "";
+  document.getElementById("diario-nota").value = "";
+  document.getElementById("diario-compartilhar").checked = false;
+  document.getElementById("diario-texto-preview").style.display = "none";
+  mostrarTela("tela-diario");
+}
+
+let leiturasHistoricoCache = null;
+async function carregarHistoricoDiario() {
+  const el = document.getElementById("diario-lista-historico");
+  const { data } = await sb.from("igr_leituras").select("*")
+    .eq("membro_id", state.membro.id).order("data", { ascending: false });
+  leiturasHistoricoCache = data || [];
+  renderHistoricoDiario();
+}
+
+function renderHistoricoDiario() {
+  const el = document.getElementById("diario-lista-historico");
+  const termo = document.getElementById("diario-busca-historico").value.trim().toLowerCase();
+  const lista = (leiturasHistoricoCache || []).filter(l => {
+    if (!termo) return true;
+    return (l.livro || "").toLowerCase().includes(termo) || (l.nota || "").toLowerCase().includes(termo);
+  });
+  el.innerHTML = lista.map(l => {
+    const ref = l.livro ? `${l.livro}${l.capitulo ? " " + l.capitulo : ""}${l.versiculo_inicio ? ":" + l.versiculo_inicio : ""}` : "";
+    return `<div class="card">
+      ${ref ? `<b style="font-size:14px;">${ref}</b>` : ""}
+      <p class="hint" style="margin:2px 0 6px;">${formatarData(l.data)}${l.compartilhado ? " · 🔓 compartilhado" : ""}</p>
+      ${l.nota ? `<p style="font-size:13.5px;margin:0;">${l.nota}</p>` : ""}
+    </div>`;
+  }).join("") || `<p class="hint">Nada por aqui ainda — registre sua primeira leitura!</p>`;
+}
+
+// ---------- planos de leitura ----------
+async function carregarPlanos() {
+  document.getElementById("planos-view-lista").style.display = "block";
+  document.getElementById("planos-view-detalhe").style.display = "none";
+  document.getElementById("planos-view-criar").style.display = "none";
+
+  const [{ data: planos }, { data: progresso }] = await Promise.all([
+    sb.from("igr_planos_leitura").select("*").or(`igreja_id.is.null,igreja_id.eq.${state.igreja.id}`).order("created_at"),
+    sb.from("igr_planos_progresso").select("*").eq("membro_id", state.membro.id),
+  ]);
+  state.planosCache = planos || [];
+  state.progressoCache = progresso || [];
+
+  const emAndamentoIds = new Set((progresso || []).map(p => p.plano_id));
+  const meusPlanos = (planos || []).filter(p => emAndamentoIds.has(p.id));
+  const prontos = (planos || []).filter(p => !p.criado_por_membro_id);
+
+  document.getElementById("planos-meus").innerHTML = meusPlanos.map(p => {
+    const prog = progresso.find(pr => pr.plano_id === p.id);
+    const pct = Math.round((prog.dias_concluidos.length / p.dias.length) * 100);
+    return `<div class="card" data-abrir-plano="${p.id}" style="cursor:pointer;">
+      <b style="font-size:14px;">${p.titulo}</b>
+      <div style="background:var(--bg);border-radius:8px;height:6px;overflow:hidden;margin:8px 0 4px;"><div style="height:100%;background:var(--brand);width:${pct}%;"></div></div>
+      <p class="hint" style="margin:0;">${prog.dias_concluidos.length} de ${p.dias.length} dias (${pct}%)</p>
+    </div>`;
+  }).join("") || `<p class="hint">Nenhum plano em andamento ainda.</p>`;
+
+  document.getElementById("planos-catalogo").innerHTML = prontos.map(p => `
+    <div class="card" data-abrir-plano="${p.id}" style="cursor:pointer;">
+      <b style="font-size:14px;">${p.titulo}</b>
+      <p class="hint" style="margin:4px 0 0;">${p.descricao || ""}</p>
+      <p class="hint" style="margin:2px 0 0;">${p.dias.length} dias</p>
+    </div>
+  `).join("") || `<p class="hint">Nenhum plano pronto disponível.</p>`;
+
+  document.querySelectorAll("[data-abrir-plano]").forEach(card => {
+    card.addEventListener("click", () => abrirDetalhePlano(card.dataset.abrirPlano));
+  });
+}
+
+async function abrirDetalhePlano(planoId) {
+  const plano = state.planosCache.find(p => p.id === planoId);
+  if (!plano) return;
+  let progresso = state.progressoCache.find(p => p.plano_id === planoId);
+  if (!progresso) {
+    const { data } = await sb.from("igr_planos_progresso")
+      .insert({ membro_id: state.membro.id, plano_id: planoId, dias_concluidos: [] })
+      .select().single();
+    progresso = data;
+    state.progressoCache.push(progresso);
+  }
+
+  document.getElementById("planos-view-lista").style.display = "none";
+  document.getElementById("planos-view-detalhe").style.display = "block";
+  document.getElementById("plano-titulo-detalhe").textContent = plano.titulo;
+  document.getElementById("plano-descricao-detalhe").textContent = plano.descricao || "";
+  renderDetalhePlano(plano, progresso);
+}
+
+function renderDetalhePlano(plano, progresso) {
+  const pct = Math.round((progresso.dias_concluidos.length / plano.dias.length) * 100);
+  document.getElementById("plano-barra-progresso").style.width = pct + "%";
+  document.getElementById("plano-dias-lista").innerHTML = plano.dias.map(d => {
+    const feito = progresso.dias_concluidos.includes(d.dia);
+    return `<div class="card row-avatar" style="align-items:center;">
+      <label class="interesse-item" style="flex:1;margin:0;">
+        <input type="checkbox" data-dia-plano="${d.dia}" ${feito ? "checked" : ""}>
+        <span><b>Dia ${d.dia}</b> — ${d.referencia}</span>
+      </label>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("[data-dia-plano]").forEach(chk => {
+    chk.addEventListener("change", async () => {
+      const dia = parseInt(chk.dataset.diaPlano);
+      let dias = [...progresso.dias_concluidos];
+      dias = chk.checked ? [...new Set([...dias, dia])] : dias.filter(d => d !== dia);
+      progresso.dias_concluidos = dias;
+      await sb.from("igr_planos_progresso").update({ dias_concluidos: dias }).eq("id", progresso.id);
+      const pct2 = Math.round((dias.length / plano.dias.length) * 100);
+      document.getElementById("plano-barra-progresso").style.width = pct2 + "%";
+    });
+  });
+}
+
+async function criarPlanoPersonalizado() {
+  const titulo = document.getElementById("plano-novo-titulo").value.trim();
+  const linhas = document.getElementById("plano-novo-dias").value.split("\n").map(l => l.trim()).filter(Boolean);
+  if (!titulo || !linhas.length) { alert("Preencha o título e pelo menos um item."); return; }
+  const dias = linhas.map((referencia, i) => ({ dia: i + 1, referencia }));
+  const btn = document.getElementById("btn-salvar-plano-novo");
+  btn.disabled = true; btn.textContent = "Criando...";
+  const { data: novoPlano, error } = await sb.from("igr_planos_leitura").insert({
+    igreja_id: state.igreja.id, criado_por_membro_id: state.membro.id, titulo, dias,
+  }).select().single();
+  if (!error && novoPlano) {
+    await sb.from("igr_planos_progresso").insert({ membro_id: state.membro.id, plano_id: novoPlano.id, dias_concluidos: [] });
+  }
+  btn.disabled = false; btn.textContent = "Criar plano";
+  if (error) { alert("Não deu pra criar: " + error.message); return; }
+  document.getElementById("plano-novo-titulo").value = "";
+  document.getElementById("plano-novo-dias").value = "";
+  await carregarPlanos();
 }
 
 async function carregarCalendario() {
@@ -4527,6 +4763,8 @@ async function iniciar() {
       if (alvo === "tela-grupos-lista") await carregarGruposLista();
       if (alvo === "tela-diretorio") configurarDiretorio();
       if (alvo === "tela-eventos") await carregarEventos();
+      if (alvo === "tela-diario-historico") await carregarHistoricoDiario();
+      if (alvo === "tela-diario-planos") await carregarPlanos();
     });
   });
   document.querySelectorAll("[data-close-a2hs]").forEach(b => b.addEventListener("click", fecharA2HS));
@@ -4536,6 +4774,17 @@ async function iniciar() {
     const form = document.getElementById("form-calendario-add");
     form.style.display = form.style.display === "none" ? "block" : "none";
   });
+  configurarAutocompleteLivroDiario();
+  document.getElementById("btn-ver-texto-diario")?.addEventListener("click", verTextoDiario);
+  document.getElementById("btn-salvar-diario")?.addEventListener("click", salvarLeituraDiario);
+  document.getElementById("diario-busca-historico")?.addEventListener("input", renderHistoricoDiario);
+  document.getElementById("btn-criar-plano")?.addEventListener("click", () => {
+    document.getElementById("planos-view-lista").style.display = "none";
+    document.getElementById("planos-view-criar").style.display = "block";
+  });
+  document.getElementById("plano-criar-voltar")?.addEventListener("click", carregarPlanos);
+  document.getElementById("plano-voltar-lista")?.addEventListener("click", carregarPlanos);
+  document.getElementById("btn-salvar-plano-novo")?.addEventListener("click", criarPlanoPersonalizado);
   document.getElementById("form-calendario-add")?.addEventListener("submit", enviarCalendario);
   document.getElementById("cal-mes-anterior")?.addEventListener("click", () => {
     state.calendarioMesAtual = new Date(state.calendarioMesAtual.getFullYear(), state.calendarioMesAtual.getMonth() - 1, 1);
