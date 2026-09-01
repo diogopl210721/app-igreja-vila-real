@@ -2131,13 +2131,10 @@ function configurarAutocompleteLivroBiblia() {
   const input = document.getElementById("biblia-busca-livro");
   const sugestoesEl = document.getElementById("biblia-livro-sugestoes");
   if (!input) return;
-  input.addEventListener("input", () => {
-    state.bibliaLivroSelecionadoId = null;
-    const termo = input.value.trim().toLowerCase();
-    if (!termo || !state.bibliaLivros) { sugestoesEl.style.display = "none"; return; }
-    const bateram = state.bibliaLivros.filter(l => l.nome.toLowerCase().includes(termo)).slice(0, 8);
-    if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
-    sugestoesEl.innerHTML = bateram.map(l => `<div class="autocomplete-item" data-livro-id="${l.id}" data-livro-nome="${l.nome}">${l.nome}</div>`).join("");
+
+  const renderSugestoes = (lista) => {
+    if (!lista.length) { sugestoesEl.style.display = "none"; return; }
+    sugestoesEl.innerHTML = lista.map(l => `<div class="autocomplete-item" data-livro-id="${l.id}" data-livro-nome="${l.nome}">${l.nome}</div>`).join("");
     sugestoesEl.style.display = "block";
     sugestoesEl.querySelectorAll("[data-livro-id]").forEach(item => {
       item.addEventListener("click", () => {
@@ -2147,9 +2144,23 @@ function configurarAutocompleteLivroBiblia() {
         document.getElementById("biblia-busca-capitulo").focus();
       });
     });
+  };
+
+  input.addEventListener("input", () => {
+    state.bibliaLivroSelecionadoId = null;
+    const termo = input.value.trim().toLowerCase();
+    if (!termo || !state.bibliaLivros) { sugestoesEl.style.display = "none"; return; }
+    renderSugestoes(state.bibliaLivros.filter(l => l.nome.toLowerCase().includes(termo)).slice(0, 8));
   });
+
+  document.getElementById("btn-biblia-abrir-menu-livros")?.addEventListener("click", () => {
+    if (!state.bibliaLivros) return;
+    if (sugestoesEl.style.display === "block") { sugestoesEl.style.display = "none"; return; }
+    renderSugestoes(state.bibliaLivros);
+  });
+
   document.addEventListener("click", (ev) => {
-    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input && ev.target.id !== "btn-biblia-abrir-menu-livros") sugestoesEl.style.display = "none";
   });
 }
 
@@ -5191,9 +5202,6 @@ async function iniciar() {
       if (alvo === "tela-eventos") await carregarEventos();
       if (alvo === "tela-diario-historico") await carregarHistoricoDiario();
       if (alvo === "tela-diario-planos") await carregarPlanos();
-      if (alvo === "tela-diario-tema") {
-        document.getElementById("tema-voltar").dataset.nav = btn.closest("#tela-biblia") ? "tela-biblia" : "tela-diario";
-      }
     });
   });
   document.querySelectorAll("[data-close-a2hs]").forEach(b => b.addEventListener("click", fecharA2HS));
