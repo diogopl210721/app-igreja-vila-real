@@ -30,6 +30,32 @@ function isoParaBr(iso) {
   const [aaaa, mm, dd] = iso.split("-");
   return `${dd}/${mm}/${aaaa}`;
 }
+
+// mapeia o valor salvo (domingo, segunda...) pro numero do getDay() e pro texto no plural,
+// usado tanto pra filtrar quais dias marcar na grade quanto pro texto exibido
+const DIA_SEMANA_INFO = {
+  domingo: { numero: 0, plural: "aos domingos" },
+  segunda: { numero: 1, plural: "às segundas-feiras" },
+  terca: { numero: 2, plural: "às terças-feiras" },
+  quarta: { numero: 3, plural: "às quartas-feiras" },
+  quinta: { numero: 4, plural: "às quintas-feiras" },
+  sexta: { numero: 5, plural: "às sextas-feiras" },
+  sabado: { numero: 6, plural: "aos sábados" },
+};
+
+// data ISO cai no dia da semana escolhido (ou sempre true se nao houver recorrencia definida)
+function diaBateComSemana(dataISO, dia_semana) {
+  if (!dia_semana || !DIA_SEMANA_INFO[dia_semana]) return true;
+  return new Date(dataISO + "T00:00:00").getDay() === DIA_SEMANA_INFO[dia_semana].numero;
+}
+
+// monta o texto do periodo, ja juntando a data (ou intervalo) com o dia da semana,
+// no formato "06/09/2026 à 20/12/2026 aos domingos" ou so "06/09/2026" se for pontual
+function formatarPeriodoCalendario(data, data_fim, dia_semana) {
+  const base = (data_fim && data_fim !== data) ? `${formatarData(data)} à ${formatarData(data_fim)}` : formatarData(data);
+  const infoDia = dia_semana && DIA_SEMANA_INFO[dia_semana];
+  return infoDia ? `${base} ${infoDia.plural}` : base;
+}
 function estilizarInputsData() {
   document.querySelectorAll('input[type="date"]').forEach(input => {
     if (input.dataset.estilizado) return;
@@ -539,7 +565,7 @@ async function carregarCultos() {
   const el = document.getElementById("lista-cultos");
   el.innerHTML = visiveis.map(c => {
     const periodo = (c.data_inicio || c.data_fim)
-      ? `${c.data_inicio ? formatarData(c.data_inicio) : "início"} a ${c.data_fim ? formatarData(c.data_fim) : "sem data final"}`
+      ? `${c.data_inicio ? formatarData(c.data_inicio) : "início"} à ${c.data_fim ? formatarData(c.data_fim) : "sem data final"}${c.dia_semana && !c.data ? " às " + c.dia_semana.toLowerCase() + "s" : ""}`
       : "";
     return `
     <div class="card">
@@ -2162,6 +2188,7 @@ function renderGradeCalendario() {
     const fim = ev.data_fim ? new Date(ev.data_fim + "T00:00:00") : inicio;
     for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
       const iso = d.toISOString().slice(0, 10);
+      if (!diaBateComSemana(iso, ev.dia_semana)) continue; // pula dias que nao sao o dia da semana escolhido
       eventosPorDia[iso] = (eventosPorDia[iso] || 0) + 1;
     }
   });
@@ -2204,9 +2231,10 @@ function renderGradeCalendario() {
   const legendaEl = document.getElementById("cal-legenda-mes");
   legendaEl.innerHTML = itensLegenda.map(ev => {
     const diaExibir = ev.data.slice(0, 7) === mesStr ? new Date(ev.data + "T00:00:00").getDate() : 1;
+    const infoDia = ev.dia_semana && DIA_SEMANA_INFO[ev.dia_semana];
     return `<div data-legenda-dia="${ev.data.slice(0, 7) === mesStr ? ev.data : `${mesStr}-01`}" style="display:flex;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;">
       <b style="color:var(--brand);flex:none;width:26px;">${String(diaExibir).padStart(2, "0")}</b>
-      <span style="font-size:13px;">${ev.titulo}</span>
+      <span style="font-size:13px;">${ev.titulo}${infoDia ? ` <span class="hint" style="font-size:11.5px;">(${infoDia.plural})</span>` : ""}</span>
     </div>`;
   }).join("") || `<p class="hint" style="padding:6px 4px;">Nada marcado nesse mês.</p>`;
   legendaEl.querySelectorAll("[data-legenda-dia]").forEach(el => {
@@ -2221,7 +2249,7 @@ function abrirDiaCalendario(dataISO) {
 
   const eventosDoDia = (state.calendarioEventos || []).filter(ev => {
     const fim = ev.data_fim || ev.data;
-    return dataISO >= ev.data && dataISO <= fim;
+    return dataISO >= ev.data && dataISO <= fim && diaBateComSemana(dataISO, ev.dia_semana);
   });
   const el = document.getElementById("calendario-lista");
   el.innerHTML = eventosDoDia.map(ev => `
@@ -2229,7 +2257,7 @@ function abrirDiaCalendario(dataISO) {
       ${ev.imagem_url ? `<img class="capa-thumb" src="${ev.imagem_url}" alt="">` : ""}
       <b style="font-size:14.5px;">${ev.titulo}</b>
       <p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);">📍 ${ev.local}${ev.horario ? " · " + ev.horario : ""}</p>
-      ${ev.data_fim && ev.data_fim !== ev.data ? `<p class="hint" style="margin:4px 0 0;">📅 ${formatarData(ev.data)} a ${formatarData(ev.data_fim)}</p>` : ""}
+      ${(ev.data_fim && ev.data_fim !== ev.data) || ev.dia_semana ? `<p class="hint" style="margin:4px 0 0;">📅 ${formatarPeriodoCalendario(ev.data, ev.data_fim, ev.dia_semana)}</p>` : ""}
       ${ev.igr_grupos?.nome ? `<span class="badge-inline" style="margin-top:6px;">${ev.igr_grupos.nome}</span>` : `<span class="badge-inline" style="margin-top:6px;">Igreja toda</span>`}
       ${ev.observacoes ? `<p style="margin:6px 0 0;font-size:12.5px;">${ev.observacoes}</p>` : ""}
       <button class="btn btn-ghost" data-add-agenda-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;margin-top:10px;">📲 Adicionar na minha agenda</button>
@@ -2250,6 +2278,7 @@ async function enviarCalendario(ev) {
   const local = document.getElementById("cal-local").value.trim();
   const data = document.getElementById("cal-data").value;
   const data_fim = document.getElementById("cal-data-fim").value || null;
+  const dia_semana = document.getElementById("cal-dia-semana").value || null;
   const horario = document.getElementById("cal-horario").value.trim();
   const observacoes = document.getElementById("cal-observacoes").value.trim();
   if (!titulo || !local || !data) return;
@@ -2261,7 +2290,7 @@ async function enviarCalendario(ev) {
   const { error } = await sb.from("igr_calendario_eventos").insert({
     igreja_id: state.igreja.id, grupo_id: state.membro?.grupo_id || null,
     criado_por_membro_id: state.membro?.id || null, criado_por_nome: state.membro?.nome_completo || null,
-    titulo, local, data, data_fim, horario: horario || null, observacoes: observacoes || null, imagem_url,
+    titulo, local, data, data_fim, dia_semana, horario: horario || null, observacoes: observacoes || null, imagem_url,
   });
   btn.disabled = false; btn.textContent = "Salvar no calendário";
   if (error) { alert("Não deu pra salvar: " + error.message); return; }
@@ -2284,6 +2313,7 @@ async function enviarCalendarioAdmin() {
   const local = document.getElementById("adm-cal-local").value.trim();
   const data = document.getElementById("adm-cal-data").value;
   const data_fim = document.getElementById("adm-cal-data-fim").value || null;
+  const dia_semana = document.getElementById("adm-cal-dia-semana").value || null;
   const horario = document.getElementById("adm-cal-horario").value.trim();
   const observacoes = document.getElementById("adm-cal-observacoes").value.trim();
   if (!titulo || !local || !data) { alert("Preencha título, local e data."); return; }
@@ -2295,7 +2325,7 @@ async function enviarCalendarioAdmin() {
   const { error } = await sb.from("igr_calendario_eventos").insert({
     igreja_id: state.igreja.id, grupo_id: null,
     criado_por_nome: state.adminNome || "Administração",
-    titulo, local, data, data_fim, horario: horario || null, observacoes: observacoes || null, imagem_url,
+    titulo, local, data, data_fim, dia_semana, horario: horario || null, observacoes: observacoes || null, imagem_url,
   });
   btn.disabled = false; btn.textContent = "Publicar e notificar todo mundo";
   if (error) { alert("Não deu pra publicar: " + error.message); return; }
@@ -2304,6 +2334,7 @@ async function enviarCalendarioAdmin() {
   document.getElementById("adm-cal-local").value = "";
   document.getElementById("adm-cal-data").value = "";
   document.getElementById("adm-cal-data-fim").value = "";
+  document.getElementById("adm-cal-dia-semana").value = "";
   document.getElementById("adm-cal-horario").value = "";
   document.getElementById("adm-cal-observacoes").value = "";
   document.getElementById("adm-cal-imagem").value = "";

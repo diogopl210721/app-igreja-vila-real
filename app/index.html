@@ -221,8 +221,22 @@
           <div class="field"><label>Local</label><input id="adm-cal-local" required placeholder="Ex: Templo, Salão..."></div>
           <div class="field"><label>Data (início)</label><input id="adm-cal-data" type="date" required></div>
           <div class="field"><label>Data final (opcional — pra evento de vários dias)</label><input id="adm-cal-data-fim" type="date"></div>
+          <div class="field">
+            <label>Dia da semana (opcional — pra série recorrente no período)</label>
+            <select id="adm-cal-dia-semana">
+              <option value="">Todos os dias do período</option>
+              <option value="domingo">Domingo</option>
+              <option value="segunda">Segunda-feira</option>
+              <option value="terca">Terça-feira</option>
+              <option value="quarta">Quarta-feira</option>
+              <option value="quinta">Quinta-feira</option>
+              <option value="sexta">Sexta-feira</option>
+              <option value="sabado">Sábado</option>
+            </select>
+          </div>
+          <p class="hint" style="margin:-4px 0 12px;">Ex: campanha todo domingo, de 06/09 a 20/12 — preencha início/fim e escolha "Domingo".</p>
           <div class="field"><label>Horário (opcional)</label><input id="adm-cal-horario" placeholder="Ex: 19h30"></div>
-          <div class="field"><label>Observações (opcional)</label><input id="adm-cal-observacoes" placeholder="Detalhes adicionais"></div>
+          <div class="field"><label>Descrição (opcional)</label><input id="adm-cal-observacoes" placeholder="Detalhes do evento, culto, etc."></div>
           <div class="field" style="margin-bottom:6px;"><label>Banner/imagem (opcional)</label><input id="adm-cal-imagem" type="file" accept="image/*"></div>
           <button class="btn btn-primary" id="btn-adm-add-calendario" type="button">Publicar e notificar todo mundo</button>
         </div>
@@ -1177,8 +1191,22 @@
           <div class="field"><label>Local</label><input id="cal-local" required placeholder="Ex: Templo, Salão, Sala de Juniores..."></div>
           <div class="field"><label>Data (início)</label><input id="cal-data" type="date" required></div>
           <div class="field"><label>Data final (opcional — pra evento de vários dias)</label><input id="cal-data-fim" type="date"></div>
+          <div class="field">
+            <label>Dia da semana (opcional — pra série recorrente no período)</label>
+            <select id="cal-dia-semana">
+              <option value="">Todos os dias do período</option>
+              <option value="domingo">Domingo</option>
+              <option value="segunda">Segunda-feira</option>
+              <option value="terca">Terça-feira</option>
+              <option value="quarta">Quarta-feira</option>
+              <option value="quinta">Quinta-feira</option>
+              <option value="sexta">Sexta-feira</option>
+              <option value="sabado">Sábado</option>
+            </select>
+          </div>
+          <p class="hint" style="margin:-4px 0 12px;">Ex: campanha todo domingo, de 06/09 a 20/12 — preencha início/fim e escolha "Domingo".</p>
           <div class="field"><label>Horário (opcional)</label><input id="cal-horario" placeholder="Ex: 19h30"></div>
-          <div class="field"><label>Observações (opcional)</label><input id="cal-observacoes" placeholder="Detalhes adicionais"></div>
+          <div class="field"><label>Descrição (opcional)</label><input id="cal-observacoes" placeholder="Detalhes do evento, culto, etc."></div>
           <div class="field" style="margin-bottom:6px;"><label>Banner/imagem (opcional)</label><input id="cal-imagem" type="file" accept="image/*"></div>
           <button class="btn btn-primary" type="submit">Salvar no calendário</button>
         </div>
