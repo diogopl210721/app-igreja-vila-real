@@ -1059,7 +1059,15 @@ async function montarHomeMembro() {
   }
 
   const quicklinkCelula = document.getElementById("quicklink-celula");
-  if (quicklinkCelula) quicklinkCelula.style.display = m.celula_id ? "flex" : "none";
+  if (quicklinkCelula) {
+    if (m.celula_id) {
+      quicklinkCelula.style.display = "flex";
+      const { data: celulaDoMembro } = await sb.from("igr_celulas").select("tipo").eq("id", m.celula_id).maybeSingle();
+      document.getElementById("quicklink-celula-texto").textContent = `Meu(a) ${celulaDoMembro?.tipo || "Célula"}`;
+    } else {
+      quicklinkCelula.style.display = "none";
+    }
+  }
   const avisoNovoBox = document.getElementById("acesso-novo-box");
   if (avisoNovoBox) {
     if (m.papeis_especiais_novo && (m.papeis_especiais || []).length) {
@@ -1568,10 +1576,10 @@ async function carregarCelulasDoGrupo(grupoId) {
   el.innerHTML = (celulas || []).map(c => `
     <div class="card row-avatar">
       ${avatarIniciais(c.igr_membros?.nome_completo || "?")}
-      <div class="row-info"><b>${c.nome}</b><span>Monitor(a): ${c.igr_membros?.nome_completo || "—"} · ${contagem[c.id] || 0} membro(s)</span></div>
-      <button class="btn-icone-remover" data-remover-celula="${c.id}" title="Remover célula">✕</button>
+      <div class="row-info"><b>${c.nome}</b><span>${c.tipo || "Célula"} · Monitor(a): ${c.igr_membros?.nome_completo || "—"} · ${contagem[c.id] || 0} membro(s)</span></div>
+      <button class="btn-icone-remover" data-remover-celula="${c.id}" title="Remover">✕</button>
     </div>
-  `).join("") || `<p class="hint">Nenhuma célula criada ainda neste grupo.</p>`;
+  `).join("") || `<p class="hint">Nenhum monitor escolhido ainda neste grupo.</p>`;
 
   el.querySelectorAll("[data-remover-celula]").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -1621,16 +1629,17 @@ function configurarBuscaMonitor() {
 async function criarCelula() {
   if (!monitorSelecionadoCelula || !state.grupoDetalheAtual) return;
   const nome = document.getElementById("celula-nome-nova").value.trim();
+  const tipo = document.getElementById("celula-tipo-nova").value;
   if (!nome) return;
   const btn = document.getElementById("btn-criar-celula");
   btn.disabled = true; btn.textContent = "Criando...";
   const { error } = await sb.from("igr_celulas").insert({
     igreja_id: state.igreja.id, grupo_id: state.grupoDetalheAtual.id,
-    monitor_membro_id: monitorSelecionadoCelula.id, nome,
+    monitor_membro_id: monitorSelecionadoCelula.id, nome, tipo,
   });
   btn.disabled = false; btn.textContent = "Tornar monitor(a)";
   if (error) { alert("Não deu pra criar: " + error.message); return; }
-  enviarPush({ tipo: "membros", membro_ids: [monitorSelecionadoCelula.id] }, "Você é a nova liderança de uma célula! 🎉", `Você foi escolhido(a) monitor(a) da ${nome}. Acesse o app pra começar.`);
+  enviarPush({ tipo: "membros", membro_ids: [monitorSelecionadoCelula.id] }, `Você é a nova liderança de um(a) ${tipo}! 🎉`, `Você foi escolhido(a) monitor(a) da(o) ${nome}. Acesse o app pra começar.`);
   document.getElementById("celula-monitor-selecionado").style.display = "none";
   document.getElementById("celula-nome-nova").value = "";
   monitorSelecionadoCelula = null;
@@ -1642,10 +1651,12 @@ async function abrirCelula(celulaId) {
   if (!celula) return;
   state.celulaAtual = celula;
   const souMonitor = state.membro && celula.monitor_membro_id === state.membro.id;
+  const rotulo = celula.tipo || "Célula";
 
   document.getElementById("celula-titulo").textContent = celula.nome;
-  document.getElementById("celula-subtitulo").textContent = souMonitor ? "Você é o(a) monitor(a) dessa célula." : "Bem-vindo(a) à sua célula.";
+  document.getElementById("celula-subtitulo").textContent = souMonitor ? `Você é o(a) monitor(a) desse ${rotulo}.` : `Bem-vindo(a) ao seu ${rotulo}.`;
   document.getElementById("celula-bloco-monitor").style.display = souMonitor ? "block" : "none";
+  document.getElementById("form-celula-post").style.display = souMonitor ? "block" : "none";
   if (souMonitor) {
     document.getElementById("celula-editar-nome").value = celula.nome;
     carregarMembrosDaCelula(celulaId);
@@ -1712,11 +1723,16 @@ function configurarBuscaMembroCelula() {
 async function carregarFeedCelula(celulaId) {
   const el = document.getElementById("celula-feed");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const souMonitor = state.membro && state.celulaAtual?.monitor_membro_id === state.membro.id;
   const { data: posts } = await sb.from("igr_celula_posts").select("*").eq("celula_id", celulaId).order("created_at", { ascending: false });
-  const { data: comentarios } = await sb.from("igr_celula_comentarios").select("*").in("post_id", (posts || []).map(p => p.id).length ? (posts || []).map(p => p.id) : ["00000000-0000-0000-0000-000000000000"]).order("created_at");
+  const idsPosts = (posts || []).map(p => p.id).length ? (posts || []).map(p => p.id) : ["00000000-0000-0000-0000-000000000000"];
+  const { data: comentarios } = await sb.from("igr_celula_comentarios").select("*").in("post_id", idsPosts).order("created_at");
+  const { data: checks } = await sb.from("igr_celula_post_checks").select("post_id, membro_id, igr_membros(nome_completo)").in("post_id", idsPosts);
 
   el.innerHTML = (posts || []).map(p => {
     const comentariosDoPost = (comentarios || []).filter(c => c.post_id === p.id);
+    const checksDoPost = (checks || []).filter(c => c.post_id === p.id);
+    const euConfirmei = checksDoPost.some(c => c.membro_id === state.membro?.id);
     return `
       <div class="card" style="margin-bottom:12px;">
         <div class="row-avatar" style="align-items:flex-start;">
@@ -1724,7 +1740,10 @@ async function carregarFeedCelula(celulaId) {
           <div class="row-info"><b>${p.autor_nome}</b><span>${tempoRelativo(p.created_at)}</span></div>
         </div>
         <p style="margin:10px 0;font-size:13.5px;">${p.texto}</p>
-        ${p.imagem_url ? `<img class="capa-thumb" src="${p.imagem_url}" alt="">` : ""}
+        ${souMonitor
+          ? `<p class="hint" style="margin:-4px 0 8px;">✓ ${checksDoPost.length} confirmaram: ${checksDoPost.map(c => c.igr_membros?.nome_completo?.split(" ")[0]).filter(Boolean).join(", ") || "ninguém ainda"}</p>`
+          : `<button class="btn ${euConfirmei ? "" : "btn-primary"}" data-confirmar-post="${p.id}" ${euConfirmei ? "disabled" : ""} style="width:auto;padding:8px 16px;font-size:12.5px;margin-bottom:8px;">${euConfirmei ? "✓ Você confirmou" : "Confirmar recebimento"}</button>`
+        }
         <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px;">
           ${comentariosDoPost.map(c => `
             <div style="margin-bottom:8px;font-size:12.5px;"><b>${c.autor_nome}:</b> ${c.texto}</div>
@@ -1736,11 +1755,20 @@ async function carregarFeedCelula(celulaId) {
         </div>
       </div>
     `;
-  }).join("") || `<div class="empty">Ninguém postou nada na célula ainda. Comece você!</div>`;
+  }).join("") || `<div class="empty">${souMonitor ? "Publique o primeiro aviso pro grupo." : "Nenhum aviso publicado ainda."}</div>`;
 
   el.querySelectorAll("[data-enviar-comentario]").forEach(btn => {
     btn.addEventListener("click", () => enviarComentarioCelula(btn.dataset.enviarComentario, celulaId));
   });
+  el.querySelectorAll("[data-confirmar-post]").forEach(btn => {
+    btn.addEventListener("click", () => confirmarRecebimentoPost(btn.dataset.confirmarPost, celulaId));
+  });
+}
+
+async function confirmarRecebimentoPost(postId, celulaId) {
+  if (!state.membro) return;
+  await sb.from("igr_celula_post_checks").insert({ post_id: postId, membro_id: state.membro.id });
+  carregarFeedCelula(celulaId);
 }
 
 async function enviarPostCelula(ev) {
@@ -1753,6 +1781,12 @@ async function enviarPostCelula(ev) {
   });
   document.getElementById("celula-post-texto").value = "";
   carregarFeedCelula(state.celulaAtual.id);
+
+  const { data: membrosCelula } = await sb.from("igr_membros").select("id").eq("celula_id", state.celulaAtual.id);
+  const ids = (membrosCelula || []).map(m => m.id).filter(id => id !== state.membro.id);
+  if (ids.length) {
+    enviarPush({ tipo: "membros", membro_ids: ids }, `Novo aviso no ${state.celulaAtual.tipo || "grupo"} ${state.celulaAtual.nome}`, texto.slice(0, 100));
+  }
 }
 
 async function enviarComentarioCelula(postId, celulaId) {

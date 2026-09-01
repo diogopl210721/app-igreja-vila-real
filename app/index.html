@@ -690,7 +690,7 @@
         <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minhas fotos</button>
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
         <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Grupos</button>
-        <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minha Célula</button>
+        <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
       </div>
 
@@ -1253,8 +1253,8 @@
           <div id="grupo-detalhe-oracao"></div>
         </div>
 
-        <div class="section-label"><b>Monitores e células</b></div>
-        <p class="hint" style="margin-top:-6px;">Cada monitor cuida de um pequeno grupo (célula) dentro do seu grupo.</p>
+        <div class="section-label"><b>Monitores e grupos</b></div>
+        <p class="hint" style="margin-top:-6px;">Cada monitor cuida de um pequeno grupo dentro do seu grupo.</p>
         <div id="grupo-celulas-lista"></div>
         <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
           <h3>Escolher novo monitor</h3>
@@ -1266,7 +1266,13 @@
           <div id="celula-monitor-selecionado" style="display:none;margin-bottom:10px;">
             <div class="row-avatar"><div class="row-info"><b id="celula-nome-monitor-selecionado"></b></div></div>
           </div>
-          <div class="field" style="margin-bottom:6px;"><label>Nome da célula</label><input id="celula-nome-nova" placeholder="Ex: Célula Ester"></div>
+          <div class="field"><label>Como esse grupo vai se chamar?</label>
+            <select id="celula-tipo-nova">
+              <option value="Célula">Célula</option>
+              <option value="Grupo de Monitor">Grupo de Monitor</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:6px;"><label>Nome (ex: Célula Ester, Grupo do João)</label><input id="celula-nome-nova" placeholder="Ex: Célula Ester"></div>
           <button class="btn btn-primary" id="btn-criar-celula" type="button" disabled>Tornar monitor(a)</button>
         </div>
       </div>
@@ -1298,11 +1304,12 @@
         </div>
       </div>
 
-      <form id="form-celula-post" style="margin-bottom:16px;">
+      <form id="form-celula-post" style="margin-bottom:16px;display:none;">
         <div class="field" style="margin-bottom:6px;">
-          <textarea id="celula-post-texto" rows="2" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Escreva algo pra célula..."></textarea>
+          <label>Avisar o grupo (reunião, encontro, aviso...)</label>
+          <textarea id="celula-post-texto" rows="2" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Escreva o aviso..."></textarea>
         </div>
-        <button class="btn btn-primary" type="submit">Publicar</button>
+        <button class="btn btn-primary" type="submit">Publicar e notificar o grupo</button>
       </form>
 
       <div id="celula-feed"><p class="hint"><span class="loading-dot"></span></p></div>
