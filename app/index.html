@@ -132,6 +132,7 @@
         <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
         <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Calendário</button>
+        <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Bíblia</button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
         <a href="#form-visitante" class="quicklink"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Contato</a>
         <button class="quicklink" data-nav="tela-login"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Entrar / Cadastro</button>
@@ -739,6 +740,7 @@
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
         <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Calendário</button>
         <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Grupos</button>
+        <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Bíblia</button>
         <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
       </div>
@@ -1137,6 +1139,36 @@
       </form>
 
       <div id="calendario-lista"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <!-- ============ BÍBLIA ============ -->
+  <div class="screen" id="tela-biblia">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" id="biblia-voltar">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Bíblia Sagrada</span>
+      <p class="hint" id="biblia-subtitulo" style="margin-bottom:14px;">Escolha um livro pra começar a ler.</p>
+
+      <div id="biblia-view-livros">
+        <div id="biblia-lista-livros" class="admin-grid" style="grid-template-columns:1fr 1fr 1fr;"><p class="hint"><span class="loading-dot"></span></p></div>
+      </div>
+
+      <div id="biblia-view-capitulos" style="display:none;">
+        <div class="admin-aba-voltar" id="biblia-voltar-livros">← Escolher outro livro</div>
+        <span id="biblia-nome-livro" style="font-weight:700;font-size:16px;display:block;margin-bottom:10px;"></span>
+        <div id="biblia-lista-capitulos" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;"></div>
+      </div>
+
+      <div id="biblia-view-texto" style="display:none;">
+        <div class="admin-aba-voltar" id="biblia-voltar-capitulos">← Escolher outro capítulo</div>
+        <div class="card">
+          <span id="biblia-referencia" style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:18px;display:block;margin-bottom:12px;"></span>
+          <div id="biblia-versiculos" style="font-size:15px;line-height:1.75;"></div>
+        </div>
+        <p class="hint" id="biblia-copyright" style="margin-top:10px;text-align:center;"></p>
+      </div>
     </div>
   </div>
 

@@ -1995,7 +1995,86 @@ function podeEditarEvento(evento) {
   return !!(state.membro && evento.criado_por_membro_id === state.membro.id);
 }
 
-// ---------- calendario da igreja (espacos/agenda interna) ----------
+// ---------- biblia ----------
+async function chamarBiblia(payload) {
+  try {
+    const { data, error } = await sb.functions.invoke("igr-biblia", { body: payload });
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    console.error("Erro na Bíblia:", e);
+    return null;
+  }
+}
+
+async function abrirBibliaLivros() {
+  document.getElementById("biblia-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
+  document.getElementById("biblia-subtitulo").textContent = "Escolha um livro pra começar a ler.";
+  document.getElementById("biblia-view-capitulos").style.display = "none";
+  document.getElementById("biblia-view-texto").style.display = "none";
+  document.getElementById("biblia-view-livros").style.display = "block";
+
+  if (state.bibliaLivros) { renderLivrosBiblia(); return; }
+  const resultado = await chamarBiblia({ acao: "livros" });
+  if (!resultado?.livros) {
+    document.getElementById("biblia-lista-livros").innerHTML = `<div class="empty">Não deu pra carregar a Bíblia agora. Verifique sua internet e tente de novo.</div>`;
+    return;
+  }
+  state.bibliaLivros = resultado.livros;
+  renderLivrosBiblia();
+}
+
+function renderLivrosBiblia() {
+  document.getElementById("biblia-lista-livros").innerHTML = state.bibliaLivros.map(l => `
+    <button class="admin-grid-card" data-livro-biblia="${l.id}" style="padding:14px 6px;font-size:12px;">${l.nome}</button>
+  `).join("");
+  document.querySelectorAll("[data-livro-biblia]").forEach(btn => {
+    btn.addEventListener("click", () => abrirBibliaCapitulos(btn.dataset.livroBiblia));
+  });
+}
+
+async function abrirBibliaCapitulos(livroId) {
+  const livro = state.bibliaLivros.find(l => l.id === livroId);
+  if (!livro) return;
+  state.bibliaLivroAtual = livro;
+  document.getElementById("biblia-subtitulo").textContent = "Escolha um capítulo.";
+  document.getElementById("biblia-view-livros").style.display = "none";
+  document.getElementById("biblia-view-texto").style.display = "none";
+  document.getElementById("biblia-view-capitulos").style.display = "block";
+  document.getElementById("biblia-nome-livro").textContent = livro.nome;
+  document.getElementById("biblia-lista-capitulos").innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+
+  const resultado = await chamarBiblia({ acao: "capitulos", livroId });
+  if (!resultado?.capitulos) {
+    document.getElementById("biblia-lista-capitulos").innerHTML = `<div class="empty">Não deu pra carregar os capítulos.</div>`;
+    return;
+  }
+  document.getElementById("biblia-lista-capitulos").innerHTML = resultado.capitulos.map(c => `
+    <button class="chip" data-capitulo-biblia="${c}" style="text-align:center;">${c}</button>
+  `).join("");
+  document.querySelectorAll("[data-capitulo-biblia]").forEach(btn => {
+    btn.addEventListener("click", () => abrirBibliaTexto(livroId, btn.dataset.capituloBiblia));
+  });
+}
+
+async function abrirBibliaTexto(livroId, capitulo) {
+  document.getElementById("biblia-subtitulo").textContent = "";
+  document.getElementById("biblia-view-capitulos").style.display = "none";
+  document.getElementById("biblia-view-texto").style.display = "block";
+  document.getElementById("biblia-versiculos").innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+
+  const resultado = await chamarBiblia({ acao: "texto", livroId, capitulo });
+  if (!resultado?.versiculos) {
+    document.getElementById("biblia-versiculos").innerHTML = `<div class="empty">Não deu pra carregar esse capítulo.</div>`;
+    return;
+  }
+  document.getElementById("biblia-referencia").textContent = resultado.referencia;
+  document.getElementById("biblia-versiculos").innerHTML = resultado.versiculos.map(v =>
+    `<sup style="color:var(--brand);font-weight:700;margin-right:2px;">${v.numero}</sup>${v.texto} `
+  ).join("");
+  document.getElementById("biblia-copyright").textContent = resultado.copyright || "";
+}
+
 async function carregarCalendario() {
   const btnAdd = document.getElementById("btn-add-calendario");
   const podeAdicionar = !!(state.membro?.eh_lider);
@@ -4141,6 +4220,7 @@ async function iniciar() {
       if (alvo === "tela-membro-pastor") await carregarMensagensPastor();
       if (alvo === "tela-fotos") await carregarAlbuns();
       if (alvo === "tela-calendario") await carregarCalendario();
+      if (alvo === "tela-biblia") await abrirBibliaLivros();
       if (alvo === "tela-minhas-fotos") await carregarMinhasFotos();
       if (alvo === "tela-contatos") carregarContatos();
       if (alvo === "tela-sobre-igreja") await carregarSobreIgreja();
@@ -4157,6 +4237,13 @@ async function iniciar() {
     form.style.display = form.style.display === "none" ? "block" : "none";
   });
   document.getElementById("form-calendario-add")?.addEventListener("submit", enviarCalendario);
+  document.getElementById("biblia-voltar")?.addEventListener("click", () => mostrarTela(state.membro ? "tela-membro-home" : "tela-visitante"));
+  document.getElementById("biblia-voltar-livros")?.addEventListener("click", () => abrirBibliaLivros());
+  document.getElementById("biblia-voltar-capitulos")?.addEventListener("click", () => {
+    document.getElementById("biblia-view-texto").style.display = "none";
+    document.getElementById("biblia-view-capitulos").style.display = "block";
+    document.getElementById("biblia-subtitulo").textContent = "Escolha um capítulo.";
+  });
   document.getElementById("mf-album-selecionado")?.addEventListener("change", (ev) => carregarFotosParaMarcacao(ev.target.value));
   configurarBuscaMarcacaoFoto();
   configurarBuscaAcessos();
