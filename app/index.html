@@ -1200,65 +1200,20 @@
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin:6px 0 4px;">Ministério de Louvor</span>
-      <p class="hint" style="margin-bottom:16px;">Escala, repertório e ensaios do ministério.</p>
+      <p class="hint" style="margin-bottom:16px;">Escalas, repertório e confirmações do ministério.</p>
 
-      <div class="section-label"><b>Próxima escala</b></div>
-      <div id="louvor-escala"><p class="hint"><span class="loading-dot"></span></p></div>
+      <div class="quicklinks">
+        <button class="quicklink" data-nav="tela-louvor-escalas"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Escalas</button>
+        <button class="quicklink" data-nav="tela-louvor-repertorio"><span class="quicklink-ic"><svg class="icon"><use href="#i-music"/></svg></span>Repertório</button>
+        <button class="quicklink" id="quicklink-louvor-funcoes" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Funções</button>
+        <button class="quicklink" id="quicklink-louvor-visao-geral" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Visão Geral</button>
+      </div>
 
-      <div class="section-label"><b>Repertório</b></div>
-      <div id="louvor-musicas"></div>
+      <div class="section-label"><b>Minhas próximas escalas</b></div>
+      <div id="louvor-minhas-escalas"><p class="hint"><span class="loading-dot"></span></p></div>
 
-      <div class="section-label"><b>Ensaios e eventos</b></div>
-      <div id="louvor-eventos"></div>
-
-      <div id="louvor-gerenciar-box" style="display:none;">
-        <div class="section-label"><b>Gerenciar (líder)</b></div>
-
-        <div class="card" style="border:1.5px dashed var(--brand);">
-          <h3>Nova escala de culto</h3>
-          <form id="form-louvor-escala">
-            <div class="field"><label>Data</label><input id="le-data" type="date" required></div>
-            <div class="field"><label>Título do culto</label><input id="le-titulo" required placeholder="Ex: Culto de Domingo"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Observações (opcional)</label><input id="le-obs" placeholder="Ex: chegar 1h antes"></div>
-            <button class="btn btn-primary" type="submit">Criar escala</button>
-          </form>
-        </div>
-
-        <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
-          <h3>Adicionar participante à escala mais recente</h3>
-          <form id="form-louvor-participante">
-            <div class="field"><label>Membro do grupo (pra poder avisar por notificação)</label>
-              <select id="lp-membro"><option value="">— Sem vincular a um membro —</option></select>
-            </div>
-            <div class="field"><label>Nome (se não for um membro cadastrado)</label><input id="lp-nome" placeholder="Nome do participante"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Função</label><input id="lp-funcao" required placeholder="Ex: Vocal, Violão, Bateria..."></div>
-            <button class="btn btn-primary" type="submit">Adicionar</button>
-          </form>
-        </div>
-
-        <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
-          <h3>Adicionar música ao repertório mais recente</h3>
-          <form id="form-louvor-musica">
-            <div class="field"><label>Título</label><input id="lm-titulo" required placeholder="Nome da música"></div>
-            <div class="field"><label>Artista</label><input id="lm-artista" placeholder="Artista original"></div>
-            <div class="field"><label>Tom</label><input id="lm-tom" placeholder="Ex: G"></div>
-            <div class="field"><label>Link da cifra (site)</label><input id="lm-link" placeholder="https://cifraclub.com.br/..."></div>
-            <div class="field"><label>Ou envie o PDF da cifra</label><input id="lm-cifra-arquivo" type="file" accept="application/pdf,image/*"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Link do YouTube</label><input id="lm-youtube" placeholder="https://youtube.com/..."></div>
-            <button class="btn btn-primary" type="submit">Adicionar música</button>
-          </form>
-        </div>
-
-        <div class="card" style="border:1.5px dashed var(--brand);margin-top:10px;">
-          <h3>Novo ensaio ou evento</h3>
-          <form id="form-louvor-evento">
-            <div class="field"><label>Título</label><input id="lev-titulo" required placeholder="Ex: Ensaio geral"></div>
-            <div class="field"><label>Data</label><input id="lev-data" type="date" required></div>
-            <div class="field"><label>Horário</label><input id="lev-horario" placeholder="Ex: 19:30"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Local</label><input id="lev-local" placeholder="Ex: Salão de ensaios"></div>
-            <button class="btn btn-primary" type="submit">Adicionar</button>
-          </form>
-        </div>
+      <div id="louvor-gerenciar-box" style="display:none;margin-top:16px;">
+        <button class="btn btn-primary" id="btn-louvor-nova-escala">➕ Nova escala</button>
       </div>
     </div>
     <div class="bottomnav" style="display:flex;">
@@ -1270,6 +1225,177 @@
       <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
     </div>
   </div>
+
+  <!-- ============ LOUVOR: lista de escalas ============ -->
+  <div class="screen" id="tela-louvor-escalas">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-louvor"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Escalas</span>
+      <div style="display:flex;gap:8px;margin:10px 0 14px;">
+        <button class="btn btn-primary" id="tab-louvor-proximas" style="flex:1;">Próximas</button>
+        <button class="btn btn-ghost" id="tab-louvor-anteriores" style="flex:1;">Anteriores</button>
+      </div>
+      <div id="louvor-lista-escalas"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <!-- ============ LOUVOR: detalhe de uma escala ============ -->
+  <div class="screen" id="tela-louvor-escala-detalhe">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-louvor-escalas"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;" id="led-titulo"></span>
+      <p class="hint" id="led-data-hora" style="margin-bottom:6px;"></p>
+      <p id="led-observacoes" style="font-size:13.5px;color:var(--ink-soft);margin-bottom:14px;"></p>
+
+      <div id="led-minha-confirmacao" style="display:none;margin-bottom:16px;">
+        <div class="card" style="border:1.5px dashed var(--brand);">
+          <p style="font-weight:700;font-size:13.5px;margin:0 0 10px;">Você está escalado(a) — confirma presença?</p>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" id="btn-led-confirmar" style="flex:1;">✅ Confirmo</button>
+            <button class="btn btn-ghost" id="btn-led-recusar" style="flex:1;">❌ Não vou poder</button>
+          </div>
+          <p class="hint" id="led-status-atual" style="margin-top:8px;"></p>
+        </div>
+      </div>
+
+      <div class="section-label"><b>Participantes</b></div>
+      <div id="led-participantes" style="margin-bottom:16px;"></div>
+
+      <div class="section-label"><b>Músicas</b></div>
+      <div id="led-musicas" style="margin-bottom:16px;"></div>
+
+      <div class="section-label"><b>Roteiro</b></div>
+      <div id="led-roteiro" style="margin-bottom:16px;"></div>
+
+      <div id="led-acoes-lider" style="display:none;gap:8px;">
+        <button class="btn btn-ghost" id="btn-led-editar" style="flex:1;">✏️ Editar escala</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOUVOR: criar/editar escala ============ -->
+  <div class="screen" id="tela-louvor-escala-form">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-louvor-escalas"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:10px;" id="lef-titulo-tela">Nova escala</span>
+
+      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;">
+        <button class="btn btn-primary" id="lef-tab-detalhes" style="flex:none;padding:8px 14px;font-size:12.5px;">Detalhes</button>
+        <button class="btn btn-ghost" id="lef-tab-participantes" style="flex:none;padding:8px 14px;font-size:12.5px;">Participantes</button>
+        <button class="btn btn-ghost" id="lef-tab-musicas" style="flex:none;padding:8px 14px;font-size:12.5px;">Músicas</button>
+        <button class="btn btn-ghost" id="lef-tab-roteiro" style="flex:none;padding:8px 14px;font-size:12.5px;">Roteiro</button>
+      </div>
+
+      <!-- aba Detalhes -->
+      <div id="lef-view-detalhes">
+        <form id="form-louvor-escala">
+          <div class="field"><label>Título da escala</label><input id="le-titulo" required placeholder="Ex: Culto de Domingo"></div>
+          <div style="display:flex;gap:10px;">
+            <div class="field" style="flex:1;"><label>Data</label><input id="le-data" type="date" required></div>
+            <div class="field" style="flex:1;"><label>Horário</label><input id="le-horario" placeholder="Ex: 18:00"></div>
+          </div>
+          <div class="field"><label>Repetir semanalmente até (opcional)</label>
+            <div style="display:flex;gap:10px;">
+              <select id="le-dia-semana" style="flex:1;">
+                <option value="">Não se repete</option>
+                <option value="domingo">Domingo</option><option value="segunda">Segunda</option><option value="terca">Terça</option>
+                <option value="quarta">Quarta</option><option value="quinta">Quinta</option><option value="sexta">Sexta</option><option value="sabado">Sábado</option>
+              </select>
+              <input id="le-data-fim" type="date" style="flex:1;">
+            </div>
+          </div>
+          <div class="field"><label>Observações (opcional)</label><input id="le-observacoes" placeholder="Ex: chegar 1h antes pra passagem de som"></div>
+          <label class="interesse-item" style="margin-bottom:10px;"><input type="checkbox" id="le-publicada" checked> Publicar (visível pro grupo)</label>
+          <label class="interesse-item" style="margin-bottom:14px;"><input type="checkbox" id="le-pedir-confirmacao" checked> Pedir confirmação de presença</label>
+          <button class="btn btn-primary" type="submit">Salvar detalhes</button>
+        </form>
+      </div>
+
+      <!-- aba Participantes -->
+      <div id="lef-view-participantes" style="display:none;">
+        <button class="btn btn-primary" id="btn-lef-add-participante" style="margin-bottom:8px;">➕ Adicionar</button>
+        <button class="btn btn-ghost" id="btn-lef-sugerir-participantes" style="margin-bottom:14px;">✨ Sugerir automaticamente</button>
+        <div id="lef-lista-participantes"></div>
+      </div>
+
+      <!-- aba Músicas -->
+      <div id="lef-view-musicas" style="display:none;">
+        <button class="btn btn-primary" id="btn-lef-add-musica" style="margin-bottom:8px;">➕ Adicionar do repertório</button>
+        <button class="btn btn-ghost" id="btn-lef-sugerir-musicas" style="margin-bottom:14px;">✨ Sugerir automaticamente</button>
+        <div id="lef-lista-musicas"></div>
+      </div>
+
+      <!-- aba Roteiro -->
+      <div id="lef-view-roteiro" style="display:none;">
+        <p class="hint" style="margin-bottom:10px;">As músicas selecionadas na aba "Músicas" já entram aqui automaticamente. Adicione outros momentos do culto (oferta, prédica etc).</p>
+        <button class="btn btn-primary" id="btn-lef-add-roteiro-item" style="margin-bottom:14px;">➕ Adicionar item</button>
+        <div id="lef-lista-roteiro"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOUVOR: funções ============ -->
+  <div class="screen" id="tela-louvor-funcoes">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-louvor"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Funções do grupo</span>
+      <p class="hint" style="margin-bottom:14px;">Os cargos que existem no ministério (Vocalista, Baixo, Bateria...).</p>
+      <form id="form-louvor-funcao" style="display:flex;gap:8px;margin-bottom:14px;">
+        <input id="lf-emoji" placeholder="🎤" style="width:56px;flex:none;padding:13px 10px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);text-align:center;font-size:16px;">
+        <input id="lf-nome" placeholder="Nome da função" required style="flex:1;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;">
+        <button class="btn btn-primary" type="submit" style="width:auto;flex:none;padding:0 16px;">+</button>
+      </form>
+      <div id="louvor-lista-funcoes"></div>
+    </div>
+  </div>
+
+  <!-- ============ LOUVOR: repertório ============ -->
+  <div class="screen" id="tela-louvor-repertorio">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-louvor"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Repertório</span>
+      <p class="hint" style="margin-bottom:12px;">Banco de músicas do ministério.</p>
+      <div class="field"><input id="lr-busca" placeholder="Buscar por título ou artista..."></div>
+      <button class="btn btn-primary" id="btn-lr-nova-musica" style="margin:10px 0 14px;">➕ Adicionar música</button>
+      <div id="louvor-lista-repertorio"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <!-- ============ LOUVOR: form de música (repertório) ============ -->
+  <div class="screen" id="tela-louvor-musica-form">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-louvor-repertorio"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:10px;" id="lm-titulo-tela">Nova música</span>
+      <form id="form-louvor-musica">
+        <div class="field"><label>Título</label><input id="lm-form-titulo" required placeholder="Ex: Reckless Love" autocomplete="off"></div>
+        <p class="hint" id="lm-status-ia" style="display:none;margin:-8px 0 12px;">✨ Buscando informações da música...</p>
+        <div class="field"><label>Artista</label><input id="lm-form-artista"></div>
+        <div class="field"><label>Álbum (opcional)</label><input id="lm-form-album"></div>
+        <div style="display:flex;gap:10px;">
+          <div class="field" style="flex:1;"><label>Tom</label><input id="lm-form-tom" placeholder="Ex: G"></div>
+          <div class="field" style="flex:1;"><label>BPM</label><input id="lm-form-bpm" type="number"></div>
+        </div>
+        <div class="field"><label>Categoria</label><input id="lm-form-categoria" placeholder="Ex: Louvor, Adoração"></div>
+        <div class="field"><label>Link Spotify</label><input id="lm-form-spotify" placeholder="https://open.spotify.com/..."></div>
+        <div class="field"><label>Link Letra</label><input id="lm-form-letra" placeholder="https://letras.mus.br/..."></div>
+        <div class="field"><label>Link Cifra</label><input id="lm-form-cifra" placeholder="https://cifraclub.com.br/..."></div>
+        <div class="field" style="margin-bottom:6px;"><label>Link Vídeo (YouTube)</label><input id="lm-form-video" placeholder="https://youtube.com/..."></div>
+        <button class="btn btn-primary" type="submit">Salvar música</button>
+        <button class="btn btn-ghost" type="button" id="btn-lm-excluir" style="display:none;margin-top:8px;color:#C0392B;">🗑 Excluir do repertório</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ LOUVOR: visão geral ============ -->
+  <div class="screen" id="tela-louvor-visao-geral">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-louvor"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:14px;">Visão geral</span>
+      <div id="louvor-visao-geral-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+
 
   <!-- ============ GRUPOS: LISTA ============ -->
   <!-- ============ DIRETÓRIO DE MEMBROS ============ -->
@@ -1928,6 +2054,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788362760"></script>
+<script src="app.js?v=1788364316"></script>
 </body>
 </html>

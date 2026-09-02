@@ -1495,79 +1495,6 @@ async function carregarEsbocos() {
   `).join("") || `<div class="empty">Nenhum esboço publicado ainda.</div>`;
 }
 
-// ---------- ministério de louvor ----------
-async function carregarLouvor() {
-  const hoje = new Date().toISOString().slice(0, 10);
-  const { data: escalas } = await sb.from("igr_louvor_escalas").select("*")
-    .eq("igreja_id", state.igreja.id).gte("data", hoje).order("data", { ascending: true }).limit(1);
-  const escala = (escalas || [])[0];
-  state.louvorEscalaAtualId = escala?.id || null;
-
-  const gerBox = document.getElementById("louvor-gerenciar-box");
-  const podeGerenciarLouvor = state.membro?.eh_lider && (state.membro?.permissoes || []).includes("gerenciar_louvor");
-  if (gerBox) gerBox.style.display = podeGerenciarLouvor ? "block" : "none";
-  if (podeGerenciarLouvor) await carregarMembrosGrupoLouvor();
-
-  const escalaEl = document.getElementById("louvor-escala");
-  const musicasEl = document.getElementById("louvor-musicas");
-
-  if (!escala) {
-    escalaEl.innerHTML = `<div class="empty">Nenhuma escala publicada ainda.</div>`;
-    musicasEl.innerHTML = "";
-  } else {
-    const [{ data: participantes }, { data: musicas }] = await Promise.all([
-      sb.from("igr_louvor_participantes").select("*").eq("escala_id", escala.id).order("created_at"),
-      sb.from("igr_louvor_musicas").select("*").eq("escala_id", escala.id).order("ordem"),
-    ]);
-    const dataFmt = formatarData(escala.data);
-    escalaEl.innerHTML = `
-      <div class="card">
-        <h3>${escala.culto_titulo || "Culto"} · ${dataFmt}</h3>
-        ${escala.observacoes ? `<p style="margin-bottom:8px;">${escala.observacoes}</p>` : ""}
-        ${(participantes || []).map(p => `
-          <div class="row-avatar" style="padding:9px 0;border-top:1px solid var(--line);">
-            ${avatarIniciais(p.nome)}
-            <div class="row-info"><b>${p.nome}</b><span>${p.funcao || ""}</span></div>
-          </div>
-        `).join("") || `<p class="hint">Ninguém escalado ainda.</p>`}
-        ${escala.criado_por ? `<p class="hint" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">Escala organizada por <b style="color:var(--ink);">${escala.criado_por}</b></p>` : ""}
-        <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-top:10px;" id="btn-agenda-escala">📅 Adicionar à agenda</button>
-      </div>`;
-    document.getElementById("btn-agenda-escala")?.addEventListener("click", () => {
-      adicionarEventoAgenda(escala.culto_titulo || "Culto", escala.data, "19:00", "", escala.observacoes);
-    });
-    musicasEl.innerHTML = (musicas || []).map(m => `
-      <div class="card">
-        <h3>${m.titulo}</h3>
-        <p>${m.artista || ""}${m.tom ? " · Tom: " + m.tom : ""}</p>
-        <div class="card-actions-row">
-          ${m.link ? `<a class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" href="${m.link}" target="_blank" rel="noopener">Ver cifra</a>` : ""}
-          ${m.link_youtube ? `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;" href="${m.link_youtube}" target="_blank" rel="noopener">▶ YouTube</a>` : ""}
-        </div>
-      </div>
-    `).join("") || `<div class="empty">Repertório ainda não publicado.</div>`;
-  }
-
-  const { data: eventos } = await sb.from("igr_louvor_eventos").select("*")
-    .eq("igreja_id", state.igreja.id).gte("data", hoje).order("data", { ascending: true });
-  const eventosEl = document.getElementById("louvor-eventos");
-  eventosEl.innerHTML = (eventos || []).map(ev => `
-    <div class="card row-avatar">
-      ${seloData(ev.data)}
-      <div class="row-info">
-        <b>${ev.titulo}</b>
-        <span>${ev.horario ? ev.horario : ""}${ev.local ? " · " + ev.local : ""}</span>
-        ${ev.descricao ? `<p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${ev.descricao}</p>` : ""}
-        <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;margin-top:8px;" data-add-agenda-evento="${ev.id}">📅 Adicionar à agenda</button>
-      </div>
-    </div>
-  `).join("") || `<div class="empty">Nenhum ensaio ou evento agendado.</div>`;
-  eventosEl.querySelectorAll("[data-add-agenda-evento]").forEach(btn => {
-    const ev = (eventos || []).find(x => x.id === btn.dataset.addAgendaEvento);
-    if (ev) btn.addEventListener("click", () => adicionarEventoAgenda(ev.titulo, ev.data, ev.horario, ev.local, ev.descricao));
-  });
-}
-
 async function carregarMensagensPastor() {
   const { data } = await sb.from("igr_mensagens_pastor").select("*").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false });
   const el = document.getElementById("lista-mensagens-pastor");
@@ -4275,108 +4202,549 @@ function abrirLightboxImagemUnica(url) {
   abrirLightbox(0);
 }
 
-// ---------- ministério de louvor: gerenciar (líder) ----------
-async function enviarEscalaLouvor(ev) {
+// ---------- ministério de louvor ----------
+const DIA_SEMANA_NOMES_LOUVOR = { domingo: "Domingo", segunda: "Segunda", terca: "Terça", quarta: "Quarta", quinta: "Quinta", sexta: "Sexta", sabado: "Sábado" };
+
+function souLiderLouvor() {
+  return !!(state.membro?.eh_lider && (state.membro?.permissoes || []).includes("gerenciar_louvor"));
+}
+
+async function carregarLouvor() {
+  const podeGerenciar = souLiderLouvor();
+  document.getElementById("louvor-gerenciar-box").style.display = podeGerenciar ? "block" : "none";
+  document.getElementById("quicklink-louvor-funcoes").style.display = podeGerenciar ? "flex" : "none";
+  document.getElementById("quicklink-louvor-visao-geral").style.display = podeGerenciar ? "flex" : "none";
+
+  const el = document.getElementById("louvor-minhas-escalas");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  let escalas = [];
+  if (podeGerenciar) {
+    const { data } = await sb.from("igr_louvor_escalas").select("*").eq("grupo_id", state.membro.grupo_id)
+      .gte("data", hoje).order("data", { ascending: true }).limit(5);
+    escalas = data || [];
+  } else if (state.membro) {
+    const { data: minhas } = await sb.from("igr_louvor_escala_participantes").select("escala_id, status").eq("membro_id", state.membro.id);
+    const idsEscalas = [...new Set((minhas || []).map(p => p.escala_id))];
+    if (idsEscalas.length) {
+      const { data } = await sb.from("igr_louvor_escalas").select("*").in("id", idsEscalas)
+        .gte("data", hoje).eq("publicada", true).order("data", { ascending: true });
+      escalas = data || [];
+    }
+  }
+
+  el.innerHTML = escalas.map(e => `
+    <div class="card row-avatar" data-abrir-escala-louvor="${e.id}" style="cursor:pointer;">
+      ${seloData(e.data)}
+      <div class="row-info"><b>${e.titulo}</b><span>${e.horario || ""}</span></div>
+    </div>
+  `).join("") || `<p class="hint">Nenhuma escala com você por enquanto.</p>`;
+  el.querySelectorAll("[data-abrir-escala-louvor]").forEach(c =>
+    c.addEventListener("click", () => abrirEscalaLouvorDetalhe(c.dataset.abrirEscalaLouvor)));
+}
+
+async function carregarListaEscalasLouvor(tipo) {
+  document.getElementById("tab-louvor-proximas").className = tipo === "proximas" ? "btn btn-primary" : "btn btn-ghost";
+  document.getElementById("tab-louvor-anteriores").className = tipo === "anteriores" ? "btn btn-primary" : "btn btn-ghost";
+  state.louvorTabAtual = tipo;
+  const el = document.getElementById("louvor-lista-escalas");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const hoje = new Date().toISOString().slice(0, 10);
+  let q = sb.from("igr_louvor_escalas").select("*").eq("grupo_id", state.membro.grupo_id);
+  q = tipo === "proximas" ? q.gte("data", hoje).order("data", { ascending: true }) : q.lt("data", hoje).order("data", { ascending: false });
+  const { data: escalas } = await q.limit(40);
+  const visiveis = souLiderLouvor() ? (escalas || []) : (escalas || []).filter(e => e.publicada);
+
+  const contagens = {};
+  if (visiveis.length) {
+    const { data: parts } = await sb.from("igr_louvor_escala_participantes").select("escala_id").in("escala_id", visiveis.map(e => e.id));
+    (parts || []).forEach(p => { contagens[p.escala_id] = (contagens[p.escala_id] || 0) + 1; });
+  }
+
+  el.innerHTML = visiveis.map(e => `
+    <div class="card" data-abrir-escala-louvor="${e.id}" style="cursor:pointer;">
+      <b style="font-size:14.5px;">${e.titulo}</b>
+      <p class="hint" style="margin:2px 0 8px;">${formatarData(e.data)}${e.horario ? " · " + e.horario : ""}</p>
+      <span class="hint">👥 ${contagens[e.id] || 0} escalado(s)${!e.publicada ? " · 📝 rascunho" : ""}</span>
+    </div>
+  `).join("") || `<p class="hint">Nenhuma escala ${tipo === "proximas" ? "futura" : "anterior"}.</p>`;
+  el.querySelectorAll("[data-abrir-escala-louvor]").forEach(c =>
+    c.addEventListener("click", () => abrirEscalaLouvorDetalhe(c.dataset.abrirEscalaLouvor)));
+}
+
+async function abrirEscalaLouvorDetalhe(escalaId) {
+  mostrarTela("tela-louvor-escala-detalhe");
+  state.louvorEscalaDetalheId = escalaId;
+  const { data: escala } = await sb.from("igr_louvor_escalas").select("*").eq("id", escalaId).single();
+  if (!escala) return;
+  document.getElementById("led-titulo").textContent = escala.titulo;
+  document.getElementById("led-data-hora").textContent = `${formatarData(escala.data)}${escala.horario ? " · " + escala.horario : ""}`;
+  document.getElementById("led-observacoes").textContent = escala.observacoes || "";
+
+  const [{ data: participantes }, { data: musicasEscala }, { data: roteiro }] = await Promise.all([
+    sb.from("igr_louvor_escala_participantes").select("*, igr_membros(nome_completo, foto_url), igr_louvor_funcoes(nome, emoji)").eq("escala_id", escalaId),
+    sb.from("igr_louvor_escala_musicas").select("*, igr_louvor_musicas(*)").eq("escala_id", escalaId).order("ordem"),
+    sb.from("igr_louvor_escala_roteiro").select("*").eq("escala_id", escalaId).order("ordem"),
+  ]);
+
+  document.getElementById("led-participantes").innerHTML = (participantes || []).map(p => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      ${p.igr_membros?.foto_url ? `<img src="${p.igr_membros.foto_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(p.igr_membros?.nome_completo || "?")}
+      <div class="row-info"><b>${p.igr_membros?.nome_completo || "?"}</b><span>${p.igr_louvor_funcoes ? p.igr_louvor_funcoes.emoji + " " + p.igr_louvor_funcoes.nome : "Sem função"}</span></div>
+      <span class="badge-inline" style="flex:none;background:${p.status === "confirmado" ? "var(--mint-soft, #DFF5E9)" : p.status === "recusado" ? "#FDECEC" : "var(--brand-soft)"};color:${p.status === "confirmado" ? "#1B8A4B" : p.status === "recusado" ? "#C0392B" : "var(--brand)"};">${p.status === "confirmado" ? "✅ Confirmado" : p.status === "recusado" ? "❌ Não vai" : "⏳ Pendente"}</span>
+    </div>
+  `).join("") || `<p class="hint">Ninguém escalado ainda.</p>`;
+
+  document.getElementById("led-musicas").innerHTML = (musicasEscala || []).map(em => {
+    const m = em.igr_louvor_musicas;
+    if (!m) return "";
+    return `
+    <div class="card">
+      <b style="font-size:13.5px;">${m.titulo}</b><br><span class="hint" style="margin:0;">${m.artista || ""}${em.tom_escolhido || m.tom ? " · Tom: " + (em.tom_escolhido || m.tom) : ""}</span>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+        ${m.link_cifra ? `<a class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" href="${m.link_cifra}" target="_blank" rel="noopener">Cifra</a>` : ""}
+        ${m.link_letra ? `<a class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" href="${m.link_letra}" target="_blank" rel="noopener">Letra</a>` : ""}
+        ${m.link_video ? `<a class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" href="${m.link_video}" target="_blank" rel="noopener">▶ Vídeo</a>` : ""}
+        ${m.link_spotify ? `<a class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" href="${m.link_spotify}" target="_blank" rel="noopener">Spotify</a>` : ""}
+      </div>
+    </div>`;
+  }).join("") || `<p class="hint">Nenhuma música selecionada ainda.</p>`;
+
+  document.getElementById("led-roteiro").innerHTML = (roteiro || []).map((r, i) => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      <span style="font-size:12px;font-weight:700;color:var(--ink-faint);flex:none;width:22px;">${i + 1}</span>
+      <div class="row-info"><b>${r.titulo}</b>${r.duracao_estimada_min ? `<span>${r.duracao_estimada_min} min</span>` : ""}</div>
+    </div>
+  `).join("") || `<p class="hint">Sem roteiro definido.</p>`;
+
+  const meuParticipante = (participantes || []).find(p => p.membro_id === state.membro?.id);
+  const boxConf = document.getElementById("led-minha-confirmacao");
+  if (meuParticipante && escala.pedir_confirmacao) {
+    boxConf.style.display = "block";
+    document.getElementById("led-status-atual").textContent =
+      meuParticipante.status === "confirmado" ? "Você já confirmou presença." :
+      meuParticipante.status === "recusado" ? "Você marcou que não vai poder ir." : "Ainda sem resposta.";
+    sb.from("igr_louvor_escala_participantes").update({ visualizou_em: new Date().toISOString() }).eq("id", meuParticipante.id).is("visualizou_em", null);
+  } else {
+    boxConf.style.display = "none";
+  }
+
+  document.getElementById("led-acoes-lider").style.display = souLiderLouvor() ? "flex" : "none";
+}
+
+async function responderPresencaLouvor(novoStatus) {
+  const escalaId = state.louvorEscalaDetalheId;
+  if (!escalaId || !state.membro) return;
+  await sb.from("igr_louvor_escala_participantes").update({ status: novoStatus, respondido_em: new Date().toISOString() })
+    .eq("escala_id", escalaId).eq("membro_id", state.membro.id);
+  abrirEscalaLouvorDetalhe(escalaId);
+}
+
+function abrirFormEscalaLouvor(escala) {
+  state.louvorEscalaEditando = escala || null;
+  document.getElementById("lef-titulo-tela").textContent = escala ? "Editar escala" : "Nova escala";
+  document.getElementById("le-titulo").value = escala?.titulo || "";
+  document.getElementById("le-data").value = escala?.data || "";
+  document.getElementById("le-horario").value = escala?.horario || "";
+  document.getElementById("le-dia-semana").value = escala?.dia_semana || "";
+  document.getElementById("le-data-fim").value = escala?.data_fim || "";
+  document.getElementById("le-observacoes").value = escala?.observacoes || "";
+  document.getElementById("le-publicada").checked = escala ? escala.publicada : true;
+  document.getElementById("le-pedir-confirmacao").checked = escala ? escala.pedir_confirmacao : true;
+  mostrarTelaLouvorTab("detalhes");
+  mostrarTela("tela-louvor-escala-form");
+  if (escala) { carregarParticipantesLouvorForm(); carregarMusicasLouvorForm(); carregarRoteiroLouvorForm(); }
+}
+
+function mostrarTelaLouvorTab(aba) {
+  ["detalhes", "participantes", "musicas", "roteiro"].forEach(a => {
+    document.getElementById(`lef-view-${a}`).style.display = a === aba ? "block" : "none";
+    document.getElementById(`lef-tab-${a}`).className = a === aba ? "btn btn-primary" : "btn btn-ghost";
+  });
+  if (aba !== "detalhes" && !state.louvorEscalaEditando) {
+    alert("Salve os detalhes primeiro pra poder adicionar participantes, músicas e roteiro.");
+    mostrarTelaLouvorTab("detalhes");
+  }
+}
+
+async function salvarDetalhesEscalaLouvor(ev) {
   ev.preventDefault();
+  const titulo = document.getElementById("le-titulo").value.trim();
   const data = document.getElementById("le-data").value;
-  const culto_titulo = document.getElementById("le-titulo").value.trim();
-  const observacoes = document.getElementById("le-obs").value.trim();
-  if (!data || !culto_titulo) return;
-  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const horario = document.getElementById("le-horario").value.trim();
+  const dia_semana = document.getElementById("le-dia-semana").value || null;
+  const data_fim = document.getElementById("le-data-fim").value || null;
+  const observacoes = document.getElementById("le-observacoes").value.trim();
+  const publicada = document.getElementById("le-publicada").checked;
+  const pedir_confirmacao = document.getElementById("le-pedir-confirmacao").checked;
+  if (!titulo || !data) { alert("Preencha pelo menos título e data."); return; }
   const btn = ev.target.querySelector("button[type=submit]");
-  btn.disabled = true; btn.textContent = "Enviando...";
+  btn.disabled = true; btn.textContent = "Salvando...";
   try {
-    const { error } = await sb.from("igr_louvor_escalas").insert({
-      igreja_id: state.igreja.id, data, culto_titulo, observacoes,
-      criado_por: state.membro?.nome_completo || null,
+    const editando = state.louvorEscalaEditando;
+    const payload = { titulo, data, horario: horario || null, dia_semana, data_fim, observacoes: observacoes || null, publicada, pedir_confirmacao };
+    if (editando) {
+      const { error } = await sb.from("igr_louvor_escalas").update(payload).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar: " + error.message); return; }
+      state.louvorEscalaEditando = { ...editando, ...payload };
+    } else {
+      const { data: nova, error } = await sb.from("igr_louvor_escalas").insert({
+        ...payload, igreja_id: state.igreja.id, grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id,
+      }).select().single();
+      if (error) { alert("Não deu pra criar: " + error.message); return; }
+      state.louvorEscalaEditando = nova;
+      document.getElementById("lef-titulo-tela").textContent = "Editar escala";
+    }
+    carregarParticipantesLouvorForm(); carregarMusicasLouvorForm(); carregarRoteiroLouvorForm();
+    alert("Detalhes salvos! Agora adicione participantes e músicas nas outras abas.");
+  } catch (e) {
+    console.error("Erro ao salvar escala:", e);
+    alert("Não deu pra salvar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Salvar detalhes";
+  }
+}
+
+// ---------- participantes da escala ----------
+async function carregarParticipantesLouvorForm() {
+  const escalaId = state.louvorEscalaEditando?.id;
+  const el = document.getElementById("lef-lista-participantes");
+  if (!escalaId) { el.innerHTML = ""; return; }
+  const { data } = await sb.from("igr_louvor_escala_participantes").select("*, igr_membros(nome_completo, foto_url), igr_louvor_funcoes(nome, emoji)").eq("escala_id", escalaId);
+  el.innerHTML = (data || []).map(p => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      ${p.igr_membros?.foto_url ? `<img src="${p.igr_membros.foto_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(p.igr_membros?.nome_completo || "?")}
+      <div class="row-info"><b>${p.igr_membros?.nome_completo || "?"}</b><span>${p.igr_louvor_funcoes ? p.igr_louvor_funcoes.emoji + " " + p.igr_louvor_funcoes.nome : "Sem função"}</span></div>
+      <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-remover-participante-louvor="${p.id}">✕</button>
+    </div>
+  `).join("") || `<p class="hint">Ninguém escalado ainda.</p>`;
+  el.querySelectorAll("[data-remover-participante-louvor]").forEach(b => b.addEventListener("click", async () => {
+    await sb.from("igr_louvor_escala_participantes").delete().eq("id", b.dataset.removerParticipanteLouvor);
+    carregarParticipantesLouvorForm();
+  }));
+}
+
+async function abrirSeletorParticipanteLouvor() {
+  const escalaId = state.louvorEscalaEditando?.id;
+  if (!escalaId) return;
+  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo").eq("grupo_id", state.membro.grupo_id).order("nome_completo");
+  const { data: funcoes } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupo_id).order("ordem");
+  const nomeMembro = prompt("Digite o nome exato do membro (veja em Grupos > Louvor a lista se precisar):\n\n" + (membros || []).map(m => m.nome_completo).join("\n"));
+  if (!nomeMembro) return;
+  const membro = (membros || []).find(m => m.nome_completo.toLowerCase() === nomeMembro.trim().toLowerCase());
+  if (!membro) { alert("Não achei esse nome exato no grupo. Tenta de novo copiando certinho da lista."); return; }
+  const nomeFuncao = (funcoes || []).length
+    ? prompt("Função (opções: " + funcoes.map(f => f.nome).join(", ") + "):")
+    : prompt("Função (cadastre funções em 'Funções' pra ficar mais rápido depois):");
+  const funcao = (funcoes || []).find(f => f.nome.toLowerCase() === (nomeFuncao || "").trim().toLowerCase());
+  const { error } = await sb.from("igr_louvor_escala_participantes").insert({
+    escala_id: escalaId, membro_id: membro.id, funcao_id: funcao?.id || null, status: "pendente",
+  });
+  if (error) { alert("Não deu pra adicionar (talvez já esteja nessa função): " + error.message); return; }
+  const escala = state.louvorEscalaEditando;
+  enviarPush({ tipo: "membros", membro_ids: [membro.id] }, `Você foi escalado(a)! 🎤`,
+    `${escala.titulo} — ${formatarData(escala.data)}${escala.horario ? " às " + escala.horario : ""}. Confira e confirme presença no app.`);
+  carregarParticipantesLouvorForm();
+}
+
+async function sugerirParticipantesLouvor() {
+  const escalaId = state.louvorEscalaEditando?.id;
+  if (!escalaId) return;
+  const { data: funcoes } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupo_id).order("ordem");
+  const { data: jaEscalados } = await sb.from("igr_louvor_escala_participantes").select("funcao_id").eq("escala_id", escalaId);
+  const funcoesFaltando = (funcoes || []).filter(f => !(jaEscalados || []).some(p => p.funcao_id === f.id));
+  if (!funcoesFaltando.length) { alert("Todas as funções já têm alguém escalado."); return; }
+
+  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo").eq("grupo_id", state.membro.grupo_id);
+  const { data: historico } = await sb.from("igr_louvor_escala_participantes")
+    .select("membro_id, funcao_id, igr_louvor_escalas!inner(data)").order("igr_louvor_escalas(data)", { ascending: false });
+
+  let adicionados = 0;
+  for (const funcao of funcoesFaltando) {
+    // pega quem já serviu nessa função antes, ordenado por quem serviu há mais tempo (rotacao justa);
+    // se ninguem tem historico nessa funcao ainda, pula (evita escalar alguem sem perfil pra funcao)
+    const candidatos = (historico || []).filter(h => h.funcao_id === funcao.id).map(h => h.membro_id);
+    const candidatoUnico = candidatos.find(id => !(jaEscalados || []).some(p => p.funcao_id === funcao.id)); // mais recente do historico ja filtrado por data desc, entao pegar o ULTIMO da lista = mais antigo
+    const menosRecente = candidatos.length ? candidatos[candidatos.length - 1] : null;
+    const membro = (membros || []).find(m => m.id === menosRecente);
+    if (!membro) continue;
+    const { error } = await sb.from("igr_louvor_escala_participantes").insert({ escala_id: escalaId, membro_id: membro.id, funcao_id: funcao.id, status: "pendente" });
+    if (!error) {
+      adicionados++;
+      const escala = state.louvorEscalaEditando;
+      enviarPush({ tipo: "membros", membro_ids: [membro.id] }, `Você foi escalado(a)! 🎤`,
+        `${escala.titulo} — ${formatarData(escala.data)}. Confira e confirme presença no app.`);
+    }
+  }
+  alert(adicionados ? `Sugeri ${adicionados} pessoa(s) com base em quem está há mais tempo sem servir em cada função.` : "Não encontrei histórico suficiente pra sugerir automaticamente ainda — adiciona manualmente dessa vez.");
+  carregarParticipantesLouvorForm();
+}
+
+// ---------- músicas da escala ----------
+async function carregarMusicasLouvorForm() {
+  const escalaId = state.louvorEscalaEditando?.id;
+  const el = document.getElementById("lef-lista-musicas");
+  if (!escalaId) { el.innerHTML = ""; return; }
+  const { data } = await sb.from("igr_louvor_escala_musicas").select("*, igr_louvor_musicas(titulo, artista, tom)").eq("escala_id", escalaId).order("ordem");
+  el.innerHTML = (data || []).map(em => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      <div class="row-info"><b>${em.igr_louvor_musicas?.titulo || "?"}</b><span>${em.igr_louvor_musicas?.artista || ""}${em.tom_escolhido || em.igr_louvor_musicas?.tom ? " · Tom: " + (em.tom_escolhido || em.igr_louvor_musicas.tom) : ""}</span></div>
+      <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-remover-musica-escala="${em.id}">✕</button>
+    </div>
+  `).join("") || `<p class="hint">Nenhuma música ainda.</p>`;
+  el.querySelectorAll("[data-remover-musica-escala]").forEach(b => b.addEventListener("click", async () => {
+    await sb.from("igr_louvor_escala_musicas").delete().eq("id", b.dataset.removerMusicaEscala);
+    carregarMusicasLouvorForm(); sincronizarRoteiroComMusicas();
+  }));
+}
+
+async function abrirSeletorMusicaLouvor() {
+  const escalaId = state.louvorEscalaEditando?.id;
+  if (!escalaId) return;
+  const { data: musicas } = await sb.from("igr_louvor_musicas").select("id, titulo, artista").eq("grupo_id", state.membro.grupo_id).order("titulo");
+  if (!musicas || !musicas.length) { alert("O repertório ainda está vazio. Adicione músicas em 'Repertório' primeiro."); return; }
+  const nomeMusica = prompt("Digite o título exato da música:\n\n" + musicas.map(m => m.titulo).join("\n"));
+  if (!nomeMusica) return;
+  const musica = musicas.find(m => m.titulo.toLowerCase() === nomeMusica.trim().toLowerCase());
+  if (!musica) { alert("Não achei essa música no repertório."); return; }
+  const { count } = await sb.from("igr_louvor_escala_musicas").select("id", { count: "exact", head: true }).eq("escala_id", escalaId);
+  const { error } = await sb.from("igr_louvor_escala_musicas").insert({ escala_id: escalaId, musica_id: musica.id, ordem: count || 0 });
+  if (error) { alert("Não deu pra adicionar: " + error.message); return; }
+  carregarMusicasLouvorForm(); sincronizarRoteiroComMusicas();
+}
+
+async function sugerirMusicasLouvor() {
+  const escalaId = state.louvorEscalaEditando?.id;
+  if (!escalaId) return;
+  const { data: musicas } = await sb.from("igr_louvor_musicas").select("id, titulo").eq("grupo_id", state.membro.grupo_id);
+  if (!musicas || !musicas.length) { alert("O repertório está vazio."); return; }
+  const { data: usoRecente } = await sb.from("igr_louvor_escala_musicas")
+    .select("musica_id, igr_louvor_escalas!inner(data)").order("igr_louvor_escalas(data)", { ascending: false }).limit(60);
+  const usadasRecentemente = new Set((usoRecente || []).slice(0, 20).map(u => u.musica_id));
+  const naoUsadasRecentemente = musicas.filter(m => !usadasRecentemente.has(m.id));
+  const escolhidas = (naoUsadasRecentemente.length ? naoUsadasRecentemente : musicas).sort(() => Math.random() - 0.5).slice(0, 4);
+  const { count } = await sb.from("igr_louvor_escala_musicas").select("id", { count: "exact", head: true }).eq("escala_id", escalaId);
+  let ordem = count || 0;
+  for (const m of escolhidas) {
+    await sb.from("igr_louvor_escala_musicas").insert({ escala_id: escalaId, musica_id: m.id, ordem: ordem++ });
+  }
+  alert(`Sugeri ${escolhidas.length} música(s) priorizando as que não foram tocadas recentemente.`);
+  carregarMusicasLouvorForm(); sincronizarRoteiroComMusicas();
+}
+
+// ---------- roteiro da escala ----------
+async function sincronizarRoteiroComMusicas() {
+  const escalaId = state.louvorEscalaEditando?.id;
+  if (!escalaId) return;
+  // remove os itens de roteiro do tipo 'musica' que nao existem mais na selecao, e adiciona os que faltam
+  const [{ data: musicasEscala }, { data: roteiroAtual }] = await Promise.all([
+    sb.from("igr_louvor_escala_musicas").select("musica_id, ordem, igr_louvor_musicas(titulo)").eq("escala_id", escalaId).order("ordem"),
+    sb.from("igr_louvor_escala_roteiro").select("*").eq("escala_id", escalaId),
+  ]);
+  const idsAtuais = new Set((musicasEscala || []).map(m => m.musica_id));
+  const paraRemover = (roteiroAtual || []).filter(r => r.tipo === "musica" && !idsAtuais.has(r.musica_id));
+  for (const r of paraRemover) await sb.from("igr_louvor_escala_roteiro").delete().eq("id", r.id);
+  const jaNoRoteiro = new Set((roteiroAtual || []).filter(r => r.tipo === "musica").map(r => r.musica_id));
+  let ordemBase = (roteiroAtual || []).length;
+  for (const m of (musicasEscala || [])) {
+    if (jaNoRoteiro.has(m.musica_id)) continue;
+    await sb.from("igr_louvor_escala_roteiro").insert({
+      escala_id: escalaId, ordem: ordemBase++, tipo: "musica", musica_id: m.musica_id, titulo: m.igr_louvor_musicas?.titulo || "Música",
     });
-    if (error) { alert("Não deu pra criar a escala: " + error.message); return; }
-    ev.target.reset();
-    await carregarLouvor();
-  } catch (e) {
-    console.error("Erro ao criar escala:", e);
-    alert("Não deu pra criar agora. Verifique sua conexão e tente de novo.");
-  } finally {
-    btn.disabled = false; btn.textContent = "Criar escala";
   }
 }
-async function enviarParticipanteLouvor(ev) {
+
+async function carregarRoteiroLouvorForm() {
+  await sincronizarRoteiroComMusicas();
+  const escalaId = state.louvorEscalaEditando?.id;
+  const el = document.getElementById("lef-lista-roteiro");
+  if (!escalaId) { el.innerHTML = ""; return; }
+  const { data } = await sb.from("igr_louvor_escala_roteiro").select("*").eq("escala_id", escalaId).order("ordem");
+  el.innerHTML = (data || []).map((r, i) => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      <span style="font-size:12px;font-weight:700;color:var(--ink-faint);flex:none;width:20px;">${i + 1}</span>
+      <div class="row-info"><b>${r.tipo === "musica" ? "🎵 " : ""}${r.titulo}</b></div>
+      <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-remover-roteiro-item="${r.id}">✕</button>
+    </div>
+  `).join("") || `<p class="hint">Nada no roteiro ainda.</p>`;
+  el.querySelectorAll("[data-remover-roteiro-item]").forEach(b => b.addEventListener("click", async () => {
+    await sb.from("igr_louvor_escala_roteiro").delete().eq("id", b.dataset.removerRoteiroItem);
+    carregarRoteiroLouvorForm();
+  }));
+}
+
+async function adicionarItemRoteiroLouvor() {
+  const escalaId = state.louvorEscalaEditando?.id;
+  if (!escalaId) return;
+  const titulo = prompt("Nome do momento (ex: Abertura, Oferta, Prédica):");
+  if (!titulo) return;
+  const { count } = await sb.from("igr_louvor_escala_roteiro").select("id", { count: "exact", head: true }).eq("escala_id", escalaId);
+  await sb.from("igr_louvor_escala_roteiro").insert({ escala_id: escalaId, ordem: count || 0, tipo: "evento", titulo: titulo.trim() });
+  carregarRoteiroLouvorForm();
+}
+
+// ---------- funções (cargos) ----------
+async function carregarFuncoesLouvor() {
+  const el = document.getElementById("louvor-lista-funcoes");
+  const { data } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupo_id).order("ordem");
+  el.innerHTML = (data || []).map(f => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      <span style="font-size:18px;flex:none;">${f.emoji || "🎵"}</span>
+      <div class="row-info"><b>${f.nome}</b></div>
+      <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-remover-funcao="${f.id}">🗑</button>
+    </div>
+  `).join("") || `<p class="hint">Nenhuma função cadastrada ainda.</p>`;
+  el.querySelectorAll("[data-remover-funcao]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm("Excluir essa função?")) return;
+    await sb.from("igr_louvor_funcoes").delete().eq("id", b.dataset.removerFuncao);
+    carregarFuncoesLouvor();
+  }));
+}
+
+async function enviarFuncaoLouvor(ev) {
   ev.preventDefault();
-  if (!state.louvorEscalaAtualId) { alert("Crie uma escala primeiro."); return; }
-  const membroSelect = document.getElementById("lp-membro");
-  const membro_id = membroSelect.value || null;
-  const nomeDigitado = document.getElementById("lp-nome").value.trim();
-  const funcao = document.getElementById("lp-funcao").value.trim();
-  const nome = membro_id ? membroSelect.selectedOptions[0].textContent : nomeDigitado;
-  if (!nome || !funcao) return;
-  const btn = ev.target.querySelector("button[type=submit]");
-  btn.disabled = true; btn.textContent = "Enviando...";
+  const emoji = document.getElementById("lf-emoji").value.trim() || "🎵";
+  const nome = document.getElementById("lf-nome").value.trim();
+  if (!nome) return;
+  const { count } = await sb.from("igr_louvor_funcoes").select("id", { count: "exact", head: true }).eq("grupo_id", state.membro.grupo_id);
+  const { error } = await sb.from("igr_louvor_funcoes").insert({ igreja_id: state.igreja.id, grupo_id: state.membro.grupo_id, nome, emoji, ordem: count || 0 });
+  if (error) { alert("Não deu pra adicionar: " + error.message); return; }
+  ev.target.reset();
+  carregarFuncoesLouvor();
+}
+
+// ---------- repertório (banco de músicas) ----------
+async function carregarRepertorioLouvor() {
+  const el = document.getElementById("louvor-lista-repertorio");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const { data } = await sb.from("igr_louvor_musicas").select("*").eq("grupo_id", state.membro.grupo_id).order("titulo");
+  state.louvorRepertorioCache = data || [];
+  renderizarRepertorioLouvor(document.getElementById("lr-busca").value);
+}
+
+function renderizarRepertorioLouvor(termo) {
+  const el = document.getElementById("louvor-lista-repertorio");
+  const t = normalizarBusca(termo);
+  const lista = (state.louvorRepertorioCache || []).filter(m => !t || normalizarBusca(m.titulo + " " + (m.artista || "")).includes(t));
+  el.innerHTML = lista.map(m => `
+    <div class="card" data-abrir-musica-louvor="${m.id}" style="cursor:pointer;display:flex;gap:12px;">
+      ${m.capa_url ? `<img src="${m.capa_url}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;flex:none;">` : `<div style="width:48px;height:48px;border-radius:8px;background:var(--bg);flex:none;display:flex;align-items:center;justify-content:center;font-size:20px;">🎵</div>`}
+      <div style="flex:1;min-width:0;">
+        <b style="font-size:13.5px;">${m.titulo}</b><br>
+        <span class="hint" style="margin:0;">${m.artista || ""}${m.tom ? " · Tom: " + m.tom : ""}</span>
+      </div>
+    </div>
+  `).join("") || `<p class="hint">${termo ? "Nenhuma música encontrada." : "Repertório vazio ainda."}</p>`;
+  el.querySelectorAll("[data-abrir-musica-louvor]").forEach(c =>
+    c.addEventListener("click", () => abrirFormMusicaLouvor((state.louvorRepertorioCache || []).find(m => m.id === c.dataset.abrirMusicaLouvor))));
+}
+
+function abrirFormMusicaLouvor(musica) {
+  state.louvorMusicaEditando = musica || null;
+  document.getElementById("lm-titulo-tela").textContent = musica ? "Editar música" : "Nova música";
+  document.getElementById("lm-form-titulo").value = musica?.titulo || "";
+  document.getElementById("lm-form-artista").value = musica?.artista || "";
+  document.getElementById("lm-form-album").value = musica?.album || "";
+  document.getElementById("lm-form-tom").value = musica?.tom || "";
+  document.getElementById("lm-form-bpm").value = musica?.bpm || "";
+  document.getElementById("lm-form-categoria").value = musica?.categoria || "";
+  document.getElementById("lm-form-spotify").value = musica?.link_spotify || "";
+  document.getElementById("lm-form-letra").value = musica?.link_letra || "";
+  document.getElementById("lm-form-cifra").value = musica?.link_cifra || "";
+  document.getElementById("lm-form-video").value = musica?.link_video || "";
+  document.getElementById("btn-lm-excluir").style.display = musica ? "block" : "none";
+  document.getElementById("lm-status-ia").style.display = "none";
+  mostrarTela("tela-louvor-musica-form");
+}
+
+async function identificarMusicaComIA() {
+  const titulo = document.getElementById("lm-form-titulo").value.trim();
+  if (!titulo || state.louvorMusicaEditando) return;
+  const status = document.getElementById("lm-status-ia");
+  status.textContent = "✨ Buscando informações da música...";
+  status.style.display = "block";
   try {
-    const { error } = await sb.from("igr_louvor_participantes").insert({ escala_id: state.louvorEscalaAtualId, nome, funcao, membro_id });
-    if (error) { alert("Não deu pra adicionar: " + error.message); return; }
-    ev.target.reset();
-    await carregarLouvor();
+    const { data, error } = await sb.functions.invoke("igr-identificar-musica", { body: { titulo } });
+    if (error || !data?.ok) { status.style.display = "none"; return; }
+    if (!document.getElementById("lm-form-artista").value.trim() && data.artista) document.getElementById("lm-form-artista").value = data.artista;
+    if (!document.getElementById("lm-form-tom").value.trim() && data.tom) document.getElementById("lm-form-tom").value = data.tom;
+    if (!document.getElementById("lm-form-bpm").value && data.bpm) document.getElementById("lm-form-bpm").value = data.bpm;
+    if (!document.getElementById("lm-form-categoria").value.trim() && data.categoria) document.getElementById("lm-form-categoria").value = data.categoria;
+    status.textContent = data.confianca === "alta" ? "" : "✨ Preenchido automaticamente (confira antes de salvar).";
+    status.style.display = data.confianca === "alta" ? "none" : "block";
   } catch (e) {
-    console.error("Erro ao adicionar participante:", e);
-    alert("Não deu pra adicionar agora. Verifique sua conexão e tente de novo.");
-  } finally {
-    btn.disabled = false; btn.textContent = "Adicionar";
+    console.error("Erro ao identificar música:", e);
+    status.style.display = "none";
   }
 }
-async function carregarMembrosGrupoLouvor() {
-  const select = document.getElementById("lp-membro");
-  if (!select || !state.membro?.grupo_id) return;
-  const { data } = await sb.from("igr_membros").select("id, nome_completo").eq("grupo_id", state.membro.grupo_id).order("nome_completo");
-  select.innerHTML = `<option value="">— Sem vincular a um membro —</option>` +
-    (data || []).map(m => `<option value="${m.id}">${m.nome_completo}</option>`).join("");
-}
+
 async function enviarMusicaLouvor(ev) {
   ev.preventDefault();
-  if (!state.louvorEscalaAtualId) { alert("Crie uma escala primeiro."); return; }
-  const titulo = document.getElementById("lm-titulo").value.trim();
-  const artista = document.getElementById("lm-artista").value.trim();
-  const tom = document.getElementById("lm-tom").value.trim();
-  const link_youtube = document.getElementById("lm-youtube").value.trim();
-  let link = document.getElementById("lm-link").value.trim();
+  const titulo = document.getElementById("lm-form-titulo").value.trim();
   if (!titulo) return;
+  const payload = {
+    titulo,
+    artista: document.getElementById("lm-form-artista").value.trim() || null,
+    album: document.getElementById("lm-form-album").value.trim() || null,
+    tom: document.getElementById("lm-form-tom").value.trim() || null,
+    bpm: document.getElementById("lm-form-bpm").value ? parseInt(document.getElementById("lm-form-bpm").value) : null,
+    categoria: document.getElementById("lm-form-categoria").value.trim() || null,
+    link_spotify: document.getElementById("lm-form-spotify").value.trim() || null,
+    link_letra: document.getElementById("lm-form-letra").value.trim() || null,
+    link_cifra: document.getElementById("lm-form-cifra").value.trim() || null,
+    link_video: document.getElementById("lm-form-video").value.trim() || null,
+  };
   const btn = ev.target.querySelector("button[type=submit]");
-  btn.disabled = true; btn.textContent = "Enviando...";
+  btn.disabled = true; btn.textContent = "Salvando...";
   try {
-    const arquivo = document.getElementById("lm-cifra-arquivo").files[0];
-    const cifraUpload = await uploadArquivo(arquivo, "cifras");
-    if (cifraUpload) link = cifraUpload;
-    const { error } = await sb.from("igr_louvor_musicas").insert({ escala_id: state.louvorEscalaAtualId, titulo, artista, tom, link, link_youtube, ordem: Date.now() });
-    if (error) { alert("Não deu pra adicionar a música: " + error.message); return; }
-    ev.target.reset();
-    await carregarLouvor();
+    const editando = state.louvorMusicaEditando;
+    const { error } = editando
+      ? await sb.from("igr_louvor_musicas").update(payload).eq("id", editando.id)
+      : await sb.from("igr_louvor_musicas").insert({ ...payload, igreja_id: state.igreja.id, grupo_id: state.membro.grupo_id });
+    if (error) { alert("Não deu pra salvar: " + error.message); return; }
+    mostrarTela("tela-louvor-repertorio");
+    carregarRepertorioLouvor();
   } catch (e) {
-    console.error("Erro ao adicionar música:", e);
-    alert("Não deu pra adicionar agora. Verifique sua conexão e tente de novo.");
+    console.error("Erro ao salvar música:", e);
+    alert("Não deu pra salvar agora. Verifique sua conexão e tente de novo.");
   } finally {
-    btn.disabled = false; btn.textContent = "Adicionar música";
+    btn.disabled = false; btn.textContent = "Salvar música";
   }
 }
-async function enviarEventoLouvor(ev) {
-  ev.preventDefault();
-  const titulo = document.getElementById("lev-titulo").value.trim();
-  const data = document.getElementById("lev-data").value;
-  const horario = document.getElementById("lev-horario").value.trim();
-  const local = document.getElementById("lev-local").value.trim();
-  if (!titulo || !data) return;
-  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
-  const btn = ev.target.querySelector("button[type=submit]");
-  btn.disabled = true; btn.textContent = "Enviando...";
-  try {
-    const { error } = await sb.from("igr_louvor_eventos").insert({ igreja_id: state.igreja.id, titulo, data, horario, local });
-    if (error) { alert("Não deu pra adicionar: " + error.message); return; }
-    ev.target.reset();
-    await carregarLouvor();
-  } catch (e) {
-    console.error("Erro ao adicionar evento:", e);
-    alert("Não deu pra adicionar agora. Verifique sua conexão e tente de novo.");
-  } finally {
-    btn.disabled = false; btn.textContent = "Adicionar";
-  }
+
+async function excluirMusicaLouvor() {
+  const musica = state.louvorMusicaEditando;
+  if (!musica || !confirm(`Excluir "${musica.titulo}" do repertório?`)) return;
+  await sb.from("igr_louvor_musicas").delete().eq("id", musica.id);
+  mostrarTela("tela-louvor-repertorio");
+  carregarRepertorioLouvor();
+}
+
+// ---------- visão geral ----------
+async function carregarVisaoGeralLouvor() {
+  const el = document.getElementById("louvor-visao-geral-grid");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const grupoId = state.membro.grupo_id;
+  const [{ count: totalEscalas }, { count: totalMusicas }, { data: participantesTodos }] = await Promise.all([
+    sb.from("igr_louvor_escalas").select("id", { count: "exact", head: true }).eq("grupo_id", grupoId),
+    sb.from("igr_louvor_musicas").select("id", { count: "exact", head: true }).eq("grupo_id", grupoId),
+    sb.from("igr_louvor_escala_participantes").select("status, igr_louvor_escalas!inner(grupo_id)").eq("igr_louvor_escalas.grupo_id", grupoId),
+  ]);
+  const totalPart = (participantesTodos || []).length;
+  const confirmados = (participantesTodos || []).filter(p => p.status === "confirmado").length;
+  const recusados = (participantesTodos || []).filter(p => p.status === "recusado").length;
+  const membrosUnicos = new Set((participantesTodos || []).map(p => p.membro_id)).size;
+
+  const cards = [
+    { n: totalEscalas || 0, label: "Escalas criadas" },
+    { n: totalMusicas || 0, label: "Músicas no repertório" },
+    { n: totalPart, label: "Total de escalações" },
+    { n: totalPart ? Math.round((confirmados / totalPart) * 100) + "%" : "0%", label: "Confirmações de presença" },
+    { n: totalPart ? Math.round((recusados / totalPart) * 100) + "%" : "0%", label: "Faltas avisadas" },
+    { n: membrosUnicos, label: "Membros diferentes escalados" },
+  ];
+  el.innerHTML = cards.map(c => `<div class="card"><div style="font-size:28px;font-weight:700;">${c.n}</div><p class="hint" style="margin-top:4px;">${c.label}</p></div>`).join("");
 }
 
 // ---------- administrador ----------
@@ -6088,10 +6456,33 @@ async function iniciar() {
     const bloco = document.getElementById("grupo-bloco-avisos");
     bloco.style.display = bloco.style.display === "none" ? "block" : "none";
   });
-  document.getElementById("form-louvor-escala")?.addEventListener("submit", enviarEscalaLouvor);
-  document.getElementById("form-louvor-participante")?.addEventListener("submit", enviarParticipanteLouvor);
+  document.getElementById("form-louvor-escala")?.addEventListener("submit", salvarDetalhesEscalaLouvor);
   document.getElementById("form-louvor-musica")?.addEventListener("submit", enviarMusicaLouvor);
-  document.getElementById("form-louvor-evento")?.addEventListener("submit", enviarEventoLouvor);
+  document.getElementById("form-louvor-funcao")?.addEventListener("submit", enviarFuncaoLouvor);
+  document.getElementById("lm-form-titulo")?.addEventListener("blur", identificarMusicaComIA);
+  document.getElementById("btn-lm-excluir")?.addEventListener("click", excluirMusicaLouvor);
+  document.getElementById("btn-louvor-nova-escala")?.addEventListener("click", () => abrirFormEscalaLouvor(null));
+  document.getElementById("tab-louvor-proximas")?.addEventListener("click", () => carregarListaEscalasLouvor("proximas"));
+  document.getElementById("tab-louvor-anteriores")?.addEventListener("click", () => carregarListaEscalasLouvor("anteriores"));
+  document.getElementById("btn-led-confirmar")?.addEventListener("click", () => responderPresencaLouvor("confirmado"));
+  document.getElementById("btn-led-recusar")?.addEventListener("click", () => responderPresencaLouvor("recusado"));
+  document.getElementById("btn-led-editar")?.addEventListener("click", async () => {
+    const { data } = await sb.from("igr_louvor_escalas").select("*").eq("id", state.louvorEscalaDetalheId).single();
+    if (data) abrirFormEscalaLouvor(data);
+  });
+  document.getElementById("lef-tab-detalhes")?.addEventListener("click", () => mostrarTelaLouvorTab("detalhes"));
+  document.getElementById("lef-tab-participantes")?.addEventListener("click", () => mostrarTelaLouvorTab("participantes"));
+  document.getElementById("lef-tab-musicas")?.addEventListener("click", () => mostrarTelaLouvorTab("musicas"));
+  document.getElementById("lef-tab-roteiro")?.addEventListener("click", () => mostrarTelaLouvorTab("roteiro"));
+  document.getElementById("btn-lef-add-participante")?.addEventListener("click", abrirSeletorParticipanteLouvor);
+  document.getElementById("btn-lef-sugerir-participantes")?.addEventListener("click", sugerirParticipantesLouvor);
+  document.getElementById("btn-lef-add-musica")?.addEventListener("click", abrirSeletorMusicaLouvor);
+  document.getElementById("btn-lef-sugerir-musicas")?.addEventListener("click", sugerirMusicasLouvor);
+  document.getElementById("btn-lef-add-roteiro-item")?.addEventListener("click", adicionarItemRoteiroLouvor);
+  document.getElementById("btn-lr-nova-musica")?.addEventListener("click", () => abrirFormMusicaLouvor(null));
+  document.getElementById("lr-busca")?.addEventListener("input", (ev) => renderizarRepertorioLouvor(ev.target.value));
+  document.getElementById("quicklink-louvor-funcoes")?.addEventListener("click", () => { mostrarTela("tela-louvor-funcoes"); carregarFuncoesLouvor(); });
+  document.getElementById("quicklink-louvor-visao-geral")?.addEventListener("click", () => { mostrarTela("tela-louvor-visao-geral"); carregarVisaoGeralLouvor(); });
   configurarAbasAdmin();
   estilizarInputsArquivo();
   estilizarInputsData();
@@ -6132,6 +6523,8 @@ async function iniciar() {
       mostrarTela(alvo);
       if (alvo === "tela-membro-estudos") await carregarEsbocos();
       if (alvo === "tela-membro-louvor") await carregarLouvor();
+      if (alvo === "tela-louvor-escalas") await carregarListaEscalasLouvor(state.louvorTabAtual || "proximas");
+      if (alvo === "tela-louvor-repertorio") await carregarRepertorioLouvor();
       if (alvo === "tela-membro-pastor") await carregarMensagensPastor();
       if (alvo === "tela-fotos") await carregarAlbuns();
       if (alvo === "tela-calendario") await carregarCalendario();
