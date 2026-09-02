@@ -1260,6 +1260,12 @@
       <form id="form-calendario-add" style="display:none;margin-bottom:18px;">
         <div class="card" style="border:1.5px dashed var(--brand);">
           <div class="field"><label>Título</label><input id="cal-titulo" required placeholder="Ex: Ensaio do louvor"></div>
+          <div class="field"><label>Tipo (opcional)</label>
+            <select id="cal-tipo">
+              <option value="">Só reservar no Calendário</option>
+              <option value="aviso">Também avisar meu grupo</option>
+            </select>
+          </div>
           <div class="field"><label>Local</label><input id="cal-local" required placeholder="Ex: Templo, Salão, Sala de Juniores..."></div>
           <div class="field"><label>Data (início)</label><input id="cal-data" type="date" required></div>
           <div class="field"><label>Data final (opcional — pra evento de vários dias)</label><input id="cal-data-fim" type="date"></div>
@@ -1873,6 +1879,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788341767"></script>
+<script src="app.js?v=1788343047"></script>
 </body>
 </html>

@@ -3300,6 +3300,7 @@ function abrirDiaCalendario(dataISO) {
 async function enviarCalendario(ev) {
   ev.preventDefault();
   const titulo = document.getElementById("cal-titulo").value.trim();
+  const tipo = document.getElementById("cal-tipo").value;
   const local = document.getElementById("cal-local").value.trim();
   const data = document.getElementById("cal-data").value;
   const data_fim = document.getElementById("cal-data-fim").value || null;
@@ -3312,11 +3313,30 @@ async function enviarCalendario(ev) {
   btn.disabled = true; btn.textContent = "Salvando...";
   const arquivo = document.getElementById("cal-imagem").files[0];
   const imagem_url = await uploadArquivo(arquivo, "calendario");
-  const { error } = await sb.from("igr_calendario_eventos").insert({
+
+  // se escolheu "Também avisar meu grupo", cria um Aviso restrito ao grupo do próprio líder (não pra todo mundo)
+  let avisoId = null;
+  if (tipo === "aviso" && state.membro?.grupo_id) {
+    const { data: novoAviso, error: erroAviso } = await sb.from("igr_avisos").insert({
+      igreja_id: state.igreja.id, grupo_id: state.membro.grupo_id,
+      titulo, texto: observacoes || null, imagem_url,
+      data_evento: data, horario_evento: horario || null, local_evento: local,
+      criado_por_membro_id: state.membro.id, publicado_em: new Date().toISOString(),
+    }).select().single();
+    if (erroAviso) { alert("Não deu pra criar o aviso: " + erroAviso.message); btn.disabled = false; btn.textContent = "Salvar no calendário"; return; }
+    avisoId = novoAviso?.id;
+  }
+
+  const payload = {
     igreja_id: state.igreja.id, grupo_id: state.membro?.grupo_id || null,
     criado_por_membro_id: state.membro?.id || null, criado_por_nome: state.membro?.nome_completo || null,
     titulo, local, data, data_fim, dia_semana, horario: horario || null, observacoes: observacoes || null, imagem_url,
-  });
+  };
+  if (avisoId) payload.aviso_id = avisoId;
+  const { error } = avisoId
+    ? await sb.from("igr_calendario_eventos").upsert(payload, { onConflict: "aviso_id" })
+    : await sb.from("igr_calendario_eventos").insert(payload);
+
   btn.disabled = false; btn.textContent = "Salvar no calendário";
   if (error) { alert("Não deu pra salvar: " + error.message); return; }
 
