@@ -3962,6 +3962,50 @@ async function carregarVisitantesAdmin() {
 // ---------- admin: membros por grupo ----------
 let estadoMembrosAdmin = { grupoId: null, grupoNome: "", membroId: null };
 
+async function recarregarGruposCache() {
+  const { data: grupos } = await sb.from("igr_grupos").select("*").eq("igreja_id", state.igreja.id).order("created_at");
+  state.grupos = grupos || [];
+}
+
+async function criarGrupoAdmin(ev) {
+  ev.preventDefault();
+  const nome = document.getElementById("ng-nome").value.trim();
+  if (!nome) return;
+  const descricao = document.getElementById("ng-descricao").value.trim() || null;
+  const arquivo = document.getElementById("ng-capa").files[0];
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Criando...";
+  try {
+    const capa_url = arquivo ? await uploadArquivo(arquivo, "grupos") : null;
+    if (arquivo && !capa_url) { alert("O grupo será criado, mas a imagem não pôde ser enviada. Tenta trocar a capa depois."); }
+    const { error } = await sb.from("igr_grupos").insert({ igreja_id: state.igreja.id, nome, descricao, capa_url });
+    if (error) { alert("Não deu pra criar: " + error.message); return; }
+    document.getElementById("ng-nome").value = "";
+    document.getElementById("ng-descricao").value = "";
+    document.getElementById("ng-capa").value = "";
+    document.getElementById("bloco-novo-grupo").style.display = "none";
+    await recarregarGruposCache();
+    carregarMembrosAdminGrupos();
+  } catch (e) {
+    console.error("Erro ao criar grupo:", e);
+    alert("Não deu pra criar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Criar grupo";
+  }
+}
+
+async function excluirGrupoAdmin() {
+  const grupo = estadoMembrosAdmin.grupoEditando;
+  if (!grupo) return;
+  if (!confirm(`Excluir o grupo/departamento "${grupo.nome}"? Os membros dele ficarão sem grupo, e as células/monitores dele também serão apagados.`)) return;
+  await sb.from("igr_celulas").delete().eq("grupo_id", grupo.id);
+  const { error } = await sb.from("igr_grupos").delete().eq("id", grupo.id);
+  if (error) { alert("Não deu pra excluir: " + error.message); return; }
+  document.getElementById("admin-membros-view-editar-grupo").style.display = "none";
+  await recarregarGruposCache();
+  carregarMembrosAdminGrupos();
+}
+
 async function carregarMembrosAdminGrupos() {
   document.getElementById("admin-membros-view-ficha").style.display = "none";
   document.getElementById("admin-membros-view-lista").style.display = "none";
@@ -4018,6 +4062,7 @@ async function salvarEdicaoGrupoAdmin(ev) {
     const descricao = document.getElementById("eg-descricao").value.trim();
     const arquivo = document.getElementById("eg-capa").files[0];
     const novaCapa = arquivo ? await uploadArquivo(arquivo, "grupos") : null;
+    if (arquivo && !novaCapa) alert("As demais informações serão salvas, mas a imagem não pôde ser enviada. Tenta trocar a capa de novo.");
     const payload = { nome, descricao };
     if (novaCapa) payload.capa_url = novaCapa;
     const { error } = await sb.from("igr_grupos").update(payload).eq("id", grupo.id);
@@ -5132,6 +5177,12 @@ async function iniciar() {
   document.querySelector("[data-voltar-lista-membros]")?.addEventListener("click", () => carregarMembrosAdminGrupos());
   document.querySelector("[data-voltar-editar-grupo]")?.addEventListener("click", () => carregarMembrosAdminGrupos());
   document.getElementById("form-editar-grupo")?.addEventListener("submit", salvarEdicaoGrupoAdmin);
+  document.getElementById("form-novo-grupo")?.addEventListener("submit", criarGrupoAdmin);
+  document.getElementById("btn-excluir-grupo")?.addEventListener("click", excluirGrupoAdmin);
+  document.getElementById("btn-toggle-novo-grupo")?.addEventListener("click", () => {
+    const bloco = document.getElementById("bloco-novo-grupo");
+    bloco.style.display = bloco.style.display === "none" ? "block" : "none";
+  });
   document.querySelector("[data-voltar-ficha-membro]")?.addEventListener("click", () => abrirGrupoDeMembros(estadoMembrosAdmin.grupoId, estadoMembrosAdmin.grupoNome));
   document.getElementById("form-admin-aviso")?.addEventListener("submit", enviarAvisoAdmin);
   document.getElementById("form-admin-pastor")?.addEventListener("submit", enviarPastorAdmin);

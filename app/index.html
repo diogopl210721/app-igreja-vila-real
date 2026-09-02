@@ -318,6 +318,15 @@
           <div class="section-label"><b>Membros por grupo</b></div>
           <p class="hint" style="margin-top:-6px;">Toque num grupo pra ver quem está cadastrado nele, ou no ✏️ pra editar o grupo.</p>
           <div class="admin-grid" id="admin-membros-grupos-grid" style="margin-top:4px;"></div>
+          <button class="btn btn-ghost" id="btn-toggle-novo-grupo" type="button" style="margin-top:14px;border:1.5px dashed var(--brand);">➕ Criar novo grupo/departamento</button>
+          <div class="card" id="bloco-novo-grupo" style="border:1.5px dashed var(--brand);margin-top:10px;display:none;">
+            <form id="form-novo-grupo">
+              <div class="field"><label>Nome do grupo/departamento</label><input id="ng-nome" required placeholder="Ex: Adolescentes"></div>
+              <div class="field"><label>Descrição (opcional)</label><textarea id="ng-descricao" rows="3" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Conte sobre esse grupo"></textarea></div>
+              <div class="field" style="margin-bottom:6px;"><label>Capa (opcional)</label><input id="ng-capa" type="file" accept="image/*"></div>
+              <button class="btn btn-primary" type="submit">Criar grupo</button>
+            </form>
+          </div>
         </div>
 
         <!-- Sub-tela 1b: editar dados do grupo -->
@@ -330,6 +339,7 @@
               <div class="field" style="margin-bottom:6px;"><label>Capa (opcional)</label><input id="eg-capa" type="file" accept="image/*"></div>
               <button class="btn btn-primary" type="submit">Salvar grupo</button>
             </form>
+            <button class="btn btn-ghost" id="btn-excluir-grupo" type="button" style="margin-top:10px;color:#C0392B;">🗑 Excluir este grupo/departamento</button>
           </div>
 
           <div class="section-label"><b>Monitores e grupos deste departamento</b></div>
