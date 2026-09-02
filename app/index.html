@@ -1280,10 +1280,10 @@
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:10px;" id="lef-titulo-tela">Nova escala</span>
 
       <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;">
-        <button class="btn btn-primary" id="lef-tab-detalhes" style="flex:none;padding:8px 14px;font-size:12.5px;">Detalhes</button>
-        <button class="btn btn-ghost" id="lef-tab-participantes" style="flex:none;padding:8px 14px;font-size:12.5px;">Participantes</button>
-        <button class="btn btn-ghost" id="lef-tab-musicas" style="flex:none;padding:8px 14px;font-size:12.5px;">Músicas</button>
-        <button class="btn btn-ghost" id="lef-tab-roteiro" style="flex:none;padding:8px 14px;font-size:12.5px;">Roteiro</button>
+        <button class="btn btn-primary" id="lef-tab-detalhes" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">Detalhes</button>
+        <button class="btn btn-ghost" id="lef-tab-participantes" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">Participantes</button>
+        <button class="btn btn-ghost" id="lef-tab-musicas" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">Músicas</button>
+        <button class="btn btn-ghost" id="lef-tab-roteiro" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">Roteiro</button>
       </div>
 
       <!-- aba Detalhes -->
@@ -1338,16 +1338,32 @@
   <div class="screen" id="tela-louvor-funcoes">
     <div class="scroll no-nav">
       <div class="voltar-btn" data-nav="tela-membro-louvor"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
-      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Funções do grupo</span>
-      <p class="hint" style="margin-bottom:14px;">Os cargos que existem no ministério (Vocalista, Baixo, Bateria...).</p>
-      <form id="form-louvor-funcao" style="display:flex;gap:8px;margin-bottom:14px;">
-        <input id="lf-emoji" placeholder="🎤" style="width:56px;flex:none;padding:13px 10px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);text-align:center;font-size:16px;">
-        <input id="lf-nome" placeholder="Nome da função" required style="flex:1;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;">
-        <button class="btn btn-primary" type="submit" style="width:auto;flex:none;padding:0 16px;">+</button>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;" id="lf-titulo-tela">Funções do grupo</span>
+      <p class="hint" style="margin-bottom:14px;">Os cargos que existem no ministério, e quem costuma tocar cada um.</p>
+      <form id="form-louvor-funcao">
+        <div class="field"><label>Instrumento/função</label>
+          <div id="lf-emoji-opcoes" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>
+          <input type="hidden" id="lf-emoji" value="🎤">
+        </div>
+        <div class="field" style="margin-bottom:6px;"><input id="lf-nome" placeholder="Nome da função (ex: Baixo, Vocalista)" required></div>
+        <button class="btn btn-primary" type="submit">Salvar função</button>
+        <button class="btn btn-ghost" type="button" id="lf-cancelar-edicao" style="display:none;margin-top:8px;">Cancelar edição</button>
       </form>
+      <div class="section-label" style="margin-top:18px;"><b>Funções cadastradas</b></div>
       <div id="louvor-lista-funcoes"></div>
     </div>
   </div>
+
+  <!-- ============ LOUVOR: membros de uma função ============ -->
+  <div class="screen" id="tela-louvor-funcao-membros">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-louvor-funcoes"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;" id="lfm-titulo-tela">Quem toca essa função</span>
+      <p class="hint" style="margin-bottom:14px;">Marque quem do grupo costuma servir nessa função — isso ajuda a sugestão automática de escala.</p>
+      <div id="louvor-lista-funcao-membros"></div>
+    </div>
+  </div>
+
 
   <!-- ============ LOUVOR: repertório ============ -->
   <div class="screen" id="tela-louvor-repertorio">
@@ -1378,7 +1394,12 @@
         <div class="field"><label>Categoria</label><input id="lm-form-categoria" placeholder="Ex: Louvor, Adoração"></div>
         <div class="field"><label>Link Spotify</label><input id="lm-form-spotify" placeholder="https://open.spotify.com/..."></div>
         <div class="field"><label>Link Letra</label><input id="lm-form-letra" placeholder="https://letras.mus.br/..."></div>
-        <div class="field"><label>Link Cifra</label><input id="lm-form-cifra" placeholder="https://cifraclub.com.br/..."></div>
+        <div class="field"><label>Link Cifra</label>
+          <div style="display:flex;gap:8px;">
+            <input id="lm-form-cifra" placeholder="https://cifraclub.com.br/..." style="flex:1;">
+            <button type="button" id="btn-lm-buscar-cifra" class="btn btn-ghost" style="width:auto;flex:none;padding:0 14px;font-size:12px;">✨ Buscar</button>
+          </div>
+        </div>
         <div class="field" style="margin-bottom:6px;"><label>Link Vídeo (YouTube)</label><input id="lm-form-video" placeholder="https://youtube.com/..."></div>
         <button class="btn btn-primary" type="submit">Salvar música</button>
         <button class="btn btn-ghost" type="button" id="btn-lm-excluir" style="display:none;margin-top:8px;color:#C0392B;">🗑 Excluir do repertório</button>
@@ -2054,6 +2075,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788364316"></script>
+<script src="app.js?v=1788365993"></script>
 </body>
 </html>
