@@ -432,8 +432,11 @@
               </div>
               <div class="field"><label>Data de nascimento</label><input id="fm-nascimento" type="date"></div>
               <div class="field"><label>Profissão</label><input id="fm-profissao"></div>
-              <div class="field"><label>Grupo/Departamento</label>
+              <div class="field"><label>Grupo/Departamento principal</label>
                 <select id="fm-grupo"></select>
+              </div>
+              <div class="field" style="margin-bottom:14px;"><label>Também participa de (opcional — pode marcar vários)</label>
+                <div id="fm-outros-grupos" style="display:flex;flex-direction:column;gap:6px;"></div>
               </div>
 
               <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;margin-bottom:10px;">
@@ -958,7 +961,7 @@
       <div class="section-label"><b>Avisos</b></div>
       <div id="home-avisos"></div>
 
-      <button class="btn btn-ghost" id="btn-meu-grupo" style="display:none;margin:6px 0 4px;">📁 Ver meu grupo</button>
+      <div id="meus-grupos-lista" style="display:flex;flex-direction:column;gap:6px;margin:6px 0 4px;"></div>
 
       <button class="btn btn-ghost" id="btn-abrir-aviso-lider" style="display:none;margin:6px 0 4px;border:1.5px dashed var(--brand);">📢 Postar aviso do seu grupo</button>
       <button class="btn btn-ghost" id="btn-abrir-banner-lider" style="display:none;margin-top:10px;border:1.5px dashed var(--brand);">🎨 Criar banner de divulgação</button>
@@ -2078,6 +2081,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788377919"></script>
+<script src="app.js?v=1788378448"></script>
 </body>
 </html>

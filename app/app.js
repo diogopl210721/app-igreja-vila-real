@@ -617,8 +617,8 @@ async function carregarCultos() {
 
 async function carregarAvisos(targetId) {
   const { data } = await sb.from("igr_avisos").select("*").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false }).limit(8);
-  const grupoMembro = state.membro?.grupo_id || null;
-  const visiveis = (data || []).filter(a => !a.grupo_id || a.grupo_id === grupoMembro).slice(0, 5);
+  const meusGrupos = state.membro?.grupoIds || (state.membro?.grupo_id ? [state.membro.grupo_id] : []);
+  const visiveis = (data || []).filter(a => !a.grupo_id || meusGrupos.includes(a.grupo_id)).slice(0, 5);
   const el = document.getElementById(targetId);
   if (!el) return;
 
@@ -1105,12 +1105,22 @@ async function enviarLoginPin(ev) {
   entrarComoMembro(data);
 }
 
-function entrarComoMembro(membro) {
+async function carregarGruposDoMembro() {
+  if (!state.membro) return;
+  const { data } = await sb.from("igr_membros_grupos").select("grupo_id").eq("membro_id", state.membro.id);
+  const ids = (data || []).map(g => g.grupo_id);
+  // garante que o grupo principal (coluna antiga) sempre esta na lista, mesmo se por algum motivo nao foi migrado
+  if (state.membro.grupo_id && !ids.includes(state.membro.grupo_id)) ids.push(state.membro.grupo_id);
+  state.membro.grupoIds = ids;
+  atualizarVisibilidadeLouvor();
+}
+
+async function entrarComoMembro(membro) {
   state.membro = membro;
   localStorage.setItem("igr_membro", JSON.stringify(membro));
   document.getElementById("tema-input").value = "";
   document.getElementById("tema-resultado").innerHTML = "";
-  atualizarVisibilidadeLouvor();
+  await carregarGruposDoMembro();
   if (state.eventoAtual && document.getElementById("evento-card-login-necessario").style.display === "block") {
     abrirEventoDetalhe(state.eventoAtual.id).then(() => escolherSouMembro());
     return;
@@ -1120,10 +1130,11 @@ function entrarComoMembro(membro) {
 }
 
 function atualizarVisibilidadeLouvor() {
-  const grupo = state.grupos.find(g => g.id === state.membro?.grupo_id);
-  const ehLouvor = !!(grupo && /louvor/i.test(grupo.nome || ""));
+  const grupoIds = state.membro?.grupoIds || (state.membro?.grupo_id ? [state.membro.grupo_id] : []);
+  const grupoLouvor = state.grupos.find(g => grupoIds.includes(g.id) && /louvor/i.test(g.nome || ""));
+  if (state.membro) state.membro.grupoLouvorId = grupoLouvor?.id || null;
   document.querySelectorAll("[data-louvor-only]").forEach(el => {
-    el.style.display = ehLouvor ? "flex" : "none";
+    el.style.display = grupoLouvor ? "flex" : "none";
   });
 }
 
@@ -1210,14 +1221,15 @@ async function montarHomeMembro() {
     }
   }
 
-  const btnMeuGrupo = document.getElementById("btn-meu-grupo");
-  if (btnMeuGrupo) {
-    if (m.grupo_id) {
-      btnMeuGrupo.style.display = "block";
-      btnMeuGrupo.onclick = () => abrirGrupoDetalhe(m.grupo_id);
-    } else {
-      btnMeuGrupo.style.display = "none";
-    }
+  const meusGruposEl = document.getElementById("meus-grupos-lista");
+  if (meusGruposEl) {
+    const idsGrupos = m.grupoIds || (m.grupo_id ? [m.grupo_id] : []);
+    const meusGrupos = idsGrupos.map(id => state.grupos.find(g => g.id === id)).filter(Boolean);
+    meusGruposEl.innerHTML = meusGrupos.map(g => `
+      <button class="btn btn-ghost" data-ver-grupo="${g.id}">📁 ${g.nome}${g.id === m.grupo_id ? " (principal)" : ""}</button>
+    `).join("");
+    meusGruposEl.querySelectorAll("[data-ver-grupo]").forEach(btn =>
+      btn.addEventListener("click", () => abrirGrupoDetalhe(btn.dataset.verGrupo)));
   }
 
   // aniversariantes do mês
@@ -1357,9 +1369,10 @@ async function enviarPedidoOracao(ev) {
     document.getElementById("novo-pedido-texto").value = "";
     darPontosUmaVezPorDia("pedido_oracao");
     await carregarPedidosOracao();
-    if (state.membro.grupo_id) {
+    const meusGrupos = state.membro.grupoIds || (state.membro.grupo_id ? [state.membro.grupo_id] : []);
+    if (meusGrupos.length) {
       const { data: lideres } = await sb.from("igr_membros").select("id")
-        .eq("grupo_id", state.membro.grupo_id).eq("eh_lider", true);
+        .in("grupo_id", meusGrupos).eq("eh_lider", true);
       if (lideres && lideres.length) {
         enviarPush({ tipo: "membros", membro_ids: lideres.map(l => l.id) },
           "Novo pedido de oração 🙏", `${state.membro.nome_completo.split(" ")[0]} enviou um pedido de oração.`);
@@ -4218,6 +4231,23 @@ function souLiderLouvor() {
   return !!(state.membro?.eh_lider && (state.membro?.permissoes || []).includes("gerenciar_louvor"));
 }
 
+// pega todo mundo do grupo de Louvor, incluindo quem tem Louvor como grupo adicional (nao so principal)
+async function membrosDoGrupoLouvor() {
+  const grupoLouvorId = state.membro.grupoLouvorId;
+  if (!grupoLouvorId) return [];
+  const [{ data: porPrincipal }, { data: vinculos }] = await Promise.all([
+    sb.from("igr_membros").select("id, nome_completo, foto_url").eq("grupo_id", grupoLouvorId),
+    sb.from("igr_membros_grupos").select("membro_id").eq("grupo_id", grupoLouvorId),
+  ]);
+  let membros = porPrincipal || [];
+  const idsExtras = (vinculos || []).map(v => v.membro_id).filter(id => !membros.some(m => m.id === id));
+  if (idsExtras.length) {
+    const { data: extras } = await sb.from("igr_membros").select("id, nome_completo, foto_url").in("id", idsExtras);
+    membros = membros.concat(extras || []);
+  }
+  return membros.sort((a, b) => (a.nome_completo || "").localeCompare(b.nome_completo || ""));
+}
+
 async function carregarLouvor() {
   const podeGerenciar = souLiderLouvor();
   document.getElementById("louvor-gerenciar-box").style.display = podeGerenciar ? "block" : "none";
@@ -4228,7 +4258,7 @@ async function carregarLouvor() {
 
   let escalas = [];
   if (podeGerenciar) {
-    const { data } = await sb.from("igr_louvor_escalas").select("*").eq("grupo_id", state.membro.grupo_id)
+    const { data } = await sb.from("igr_louvor_escalas").select("*").eq("grupo_id", state.membro.grupoLouvorId)
       .gte("data", hoje).order("data", { ascending: true }).limit(5);
     escalas = data || [];
   } else if (state.membro) {
@@ -4258,7 +4288,7 @@ async function carregarListaEscalasLouvor(tipo) {
   const el = document.getElementById("louvor-lista-escalas");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
   const hoje = new Date().toISOString().slice(0, 10);
-  let q = sb.from("igr_louvor_escalas").select("*").eq("grupo_id", state.membro.grupo_id);
+  let q = sb.from("igr_louvor_escalas").select("*").eq("grupo_id", state.membro.grupoLouvorId);
   q = tipo === "proximas" ? q.gte("data", hoje).order("data", { ascending: true }) : q.lt("data", hoje).order("data", { ascending: false });
   const { data: escalas } = await q.limit(40);
   const visiveis = souLiderLouvor() ? (escalas || []) : (escalas || []).filter(e => e.publicada);
@@ -4385,7 +4415,7 @@ async function garantirEscalaCriada() {
   if (!titulo || !data) { alert("Preencha pelo menos o título e a data da escala primeiro, lá em cima."); return null; }
   const payload = lerCamposDetalhesEscalaLouvor();
   const { data: nova, error } = await sb.from("igr_louvor_escalas").insert({
-    ...payload, igreja_id: state.igreja.id, grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id,
+    ...payload, igreja_id: state.igreja.id, grupo_id: state.membro.grupoLouvorId, criado_por_membro_id: state.membro.id,
   }).select().single();
   if (error) { alert("Não deu pra criar a escala: " + error.message); return null; }
   state.louvorEscalaEditando = nova;
@@ -4470,7 +4500,7 @@ function configurarBuscaParticipanteLouvor() {
   input.addEventListener("input", async () => {
     const termo = normalizarBusca(input.value);
     if (!termo) { sugestoesEl.style.display = "none"; return; }
-    const { data: membros } = await sb.from("igr_membros").select("id, nome_completo").eq("grupo_id", state.membro.grupo_id);
+    const membros = await membrosDoGrupoLouvor();
     const bateram = (membros || []).filter(m => normalizarBusca(m.nome_completo).includes(termo)).slice(0, 6);
     if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
     sugestoesEl.innerHTML = bateram.map(m => `<div class="autocomplete-item" data-participante-id="${m.id}" data-participante-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
@@ -4480,7 +4510,7 @@ function configurarBuscaParticipanteLouvor() {
         sugestoesEl.style.display = "none";
         input.value = item.dataset.participanteNome;
         state.louvorParticipanteSelecionado = { id: item.dataset.participanteId, nome: item.dataset.participanteNome };
-        const { data: funcoes } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupo_id).order("ordem");
+        const { data: funcoes } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("ordem");
         const select = document.getElementById("lef-funcao-select");
         select.innerHTML = `<option value="">Sem função específica</option>` + (funcoes || []).map(f => `<option value="${f.id}">${f.emoji || ""} ${f.nome}</option>`).join("");
         document.getElementById("lef-nome-selecionado").textContent = item.dataset.participanteNome;
@@ -4510,13 +4540,13 @@ async function confirmarAdicionarParticipanteLouvor() {
 async function sugerirParticipantesLouvor() {
   const escalaId = await garantirEscalaCriada();
   if (!escalaId) return;
-  const { data: funcoes } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupo_id).order("ordem");
+  const { data: funcoes } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("ordem");
   const { data: jaEscalados } = await sb.from("igr_louvor_escala_participantes").select("funcao_id").eq("escala_id", escalaId);
   const funcoesFaltando = (funcoes || []).filter(f => !(jaEscalados || []).some(p => p.funcao_id === f.id));
   if (!funcoesFaltando.length) { alert("Todas as funções já têm alguém escalado."); return; }
 
-  const [{ data: membros }, { data: historico }, { data: vinculos }] = await Promise.all([
-    sb.from("igr_membros").select("id, nome_completo").eq("grupo_id", state.membro.grupo_id),
+  const [membros, { data: historico }, { data: vinculos }] = await Promise.all([
+    membrosDoGrupoLouvor(),
     sb.from("igr_louvor_escala_participantes").select("membro_id, funcao_id, igr_louvor_escalas!inner(data)").order("igr_louvor_escalas(data)", { ascending: false }),
     sb.from("igr_louvor_membro_funcoes").select("membro_id, funcao_id"),
   ]);
@@ -4568,7 +4598,7 @@ function configurarBuscaMusicaLouvor() {
   input.addEventListener("input", async () => {
     const termo = normalizarBusca(input.value);
     if (!termo) { sugestoesEl.style.display = "none"; return; }
-    const { data: musicas } = await sb.from("igr_louvor_musicas").select("id, titulo, artista").eq("grupo_id", state.membro.grupo_id);
+    const { data: musicas } = await sb.from("igr_louvor_musicas").select("id, titulo, artista").eq("grupo_id", state.membro.grupoLouvorId);
     const bateram = (musicas || []).filter(m => normalizarBusca(m.titulo + " " + (m.artista || "")).includes(termo)).slice(0, 6);
     if (!bateram.length) {
       sugestoesEl.innerHTML = `<div class="autocomplete-item" style="color:var(--ink-faint);">Nenhuma música encontrada no repertório.</div>`;
@@ -4598,7 +4628,7 @@ function configurarBuscaMusicaLouvor() {
 async function sugerirMusicasLouvor() {
   const escalaId = await garantirEscalaCriada();
   if (!escalaId) return;
-  const { data: musicas } = await sb.from("igr_louvor_musicas").select("id, titulo").eq("grupo_id", state.membro.grupo_id);
+  const { data: musicas } = await sb.from("igr_louvor_musicas").select("id, titulo").eq("grupo_id", state.membro.grupoLouvorId);
   if (!musicas || !musicas.length) { alert("O repertório está vazio."); return; }
   const { data: usoRecente } = await sb.from("igr_louvor_escala_musicas")
     .select("musica_id, igr_louvor_escalas!inner(data)").order("igr_louvor_escalas(data)", { ascending: false }).limit(60);
@@ -4683,7 +4713,7 @@ async function carregarFuncoesLouvor() {
   const podeGerenciar = souLiderLouvor();
   document.getElementById("form-louvor-funcao").style.display = podeGerenciar ? "block" : "none";
   const el = document.getElementById("louvor-lista-funcoes");
-  const { data } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupo_id).order("ordem");
+  const { data } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("ordem");
   state.louvorFuncoesCache = data || [];
   el.innerHTML = (data || []).map(f => `
     <div class="card row-avatar" style="padding:9px 14px;">
@@ -4744,8 +4774,8 @@ async function enviarFuncaoLouvor(ev) {
     if (error) { alert("Não deu pra salvar: " + error.message); return; }
     cancelarEdicaoFuncaoLouvor();
   } else {
-    const { count } = await sb.from("igr_louvor_funcoes").select("id", { count: "exact", head: true }).eq("grupo_id", state.membro.grupo_id);
-    const { error } = await sb.from("igr_louvor_funcoes").insert({ igreja_id: state.igreja.id, grupo_id: state.membro.grupo_id, nome, emoji, ordem: count || 0 });
+    const { count } = await sb.from("igr_louvor_funcoes").select("id", { count: "exact", head: true }).eq("grupo_id", state.membro.grupoLouvorId);
+    const { error } = await sb.from("igr_louvor_funcoes").insert({ igreja_id: state.igreja.id, grupo_id: state.membro.grupoLouvorId, nome, emoji, ordem: count || 0 });
     if (error) { alert("Não deu pra adicionar: " + error.message); return; }
     ev.target.reset();
     document.getElementById("lf-emoji").value = "🎤";
@@ -4760,8 +4790,8 @@ async function abrirMembrosDaFuncaoLouvor(funcao) {
   document.getElementById("lfm-titulo-tela").textContent = `${funcao.emoji} Quem toca ${funcao.nome}`;
   const el = document.getElementById("louvor-lista-funcao-membros");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
-  const [{ data: membros }, { data: vinculos }] = await Promise.all([
-    sb.from("igr_membros").select("id, nome_completo, foto_url").eq("grupo_id", state.membro.grupo_id).order("nome_completo"),
+  const [membros, { data: vinculos }] = await Promise.all([
+    membrosDoGrupoLouvor(),
     sb.from("igr_louvor_membro_funcoes").select("membro_id").eq("funcao_id", funcao.id),
   ]);
   const marcados = new Set((vinculos || []).map(v => v.membro_id));
@@ -4787,7 +4817,7 @@ async function carregarRepertorioLouvor() {
   const el = document.getElementById("louvor-lista-repertorio");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
   document.getElementById("btn-lr-nova-musica").style.display = souLiderLouvor() ? "block" : "none";
-  const { data } = await sb.from("igr_louvor_musicas").select("*").eq("grupo_id", state.membro.grupo_id).order("titulo");
+  const { data } = await sb.from("igr_louvor_musicas").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("titulo");
   state.louvorRepertorioCache = data || [];
   renderizarRepertorioLouvor(document.getElementById("lr-busca").value);
 }
@@ -4887,7 +4917,7 @@ async function enviarMusicaLouvor(ev) {
     const editando = state.louvorMusicaEditando;
     const { error } = editando
       ? await sb.from("igr_louvor_musicas").update(payload).eq("id", editando.id)
-      : await sb.from("igr_louvor_musicas").insert({ ...payload, igreja_id: state.igreja.id, grupo_id: state.membro.grupo_id });
+      : await sb.from("igr_louvor_musicas").insert({ ...payload, igreja_id: state.igreja.id, grupo_id: state.membro.grupoLouvorId });
     if (error) { alert("Não deu pra salvar: " + error.message); return; }
     mostrarTela("tela-louvor-repertorio");
     carregarRepertorioLouvor();
@@ -4911,7 +4941,7 @@ async function excluirMusicaLouvor() {
 async function carregarVisaoGeralLouvor() {
   const el = document.getElementById("louvor-visao-geral-grid");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
-  const grupoId = state.membro.grupo_id;
+  const grupoId = state.membro.grupoLouvorId;
   const [{ count: totalEscalas }, { count: totalMusicas }, { data: participantesTodos }] = await Promise.all([
     sb.from("igr_louvor_escalas").select("id", { count: "exact", head: true }).eq("grupo_id", grupoId),
     sb.from("igr_louvor_musicas").select("id", { count: "exact", head: true }).eq("grupo_id", grupoId),
@@ -5273,9 +5303,15 @@ async function carregarMembrosAdminGrupos() {
   const grid = document.getElementById("admin-membros-grupos-grid");
   grid.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
 
-  const { data } = await sb.from("igr_membros").select("grupo_id").eq("igreja_id", state.igreja.id);
+  const [{ data: porPrincipal }, { data: vinculos }] = await Promise.all([
+    sb.from("igr_membros").select("id, grupo_id").eq("igreja_id", state.igreja.id),
+    sb.from("igr_membros_grupos").select("membro_id, grupo_id"),
+  ]);
+  const pares = new Set();
+  (porPrincipal || []).forEach(m => { if (m.grupo_id) pares.add(m.id + "|" + m.grupo_id); });
+  (vinculos || []).forEach(v => pares.add(v.membro_id + "|" + v.grupo_id));
   const contagem = {};
-  (data || []).forEach(m => { if (m.grupo_id) contagem[m.grupo_id] = (contagem[m.grupo_id] || 0) + 1; });
+  pares.forEach(p => { const grupoId = p.split("|")[1]; contagem[grupoId] = (contagem[grupoId] || 0) + 1; });
 
   grid.innerHTML = (state.grupos || []).map(g => `
     <div class="admin-grid-card" style="position:relative;cursor:default;" data-grupo-membros="${g.id}" data-grupo-nome="${g.nome}">
@@ -5351,13 +5387,23 @@ async function abrirGrupoDeMembros(grupoId, grupoNome) {
   const el = document.getElementById("admin-membros-lista");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
 
-  const { data } = await sb.from("igr_membros").select("*").eq("igreja_id", state.igreja.id).eq("grupo_id", grupoId).order("nome_completo");
+  const [{ data: porPrincipal }, { data: vinculos }] = await Promise.all([
+    sb.from("igr_membros").select("*").eq("igreja_id", state.igreja.id).eq("grupo_id", grupoId),
+    sb.from("igr_membros_grupos").select("membro_id").eq("grupo_id", grupoId),
+  ]);
+  let data = porPrincipal || [];
+  const idsExtras = (vinculos || []).map(v => v.membro_id).filter(id => !data.some(m => m.id === id));
+  if (idsExtras.length) {
+    const { data: extras } = await sb.from("igr_membros").select("*").in("id", idsExtras);
+    data = data.concat(extras || []);
+  }
+  data.sort((a, b) => (a.nome_completo || "").localeCompare(b.nome_completo || ""));
 
   el.innerHTML = (data || []).map(m => `
     <div class="card" data-abrir-ficha="${m.id}" style="cursor:pointer;">
       <div class="row-avatar">
         ${avatarIniciais(m.nome_completo)}
-        <div class="row-info"><b>${m.nome_completo}</b><span>${m.telefone}${m.eh_lider ? " · líder" : ""}</span></div>
+        <div class="row-info"><b>${m.nome_completo}</b><span>${m.telefone}${m.eh_lider ? " · líder" : ""}${m.grupo_id !== grupoId ? " · participa também daqui" : ""}</span></div>
       </div>
     </div>
   `).join("") || `<div class="empty">Nenhum membro cadastrado neste grupo ainda.</div>`;
@@ -5385,6 +5431,13 @@ async function abrirFichaMembro(membroId) {
 
   const selectGrupo = document.getElementById("fm-grupo");
   selectGrupo.innerHTML = (state.grupos || []).map(g => `<option value="${g.id}" ${g.id === m.grupo_id ? "selected" : ""}>${g.nome}</option>`).join("");
+
+  const { data: outrosVinculos } = await sb.from("igr_membros_grupos").select("grupo_id").eq("membro_id", membroId);
+  const idsOutros = new Set((outrosVinculos || []).map(v => v.grupo_id));
+  const outrosGruposEl = document.getElementById("fm-outros-grupos");
+  outrosGruposEl.innerHTML = (state.grupos || []).map(g => `
+    <label class="interesse-item"><input type="checkbox" value="${g.id}" ${idsOutros.has(g.id) ? "checked" : ""}> ${g.nome}</label>
+  `).join("");
 
   const ehLider = document.getElementById("fm-eh-lider");
   ehLider.checked = !!m.eh_lider;
@@ -5455,8 +5508,16 @@ async function salvarFichaMembro(ev) {
   };
 
   const { error } = await sb.from("igr_membros").update(payload).eq("id", id);
+  if (error) { btn.disabled = false; btn.textContent = "Salvar alterações"; alert("Não deu pra salvar: " + error.message); return; }
+
+  const outrosMarcados = Array.from(document.querySelectorAll("#fm-outros-grupos input:checked")).map(c => c.value);
+  const todosGrupos = [...new Set([payload.grupo_id, ...outrosMarcados])];
+  await sb.from("igr_membros_grupos").delete().eq("membro_id", id);
+  if (todosGrupos.length) {
+    await sb.from("igr_membros_grupos").insert(todosGrupos.map(grupo_id => ({ membro_id: id, grupo_id })));
+  }
+
   btn.disabled = false; btn.textContent = "Salvar alterações";
-  if (error) { alert("Não deu pra salvar: " + error.message); return; }
   await abrirGrupoDeMembros(estadoMembrosAdmin.grupoId, estadoMembrosAdmin.grupoNome);
 }
 
@@ -6870,7 +6931,7 @@ async function iniciar() {
     try {
       const { data } = await sb.from("igr_membros").select("*").eq("id", state.membro.id).maybeSingle();
       if (data) {
-        state.membro = data; atualizarVisibilidadeLouvor();
+        state.membro = data; await carregarGruposDoMembro();
         await montarHomeMembro();
         mostrarTela("tela-membro-home");
         document.getElementById("tela-carregando-inicial")?.remove();
