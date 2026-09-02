@@ -4840,7 +4840,14 @@ async function identificarMusicaComIA() {
   status.style.display = "block";
   try {
     const { data, error } = await sb.functions.invoke("igr-identificar-musica", { body: { titulo: titulo || null, linkCifra: linkCifra || null } });
-    if (error || !data?.ok) { status.textContent = data?.error || "Não consegui buscar agora."; return; }
+    if (error || !data?.ok) {
+      let mensagem = data?.error;
+      if (!mensagem && error?.context?.json) {
+        try { mensagem = (await error.context.json())?.error; } catch { /* segue sem mensagem detalhada */ }
+      }
+      status.textContent = mensagem || "Não consegui buscar agora.";
+      return;
+    }
     if (!document.getElementById("lm-form-titulo").value.trim() && data.titulo) document.getElementById("lm-form-titulo").value = data.titulo;
     if (!document.getElementById("lm-form-artista").value.trim() && data.artista) document.getElementById("lm-form-artista").value = data.artista;
     if (!document.getElementById("lm-form-tom").value.trim() && data.tom) document.getElementById("lm-form-tom").value = data.tom;
