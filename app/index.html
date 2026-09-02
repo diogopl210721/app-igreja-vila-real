@@ -143,6 +143,7 @@
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
         <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Calendário</button>
         <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Bíblia</button>
+        <button class="quicklink" data-nav="tela-biblioteca"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Livros</button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
         <a href="#form-visitante" class="quicklink"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Contato</a>
         <button class="quicklink" data-nav="tela-login"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Entrar / Cadastro</button>
@@ -599,6 +600,7 @@
             <div class="field"><label>Sinopse (ajuda a IA a recomendar o livro certo pra cada pessoa)</label>
               <textarea id="al-sinopse" rows="3" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Sobre o que é o livro, pra quem ele ajuda..."></textarea>
             </div>
+            <div class="field"><label>Nichos (separados por vírgula — ajuda na busca)</label><input id="al-nichos" placeholder="Ex: Evangélico, Finanças, Motivação"></div>
             <div class="field"><label>Capa</label><input id="al-capa" type="file" accept="image/*" required></div>
             <p class="hint" id="al-status-ia" style="display:none;margin:-8px 0 12px;">✨ Identificando o livro pela capa...</p>
             <div class="field" style="margin-bottom:6px;"><label>Arquivo do livro (PDF)</label><input id="al-arquivo" type="file" accept="application/pdf" required></div>
@@ -1508,10 +1510,12 @@
 
   <div class="screen" id="tela-biblioteca">
     <div class="scroll no-nav">
-      <div class="voltar-btn" data-nav="tela-membro-home"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <div class="voltar-btn" id="biblioteca-voltar" data-nav="tela-visitante"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Livros</span>
-      <p class="hint" style="margin-bottom:14px;">Toque numa capa pra ler — a leitura fica salva de onde você parar.</p>
-      <div id="biblioteca-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;"><p class="hint"><span class="loading-dot"></span></p></div>
+      <p class="hint" style="margin-bottom:12px;">Toque num livro pra ler — a leitura fica salva de onde você parar.</p>
+      <div class="field"><input id="biblioteca-busca" placeholder="Buscar por título ou nicho (ex: finanças)..."></div>
+      <div id="biblioteca-nichos-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px;"></div>
+      <div id="biblioteca-lista" style="display:flex;flex-direction:column;gap:12px;"><p class="hint"><span class="loading-dot"></span></p></div>
     </div>
   </div>
 
@@ -1921,6 +1925,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788359117"></script>
+<script src="app.js?v=1788359848"></script>
 </body>
 </html>

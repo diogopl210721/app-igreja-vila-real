@@ -2781,9 +2781,14 @@ if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 }
 
+function normalizarBusca(s) {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
 async function abrirBiblioteca() {
-  const grid = document.getElementById("biblioteca-grid");
-  grid.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  document.getElementById("biblioteca-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
+  const lista = document.getElementById("biblioteca-lista");
+  lista.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
   const { data: livros } = await sb.from("igr_livros").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
   state.livrosCache = livros || [];
 
@@ -2792,26 +2797,84 @@ async function abrirBiblioteca() {
     const { data: progresso } = await sb.from("igr_livros_progresso").select("*").eq("membro_id", state.membro.id);
     (progresso || []).forEach(p => { progressoMapa[p.livro_id] = p; });
   }
+  state.livrosProgressoMapa = progressoMapa;
 
-  grid.innerHTML = (livros || []).map(l => {
-    const prog = progressoMapa[l.id];
+  const todosNichos = [...new Set(state.livrosCache.flatMap(l => l.nichos || []))].sort();
+  const pillsEl = document.getElementById("biblioteca-nichos-pills");
+  pillsEl.innerHTML = todosNichos.map(n => `<button type="button" class="badge-inline" data-pill-nicho="${n}" style="border:none;cursor:pointer;">${n}</button>`).join("");
+  pillsEl.querySelectorAll("[data-pill-nicho]").forEach(pill => {
+    pill.addEventListener("click", () => {
+      const campo = document.getElementById("biblioteca-busca");
+      campo.value = campo.value.trim() === pill.dataset.pillNicho ? "" : pill.dataset.pillNicho;
+      renderizarListaLivros(campo.value);
+    });
+  });
+
+  renderizarListaLivros(document.getElementById("biblioteca-busca").value);
+}
+
+function renderizarListaLivros(termoBusca) {
+  const lista = document.getElementById("biblioteca-lista");
+  const termo = normalizarBusca(termoBusca);
+  const livros = (state.livrosCache || []).filter(l => {
+    if (!termo) return true;
+    const alvo = normalizarBusca(l.titulo + " " + (l.autor || "") + " " + (l.nichos || []).join(" "));
+    return alvo.includes(termo);
+  });
+
+  lista.innerHTML = livros.map(l => {
+    const prog = state.livrosProgressoMapa?.[l.id];
     const pct = prog && prog.total_paginas ? Math.round((prog.pagina_atual / prog.total_paginas) * 100) : 0;
+    const sinopse = l.sinopse || "";
+    const sinopseCurta = sinopse.length > 110 ? sinopse.slice(0, 110) + "…" : sinopse;
     return `
-      <div data-abrir-livro="${l.id}" style="cursor:pointer;">
-        <img src="${l.capa_url}" alt="${l.titulo}" style="width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:12px;box-shadow:var(--shadow);">
-        <div style="background:var(--bg);border-radius:6px;height:5px;overflow:hidden;margin-top:8px;"><div style="height:100%;background:var(--brand);width:${pct}%;"></div></div>
-        <p class="hint" style="margin:2px 0 0;">${pct > 0 ? `${pct}% lido` : "Ainda não começou"}</p>
+      <div class="card" data-abrir-livro="${l.id}" style="display:flex;gap:12px;cursor:pointer;">
+        <img src="${l.capa_url}" alt="${l.titulo}" style="width:60px;height:90px;object-fit:cover;border-radius:8px;flex:none;box-shadow:var(--shadow);">
+        <div style="flex:1;min-width:0;">
+          <b style="font-size:14px;display:block;line-height:1.25;">${l.titulo}</b>
+          ${l.autor ? `<span class="hint" style="margin:0;">${l.autor}</span>` : ""}
+          ${sinopse ? `<p data-sinopse-texto style="font-size:12px;color:var(--ink-soft);margin:5px 0 0;line-height:1.4;">${sinopseCurta}</p>` : ""}
+          ${sinopse.length > 110 ? `<button type="button" data-expandir-sinopse="${l.id}" style="color:var(--brand);font-weight:700;font-size:11.5px;cursor:pointer;background:none;border:none;padding:0;margin-top:2px;">Ler mais</button>` : ""}
+          ${(l.nichos || []).length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${l.nichos.map(n => `<span class="badge-inline" style="font-size:10px;">${n}</span>`).join("")}</div>` : ""}
+          <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+            <div style="flex:1;background:var(--line);border-radius:999px;height:5px;overflow:hidden;"><div style="height:100%;background:${pct >= 100 ? "var(--mint)" : "var(--brand)"};border-radius:999px;width:${pct}%;"></div></div>
+            <span style="font-size:10.5px;font-weight:700;color:${pct > 0 ? "var(--brand)" : "var(--ink-faint)"};flex:none;">${pct}%</span>
+            <button type="button" class="btn btn-ghost" style="width:auto;flex:none;padding:5px 10px;font-size:11px;" data-compartilhar-livro="${l.id}">📤</button>
+          </div>
+        </div>
       </div>
     `;
-  }).join("") || `<p class="hint">Nenhum livro na biblioteca ainda.</p>`;
+  }).join("") || `<p class="hint">${termoBusca ? "Nenhum livro encontrado com essa busca." : "Nenhum livro na biblioteca ainda."}</p>`;
 
-  grid.querySelectorAll("[data-abrir-livro]").forEach(el => {
+  lista.querySelectorAll("[data-abrir-livro]").forEach(el => {
     el.addEventListener("click", () => abrirLeituraLivro(el.dataset.abrirLivro));
+  });
+  lista.querySelectorAll("[data-expandir-sinopse]").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const livro = state.livrosCache.find(l => l.id === btn.dataset.expandirSinopse);
+      const p = btn.previousElementSibling.matches("[data-sinopse-texto]") ? btn.previousElementSibling : btn.parentElement.querySelector("[data-sinopse-texto]");
+      p.textContent = livro.sinopse;
+      btn.remove();
+    });
+  });
+  lista.querySelectorAll("[data-compartilhar-livro]").forEach(btn => {
+    btn.addEventListener("click", (ev) => { ev.stopPropagation(); compartilharLivro(btn.dataset.compartilharLivro); });
   });
 }
 
+async function compartilharLivro(livroId) {
+  const livro = state.livrosCache?.find(l => l.id === livroId);
+  if (!livro) return;
+  const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
+  const texto = `📚 To lendo "${livro.titulo}"${livro.autor ? ` de ${livro.autor}` : ""} na biblioteca do app da ${state.igreja?.nome || "igreja"}! Se ainda não é membro, dá uma olhada e visite a gente: ${link}`;
+  if (navigator.share) {
+    try { await navigator.share({ text: texto }); return; } catch { /* usuário cancelou, sem problema */ }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+}
+
 async function abrirLeituraLivro(livroId) {
-  if (!state.membro) { alert("Faça login pra ler os livros da biblioteca."); return; }
   const livro = state.livrosCache?.find(l => l.id === livroId);
   if (!livro) return;
 
@@ -2819,17 +2882,24 @@ async function abrirLeituraLivro(livroId) {
   document.getElementById("leitura-titulo-livro").textContent = livro.titulo;
   document.getElementById("leitura-progresso-texto").textContent = "Carregando...";
 
-  let { data: progresso } = await sb.from("igr_livros_progresso").select("*").eq("membro_id", state.membro.id).eq("livro_id", livroId).maybeSingle();
+  let progresso = null;
+  if (state.membro) {
+    const { data } = await sb.from("igr_livros_progresso").select("*").eq("membro_id", state.membro.id).eq("livro_id", livroId).maybeSingle();
+    progresso = data;
+  }
 
   const pdf = await pdfjsLib.getDocument(livro.arquivo_url).promise;
   state.leituraAtual = { livro, pdf, paginaAtual: progresso?.pagina_atual || 1, paginaInicial: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id, zoom: 1 };
-  if (!progresso) {
-    const { data: novo } = await sb.from("igr_livros_progresso")
-      .insert({ membro_id: state.membro.id, livro_id: livroId, pagina_atual: 1, total_paginas: pdf.numPages })
-      .select().single();
-    state.leituraAtual.progressoId = novo?.id;
-  } else if (progresso.total_paginas !== pdf.numPages) {
-    await sb.from("igr_livros_progresso").update({ total_paginas: pdf.numPages }).eq("id", progresso.id);
+
+  if (state.membro) {
+    if (!progresso) {
+      const { data: novo } = await sb.from("igr_livros_progresso")
+        .insert({ membro_id: state.membro.id, livro_id: livroId, pagina_atual: 1, total_paginas: pdf.numPages })
+        .select().single();
+      state.leituraAtual.progressoId = novo?.id;
+    } else if (progresso.total_paginas !== pdf.numPages) {
+      await sb.from("igr_livros_progresso").update({ total_paginas: pdf.numPages }).eq("id", progresso.id);
+    }
   }
 
   await renderizarPaginaLivro();
@@ -5433,9 +5503,11 @@ async function identificarLivroPelaCapa(arquivo) {
     const tituloEl = document.getElementById("al-titulo");
     const autorEl = document.getElementById("al-autor");
     const sinopseEl = document.getElementById("al-sinopse");
+    const nichosEl = document.getElementById("al-nichos");
     if (!tituloEl.value.trim() && data.titulo) tituloEl.value = data.titulo;
     if (!autorEl.value.trim() && data.autor) autorEl.value = data.autor;
     if (!sinopseEl.value.trim() && data.sinopse) sinopseEl.value = data.sinopse;
+    if (!nichosEl.value.trim() && Array.isArray(data.nichos) && data.nichos.length) nichosEl.value = data.nichos.join(", ");
     if (data.confianca !== "alta") {
       status.textContent = "✨ Preenchido automaticamente (confira e corrija se precisar).";
       setTimeout(() => { status.style.display = "none"; }, 4000);
@@ -5453,6 +5525,7 @@ async function enviarLivroAdmin(ev) {
   const titulo = document.getElementById("al-titulo").value.trim();
   const autor = document.getElementById("al-autor").value.trim();
   const sinopse = document.getElementById("al-sinopse").value.trim();
+  const nichos = document.getElementById("al-nichos").value.split(",").map(n => n.trim()).filter(Boolean);
   const arquivoCapa = document.getElementById("al-capa").files[0];
   const arquivoPdf = document.getElementById("al-arquivo").files[0];
   if (!titulo || !arquivoCapa || !arquivoPdf) { alert("Preencha o título e envie a capa e o arquivo do livro."); return; }
@@ -5466,7 +5539,7 @@ async function enviarLivroAdmin(ev) {
     ]);
     if (!capa_url || !arquivo_url) { alert("Não deu pra enviar a capa e/ou o arquivo. Tenta de novo."); return; }
     const { error } = await sb.from("igr_livros").insert({
-      igreja_id: state.igreja.id, titulo, autor: autor || null, sinopse: sinopse || null, capa_url, arquivo_url,
+      igreja_id: state.igreja.id, titulo, autor: autor || null, sinopse: sinopse || null, nichos: nichos.length ? nichos : null, capa_url, arquivo_url,
     });
     if (error) { alert("Não deu pra publicar o livro: " + error.message); return; }
     ev.target.reset();
@@ -5955,6 +6028,7 @@ async function iniciar() {
     if (arquivo) identificarLivroPelaCapa(arquivo);
   });
   document.getElementById("btn-voltar-leitura")?.addEventListener("click", sairDaLeitura);
+  document.getElementById("biblioteca-busca")?.addEventListener("input", (ev) => renderizarListaLivros(ev.target.value));
   document.getElementById("btn-pagina-anterior")?.addEventListener("click", () => mudarPaginaLivro(-1));
   document.getElementById("btn-voltar-chat")?.addEventListener("click", sairDoChat);
   document.getElementById("form-chat-enviar")?.addEventListener("submit", enviarMensagemChat);
