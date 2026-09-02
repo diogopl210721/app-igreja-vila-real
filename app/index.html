@@ -48,10 +48,13 @@
 
 <div id="app">
 
-  <div id="tela-carregando-inicial" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:999;">
-    <img src="assets/logo.png" alt="" style="width:64px;height:64px;object-fit:contain;">
-    <span class="loading-dot"></span>
+  <div id="tela-carregando-inicial" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:999;">
+    <img src="assets/logo.png" alt="" style="width:150px;height:150px;object-fit:contain;">
+    <div style="width:160px;height:5px;border-radius:999px;background:var(--line);overflow:hidden;">
+      <div style="width:40%;height:100%;border-radius:999px;background:var(--brand);animation:barraCarregando 1.1s ease-in-out infinite;"></div>
+    </div>
   </div>
+  <style>@keyframes barraCarregando{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}</style>
 
   <!-- ============ BARRA SUPERIOR GLOBAL ============ -->
   <header class="appbar">
@@ -1925,6 +1928,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788359848"></script>
+<script src="app.js?v=1788360001"></script>
 </body>
 </html>
