@@ -686,6 +686,7 @@ async function concluirCadastro(ev) {
   const nome_completo = document.getElementById("cad-nome").value.trim();
   const data_nascimento = document.getElementById("cad-nascimento").value;
   const endereco = document.getElementById("cad-endereco").value.trim();
+  const numero = document.getElementById("cad-numero").value.trim() || null;
   const telefone = limparTelefone(document.getElementById("cad-telefone").value);
   const pin = document.getElementById("cad-senha").value.trim();
   const pinConfirmar = document.getElementById("cad-senha-confirmar").value.trim();
@@ -729,7 +730,7 @@ async function concluirCadastro(ev) {
     const { grupo } = data_nascimento ? classificarVisitante(data_nascimento, genero, estado_civil) : { grupo: null };
 
     const { data, error } = await sb.from("igr_membros").insert({
-      igreja_id: state.igreja.id, nome_completo, telefone, endereco,
+      igreja_id: state.igreja.id, nome_completo, telefone, endereco, numero,
       data_nascimento: data_nascimento || null,
       genero, estado_civil,
       grupo_id: grupo?.id || null,
@@ -820,6 +821,7 @@ function abrirEditarPerfil() {
   document.getElementById("ep-email").value = m.email || "";
   definirValorData("ep-nascimento", m.data_nascimento);
   document.getElementById("ep-endereco").value = m.endereco || "";
+  document.getElementById("ep-numero").value = m.numero || "";
   document.getElementById("ep-profissao").value = m.profissao || "";
   document.getElementById("ep-foto-preview").src = m.foto_url || "assets/logo.png";
   state.fotoPerfilRecortada = null;
@@ -868,6 +870,7 @@ async function enviarEditarPerfil(ev) {
   const email = document.getElementById("ep-email").value.trim() || null;
   const data_nascimento = document.getElementById("ep-nascimento").value || null;
   const endereco = document.getElementById("ep-endereco").value.trim();
+  const numero = document.getElementById("ep-numero").value.trim() || null;
   const profissao = document.getElementById("ep-profissao").value.trim() || null;
   const interesses = coletarInteresses("ep-interesses-lista", "ep-interesse-outro");
   const batizadoResp = document.getElementById("ep-batizado").value;
@@ -889,7 +892,7 @@ async function enviarEditarPerfil(ev) {
     const novaFoto = await uploadArquivo(arquivoFoto, "membros");
     const foto_url = novaFoto || state.membro.foto_url || null;
     const { error } = await sb.from("igr_membros").update({
-      nome_completo, telefone, email, data_nascimento, endereco, interesses, profissao, foto_url,
+      nome_completo, telefone, email, data_nascimento, endereco, numero, interesses, profissao, foto_url,
       batizado, data_batismo, pastor_batismo, perfil_completo: true,
     }).eq("id", state.membro.id);
     if (error) {
@@ -905,7 +908,7 @@ async function enviarEditarPerfil(ev) {
     if (adicionados.length) await salvarVinculosParentes(state.membro.id, adicionados);
     if (removidos.length) await removerVinculosParentes(state.membro.id, removidos);
 
-    Object.assign(state.membro, { nome_completo, telefone, email, data_nascimento, endereco, interesses, profissao, foto_url, batizado, data_batismo, pastor_batismo, perfil_completo: true });
+    Object.assign(state.membro, { nome_completo, telefone, email, data_nascimento, endereco, numero, interesses, profissao, foto_url, batizado, data_batismo, pastor_batismo, perfil_completo: true });
     localStorage.setItem("igr_membro", JSON.stringify(state.membro));
     document.getElementById("perfil-lembrete-box").style.display = "none";
     alert("Perfil atualizado com sucesso 💛");
@@ -4599,6 +4602,7 @@ async function abrirFichaMembro(membroId) {
   document.getElementById("fm-telefone").value = m.telefone || "";
   document.getElementById("fm-email").value = m.email || "";
   document.getElementById("fm-endereco").value = m.endereco || "";
+  document.getElementById("fm-numero").value = m.numero || "";
   definirValorData("fm-nascimento", m.data_nascimento);
   document.getElementById("fm-profissao").value = m.profissao || "";
 
@@ -4659,6 +4663,7 @@ async function salvarFichaMembro(ev) {
     telefone: limparTelefone(document.getElementById("fm-telefone").value),
     email: document.getElementById("fm-email").value.trim() || null,
     endereco: document.getElementById("fm-endereco").value.trim() || null,
+    numero: document.getElementById("fm-numero").value.trim() || null,
     data_nascimento: document.getElementById("fm-nascimento").value || null,
     profissao: document.getElementById("fm-profissao").value.trim() || null,
     grupo_id: document.getElementById("fm-grupo").value,

@@ -417,7 +417,10 @@
               <div class="field"><label>Nome completo</label><input id="fm-nome" required></div>
               <div class="field"><label>Telefone</label><input id="fm-telefone" required></div>
               <div class="field"><label>E-mail</label><input id="fm-email" type="email"></div>
-              <div class="field"><label>Endereço</label><input id="fm-endereco"></div>
+              <div style="display:flex;gap:10px;">
+                <div class="field" style="flex:2;"><label>Endereço</label><input id="fm-endereco"></div>
+                <div class="field" style="flex:1;"><label>Número</label><input id="fm-numero"></div>
+              </div>
               <div class="field"><label>Data de nascimento</label><input id="fm-nascimento" type="date"></div>
               <div class="field"><label>Profissão</label><input id="fm-profissao"></div>
               <div class="field"><label>Grupo/Departamento</label>
@@ -767,7 +770,10 @@
           </select>
         </div>
         <p class="hint" style="margin:-4px 0 12px;">Usamos isso só pra te encaminhar automaticamente pro grupo certo (crianças, juniores, mocidade, homens ou mulheres).</p>
-        <div class="field"><label>Endereço</label><input id="cad-endereco" required placeholder="Rua, número, bairro"></div>
+        <div style="display:flex;gap:10px;">
+          <div class="field" style="flex:2;"><label>Endereço</label><input id="cad-endereco" required placeholder="Rua, bairro"></div>
+          <div class="field" style="flex:1;"><label>Número</label><input id="cad-numero" placeholder="Ex: 123"></div>
+        </div>
         <div class="field">
           <label>Crie uma senha de 4 números</label>
           <div class="pin-row" data-pin-group="cad-senha">
@@ -974,7 +980,10 @@
         <div class="field"><label>Telefone</label><input id="ep-telefone" required></div>
         <div class="field"><label>E-mail (opcional)</label><input id="ep-email" type="email" placeholder="seuemail@exemplo.com"></div>
         <div class="field"><label>Data de nascimento</label><input id="ep-nascimento" type="date"></div>
-        <div class="field"><label>Endereço</label><input id="ep-endereco" placeholder="Rua, número, bairro"></div>
+        <div style="display:flex;gap:10px;">
+          <div class="field" style="flex:2;"><label>Endereço</label><input id="ep-endereco" placeholder="Rua, bairro"></div>
+          <div class="field" style="flex:1;"><label>Número</label><input id="ep-numero" placeholder="Ex: 123"></div>
+        </div>
         <div class="field" style="margin-bottom:14px;"><label>Profissão ou habilidade (opcional)</label><input id="ep-profissao" placeholder="Ex: Eletricista, Advogada, Designer..."></div>
         <p class="hint" style="margin:-10px 0 14px;">Aparece na Mão Amiga pra quem estiver buscando esse tipo de ajuda.</p>
 
@@ -1879,6 +1888,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788345167"></script>
+<script src="app.js?v=1788345491"></script>
 </body>
 </html>
