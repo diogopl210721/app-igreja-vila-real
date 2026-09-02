@@ -3105,7 +3105,13 @@ async function gerarBanners() {
     } catch (e) { console.error("Não consegui carregar a logo pra mandar como referência:", e); }
 
     const { data, error } = await sb.functions.invoke("igr-gerar-banner-ia", { body });
-    if (error || !data?.ok) throw new Error(data?.error || error?.message || "erro desconhecido");
+    if (error || !data?.ok) {
+      let mensagem = data?.error;
+      if (!mensagem && error?.context?.json) {
+        try { mensagem = (await error.context.json())?.error; } catch { /* segue sem mensagem detalhada */ }
+      }
+      throw new Error(mensagem || "erro desconhecido");
+    }
 
     const imagem = await carregarImagemEl(`data:${data.mimeType};base64,${data.imagemBase64}`);
     const canvas = document.getElementById("banner-canvas-preview");
