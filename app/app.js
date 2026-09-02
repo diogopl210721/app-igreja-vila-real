@@ -4868,6 +4868,34 @@ async function carregarLivrosAdmin() {
     b.addEventListener("click", () => excluirRegistro("igr_livros", b.dataset.delLivro, carregarLivrosAdmin)));
 }
 
+async function identificarLivroPelaCapa(arquivo) {
+  const status = document.getElementById("al-status-ia");
+  status.textContent = "✨ Identificando o livro pela capa...";
+  status.style.display = "block";
+  try {
+    const base64 = await arquivoParaBase64(arquivo);
+    const { data, error } = await sb.functions.invoke("igr-identificar-livro", {
+      body: { imagemBase64: base64, imagemMimeType: arquivo.type },
+    });
+    if (error || !data?.ok) { console.error("Não deu pra identificar o livro:", error || data); return; }
+    const tituloEl = document.getElementById("al-titulo");
+    const autorEl = document.getElementById("al-autor");
+    const sinopseEl = document.getElementById("al-sinopse");
+    if (!tituloEl.value.trim() && data.titulo) tituloEl.value = data.titulo;
+    if (!autorEl.value.trim() && data.autor) autorEl.value = data.autor;
+    if (!sinopseEl.value.trim() && data.sinopse) sinopseEl.value = data.sinopse;
+    if (data.confianca !== "alta") {
+      status.textContent = "✨ Preenchido automaticamente (confira e corrija se precisar).";
+      setTimeout(() => { status.style.display = "none"; }, 4000);
+    } else {
+      status.style.display = "none";
+    }
+  } catch (e) {
+    console.error("Erro ao identificar livro pela capa:", e);
+    status.style.display = "none";
+  }
+}
+
 async function enviarLivroAdmin(ev) {
   ev.preventDefault();
   const titulo = document.getElementById("al-titulo").value.trim();
@@ -5363,6 +5391,10 @@ async function iniciar() {
   document.getElementById("form-admin-pastor")?.addEventListener("submit", enviarPastorAdmin);
   document.getElementById("form-admin-esboco")?.addEventListener("submit", enviarEsbocoAdmin);
   document.getElementById("form-admin-livro")?.addEventListener("submit", enviarLivroAdmin);
+  document.getElementById("al-capa")?.addEventListener("change", (ev) => {
+    const arquivo = ev.target.files[0];
+    if (arquivo) identificarLivroPelaCapa(arquivo);
+  });
   document.getElementById("btn-voltar-leitura")?.addEventListener("click", sairDaLeitura);
   document.getElementById("btn-pagina-anterior")?.addEventListener("click", () => mudarPaginaLivro(-1));
   document.getElementById("btn-pagina-proxima")?.addEventListener("click", () => mudarPaginaLivro(1));
