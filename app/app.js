@@ -3006,7 +3006,7 @@ function abrirDiaCalendario(dataISO) {
   const el = document.getElementById("calendario-lista");
   el.innerHTML = eventosDoDia.map(ev => `
     <div class="card">
-      ${ev.imagem_url ? `<img class="capa-thumb" src="${ev.imagem_url}" alt="">` : ""}
+      ${ev.imagem_url ? `<img class="capa-thumb" src="${ev.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${ev.imagem_url}">` : ""}
       <b style="font-size:14.5px;">${ev.titulo}</b>
       <p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);">📍 ${ev.local}${ev.horario ? " · " + ev.horario : ""}</p>
       ${(ev.data_fim && ev.data_fim !== ev.data) || ev.dia_semana ? `<p class="hint" style="margin:4px 0 0;">📅 ${formatarPeriodoCalendario(ev.data, ev.data_fim, ev.dia_semana)}</p>` : ""}
@@ -3021,6 +3021,9 @@ function abrirDiaCalendario(dataISO) {
       const ev = eventosDoDia.find(e => e.id === btn.dataset.addAgendaCalendario);
       if (ev) adicionarCalendarioAgenda(ev.titulo, ev.data, ev.data_fim, ev.horario, ev.local, ev.observacoes);
     });
+  });
+  el.querySelectorAll("[data-ampliar-imagem]").forEach(img => {
+    img.addEventListener("click", () => abrirLightboxImagemUnica(img.dataset.ampliarImagem));
   });
 }
 
@@ -3673,12 +3676,22 @@ function atualizarLightbox() {
   document.getElementById("lightbox-img").src = foto.url;
   document.getElementById("lightbox-baixar").href = foto.url;
   document.getElementById("lightbox-contador").textContent = `${state.lightboxIndice + 1} / ${fotos.length}`;
+  const mostraNav = fotos.length > 1;
+  document.getElementById("lightbox-prev").style.display = mostraNav ? "flex" : "none";
+  document.getElementById("lightbox-next").style.display = mostraNav ? "flex" : "none";
+  document.getElementById("lightbox-contador").style.display = mostraNav ? "block" : "none";
 }
 function lightboxProxima(delta) {
   const fotos = state.fotosAlbumAtual || [];
   if (!fotos.length) return;
   state.lightboxIndice = (state.lightboxIndice + delta + fotos.length) % fotos.length;
   atualizarLightbox();
+}
+// abre uma unica imagem ampliada (ex: banner de um evento do calendario), sem setas de navegar
+function abrirLightboxImagemUnica(url) {
+  if (!url) return;
+  state.fotosAlbumAtual = [{ url }];
+  abrirLightbox(0);
 }
 
 // ---------- ministério de louvor: gerenciar (líder) ----------
