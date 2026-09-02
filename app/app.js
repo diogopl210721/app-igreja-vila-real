@@ -5482,12 +5482,46 @@ async function carregarLivrosAdmin() {
       ${l.capa_url ? `<img class="capa-thumb" src="${l.capa_url}" alt="">` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
         <div><b style="font-size:13.5px;">${l.titulo}</b><br><span class="hint" style="margin:0;">${l.autor || ""}</span></div>
-        <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;flex:none;" data-del-livro="${l.id}">Excluir</button>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-editar-livro="${l.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del-livro="${l.id}">Excluir</button>
+        </div>
       </div>
     </div>
   `).join("") || `<div class="empty">Nenhum livro cadastrado.</div>`;
   el.querySelectorAll("[data-del-livro]").forEach(b =>
     b.addEventListener("click", () => excluirRegistro("igr_livros", b.dataset.delLivro, carregarLivrosAdmin)));
+  el.querySelectorAll("[data-editar-livro]").forEach(b => {
+    const livro = (data || []).find(l => l.id === b.dataset.editarLivro);
+    b.addEventListener("click", () => iniciarEdicaoLivro(livro));
+  });
+}
+
+function iniciarEdicaoLivro(livro) {
+  state.editando.livro = livro;
+  document.getElementById("al-titulo").value = livro.titulo || "";
+  document.getElementById("al-autor").value = livro.autor || "";
+  document.getElementById("al-sinopse").value = livro.sinopse || "";
+  document.getElementById("al-nichos").value = (livro.nichos || []).join(", ");
+  document.getElementById("al-capa").required = false;
+  document.getElementById("al-arquivo").required = false;
+  document.getElementById("al-label-capa").textContent = "Capa (opcional — deixa em branco pra manter a atual)";
+  document.getElementById("al-label-arquivo").textContent = "Arquivo do livro (opcional — deixa em branco pra manter o atual)";
+  const btn = document.querySelector("#form-admin-livro button[type=submit]");
+  btn.textContent = "Salvar alterações";
+  document.getElementById("al-cancelar-edicao").style.display = "block";
+  document.getElementById("form-admin-livro").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelarEdicaoLivro() {
+  state.editando.livro = null;
+  document.getElementById("form-admin-livro").reset();
+  document.getElementById("al-capa").required = true;
+  document.getElementById("al-arquivo").required = true;
+  document.getElementById("al-label-capa").textContent = "Capa";
+  document.getElementById("al-label-arquivo").textContent = "Arquivo do livro (PDF)";
+  document.querySelector("#form-admin-livro button[type=submit]").textContent = "Publicar livro";
+  document.getElementById("al-cancelar-edicao").style.display = "none";
 }
 
 async function identificarLivroPelaCapa(arquivo) {
@@ -5528,28 +5562,39 @@ async function enviarLivroAdmin(ev) {
   const nichos = document.getElementById("al-nichos").value.split(",").map(n => n.trim()).filter(Boolean);
   const arquivoCapa = document.getElementById("al-capa").files[0];
   const arquivoPdf = document.getElementById("al-arquivo").files[0];
-  if (!titulo || !arquivoCapa || !arquivoPdf) { alert("Preencha o título e envie a capa e o arquivo do livro."); return; }
+  const editando = state.editando.livro;
+  if (!titulo || (!editando && (!arquivoCapa || !arquivoPdf))) { alert("Preencha o título e envie a capa e o arquivo do livro."); return; }
   if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
   const btn = ev.target.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Enviando...";
   try {
-    const [capa_url, arquivo_url] = await Promise.all([
-      uploadArquivo(arquivoCapa, "livros"),
-      uploadArquivo(arquivoPdf, "livros"),
+    const [novaCapa, novoArquivo] = await Promise.all([
+      arquivoCapa ? uploadArquivo(arquivoCapa, "livros") : Promise.resolve(null),
+      arquivoPdf ? uploadArquivo(arquivoPdf, "livros") : Promise.resolve(null),
     ]);
-    if (!capa_url || !arquivo_url) { alert("Não deu pra enviar a capa e/ou o arquivo. Tenta de novo."); return; }
-    const { error } = await sb.from("igr_livros").insert({
-      igreja_id: state.igreja.id, titulo, autor: autor || null, sinopse: sinopse || null, nichos: nichos.length ? nichos : null, capa_url, arquivo_url,
-    });
-    if (error) { alert("Não deu pra publicar o livro: " + error.message); return; }
-    ev.target.reset();
-    enviarPush({ tipo: "todos" }, "Novo livro na biblioteca 📚", titulo);
+    if ((arquivoCapa && !novaCapa) || (arquivoPdf && !novoArquivo)) { alert("Não deu pra enviar a capa e/ou o arquivo. Tenta de novo."); return; }
+
+    if (editando) {
+      const { error } = await sb.from("igr_livros").update({
+        titulo, autor: autor || null, sinopse: sinopse || null, nichos: nichos.length ? nichos : null,
+        capa_url: novaCapa || editando.capa_url, arquivo_url: novoArquivo || editando.arquivo_url,
+      }).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
+      cancelarEdicaoLivro();
+    } else {
+      const { error } = await sb.from("igr_livros").insert({
+        igreja_id: state.igreja.id, titulo, autor: autor || null, sinopse: sinopse || null, nichos: nichos.length ? nichos : null, capa_url: novaCapa, arquivo_url: novoArquivo,
+      });
+      if (error) { alert("Não deu pra publicar o livro: " + error.message); return; }
+      ev.target.reset();
+      enviarPush({ tipo: "todos" }, "Novo livro na biblioteca 📚", titulo);
+    }
     carregarLivrosAdmin();
   } catch (e) {
     console.error("Erro ao publicar livro:", e);
     alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
   } finally {
-    btn.disabled = false; btn.textContent = "Publicar livro";
+    btn.disabled = false; btn.textContent = state.editando.livro ? "Salvar alterações" : "Publicar livro";
   }
 }
 
