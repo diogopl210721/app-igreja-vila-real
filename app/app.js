@@ -2862,6 +2862,22 @@ function sairDaLeitura() {
 }
 
 // ---------- ranking publico de leitura (Biblia + livros), pra motivar engajamento ----------
+function configurarBotoesConectar(el) {
+  el.querySelectorAll("[data-conectar]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; btn.textContent = "Conectando...";
+      const outroId = btn.dataset.conectar;
+      const { error } = await sb.from("igr_membros_conexoes").insert({ membro_id: state.membro.id, conectado_id: outroId });
+      if (error) { alert("Não deu pra conectar agora."); btn.disabled = false; btn.textContent = "Conectar"; return; }
+      await sb.from("igr_membros_conexoes").insert({ membro_id: outroId, conectado_id: state.membro.id });
+      const meuNome = state.membro.nome_completo.split(" ")[0];
+      enviarPush({ tipo: "membros", membro_ids: [outroId] }, "Nova conexão 🤝", `${meuNome} se conectou com você no app da igreja.`);
+      const msgWhats = `Oi ${btn.dataset.nome.split(" ")[0]}! Aqui é ${meuNome}, te vi no app da igreja 💛`;
+      btn.outerHTML = `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;flex:none;" href="${linkWhatsapp(btn.dataset.telefone, msgWhats)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`;
+    });
+  });
+}
+
 async function carregarTopLeitores() {
   const el = document.getElementById("top-leitores-lista");
   if (!el || !state.igreja) return;
@@ -2877,21 +2893,38 @@ async function carregarTopLeitores() {
   const ids = Object.keys(pontos).filter(id => pontos[id] > 0);
   if (!ids.length) { el.innerHTML = `<p class="hint">Ninguém pontuou ainda — seja o primeiro a ler! 📖</p>`; return; }
 
-  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url").in("id", ids);
+  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url, telefone").in("id", ids);
   const ranking = (membros || [])
     .map(m => ({ ...m, pontos: pontos[m.id] || 0 }))
     .sort((a, b) => b.pontos - a.pontos)
-    .slice(0, 5);
+    .slice(0, 3);
 
-  const medalhas = ["🥇", "🥈", "🥉", "4º", "5º"];
-  el.innerHTML = ranking.map((m, i) => `
+  let jaConectados = new Set();
+  if (state.membro) {
+    const { data: conexoes } = await sb.from("igr_membros_conexoes").select("conectado_id").eq("membro_id", state.membro.id);
+    jaConectados = new Set((conexoes || []).map(c => c.conectado_id));
+  }
+
+  const medalhas = ["🥇", "🥈", "🥉"];
+  el.innerHTML = ranking.map((m, i) => {
+    const souEu = state.membro?.id === m.id;
+    const msgWhats = `Oi ${m.nome_completo.split(" ")[0]}! Vi que você tá arrasando no Top Leitores do app da igreja 🎉`;
+    let acao = "";
+    if (!souEu && state.membro) {
+      acao = jaConectados.has(m.id)
+        ? `<a class="btn btn-primary" style="width:auto;padding:7px 12px;font-size:11.5px;flex:none;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">💬 WhatsApp</a>`
+        : `<button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;flex:none;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}">💬 Conectar</button>`;
+    }
+    return `
     <div class="card row-avatar" style="padding:10px 14px;">
       <span style="font-size:16px;flex:none;width:26px;text-align:center;font-weight:700;">${medalhas[i]}</span>
       ${m.foto_url ? `<img src="${m.foto_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(m.nome_completo)}
       <div class="row-info"><b>${m.nome_completo.split(" ")[0]}</b><span>${m.pontos} pontos de leitura</span></div>
-      ${state.membro?.id === m.id ? `<span class="badge-inline" style="flex:none;">Você</span>` : ""}
+      ${souEu ? `<span class="badge-inline" style="flex:none;">Você</span>` : acao}
     </div>
-  `).join("");
+  `;
+  }).join("");
+  configurarBotoesConectar(el);
 }
 
 async function gerarBanners() {
@@ -3596,19 +3629,7 @@ async function buscarDiretorio(termo) {
     });
   });
 
-  el.querySelectorAll("[data-conectar]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      btn.disabled = true; btn.textContent = "Conectando...";
-      const outroId = btn.dataset.conectar;
-      const { error } = await sb.from("igr_membros_conexoes").insert({ membro_id: state.membro.id, conectado_id: outroId });
-      if (error) { alert("Não deu pra conectar agora."); btn.disabled = false; btn.textContent = "Conectar"; return; }
-      await sb.from("igr_membros_conexoes").insert({ membro_id: outroId, conectado_id: state.membro.id });
-      const meuNome = state.membro.nome_completo.split(" ")[0];
-      enviarPush({ tipo: "membros", membro_ids: [outroId] }, "Nova conexão 🤝", `${meuNome} se conectou com você no Diretório de Membros.`);
-      const msgWhats = `Oi ${btn.dataset.nome.split(" ")[0]}! Aqui é ${meuNome}, te encontrei no Diretório de Membros do app da igreja 💛`;
-      btn.outerHTML = `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;flex:none;" href="${linkWhatsapp(btn.dataset.telefone, msgWhats)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`;
-    });
-  });
+  configurarBotoesConectar(el);
 }
 
 // ---------- fotos ----------
