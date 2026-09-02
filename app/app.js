@@ -429,7 +429,9 @@ function configurarPinBoxes() {
 
 function linkWhatsapp(telefone, mensagem) {
   const numero = limparTelefone(telefone);
-  const comDDI = numero.startsWith("55") ? numero : "55" + numero;
+  // numero com DDI (Brasil) tem 12-13 digitos (55 + DDD + numero); sem DDI tem 10-11.
+  // checar so o prefixo "55" e furada pra quem mora numa cidade com DDD 55 (RS) sem DDI salvo.
+  const comDDI = numero.length >= 12 ? numero : "55" + numero;
   return `https://wa.me/${comDDI}?text=${encodeURIComponent(mensagem)}`;
 }
 
