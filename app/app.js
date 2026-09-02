@@ -1332,6 +1332,18 @@ function abrirDevocional() {
   document.getElementById("devo-versiculo").textContent = `"${d.versiculo || ""}"`;
   document.getElementById("devo-referencia").textContent = d.referencia || "";
   document.getElementById("devo-texto-completo").textContent = d.texto || "";
+
+  const sugestaoEl = document.getElementById("devo-sugestao-livro");
+  if (d.sugestao_livro_id && d.igr_livros) {
+    document.getElementById("devo-sugestao-capa").src = d.igr_livros.capa_url || "";
+    document.getElementById("devo-sugestao-titulo").textContent = d.igr_livros.titulo;
+    document.getElementById("devo-sugestao-motivo").textContent = d.sugestao_livro_motivo || "";
+    sugestaoEl.style.display = "flex";
+    sugestaoEl.onclick = () => { state.livrosCache = state.livrosCache || []; abrirBiblioteca().then(() => abrirLeituraLivro(d.sugestao_livro_id)); };
+  } else {
+    sugestaoEl.style.display = "none";
+  }
+
   mostrarTela("tela-devocional-detalhe");
   configurarReacoesDevocional();
 }
@@ -2701,6 +2713,105 @@ async function arquivoUrlParaBase64(url) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+}
+
+// ---------- biblioteca de livros (leitura só dentro do app, sem baixar) ----------
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+}
+
+async function abrirBiblioteca() {
+  const grid = document.getElementById("biblioteca-grid");
+  grid.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const { data: livros } = await sb.from("igr_livros").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
+  state.livrosCache = livros || [];
+
+  let progressoMapa = {};
+  if (state.membro) {
+    const { data: progresso } = await sb.from("igr_livros_progresso").select("*").eq("membro_id", state.membro.id);
+    (progresso || []).forEach(p => { progressoMapa[p.livro_id] = p; });
+  }
+
+  grid.innerHTML = (livros || []).map(l => {
+    const prog = progressoMapa[l.id];
+    const pct = prog && prog.total_paginas ? Math.round((prog.pagina_atual / prog.total_paginas) * 100) : 0;
+    return `
+      <div data-abrir-livro="${l.id}" style="cursor:pointer;">
+        <img src="${l.capa_url}" alt="${l.titulo}" style="width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:12px;box-shadow:var(--shadow);">
+        <b style="font-size:12.5px;display:block;margin-top:6px;line-height:1.3;">${l.titulo}</b>
+        ${pct > 0 ? `<div style="background:var(--bg);border-radius:6px;height:5px;overflow:hidden;margin-top:4px;"><div style="height:100%;background:var(--brand);width:${pct}%;"></div></div><p class="hint" style="margin:2px 0 0;">${pct}% lido</p>` : ""}
+      </div>
+    `;
+  }).join("") || `<p class="hint">Nenhum livro na biblioteca ainda.</p>`;
+
+  grid.querySelectorAll("[data-abrir-livro]").forEach(el => {
+    el.addEventListener("click", () => abrirLeituraLivro(el.dataset.abrirLivro));
+  });
+}
+
+async function abrirLeituraLivro(livroId) {
+  if (!state.membro) { alert("Faça login pra ler os livros da biblioteca."); return; }
+  const livro = state.livrosCache?.find(l => l.id === livroId);
+  if (!livro) return;
+
+  mostrarTela("tela-leitura-livro");
+  document.getElementById("leitura-titulo-livro").textContent = livro.titulo;
+  document.getElementById("leitura-progresso-texto").textContent = "Carregando...";
+
+  let { data: progresso } = await sb.from("igr_livros_progresso").select("*").eq("membro_id", state.membro.id).eq("livro_id", livroId).maybeSingle();
+
+  const pdf = await pdfjsLib.getDocument(livro.arquivo_url).promise;
+  state.leituraAtual = { livro, pdf, paginaAtual: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id };
+  if (!progresso) {
+    const { data: novo } = await sb.from("igr_livros_progresso")
+      .insert({ membro_id: state.membro.id, livro_id: livroId, pagina_atual: 1, total_paginas: pdf.numPages })
+      .select().single();
+    state.leituraAtual.progressoId = novo?.id;
+  } else if (progresso.total_paginas !== pdf.numPages) {
+    await sb.from("igr_livros_progresso").update({ total_paginas: pdf.numPages }).eq("id", progresso.id);
+  }
+
+  await renderizarPaginaLivro();
+}
+
+async function renderizarPaginaLivro() {
+  const st = state.leituraAtual;
+  if (!st) return;
+  const page = await st.pdf.getPage(st.paginaAtual);
+  const canvas = document.getElementById("leitura-canvas");
+  const wrapW = document.getElementById("leitura-canvas-wrap").clientWidth - 24;
+  const viewportBase = page.getViewport({ scale: 1 });
+  const escala = wrapW / viewportBase.width;
+  const viewport = page.getViewport({ scale: escala });
+  canvas.width = viewport.width; canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+
+  const pct = Math.round((st.paginaAtual / st.totalPaginas) * 100);
+  document.getElementById("leitura-progresso-texto").textContent = `${st.paginaAtual}/${st.totalPaginas} · ${pct}%`;
+  document.getElementById("btn-pagina-anterior").disabled = st.paginaAtual <= 1;
+  document.getElementById("btn-pagina-proxima").disabled = st.paginaAtual >= st.totalPaginas;
+
+  if (st.progressoId) {
+    sb.from("igr_livros_progresso").update({ pagina_atual: st.paginaAtual, atualizado_em: new Date().toISOString() }).eq("id", st.progressoId);
+  }
+}
+
+function mudarPaginaLivro(delta) {
+  const st = state.leituraAtual;
+  if (!st) return;
+  const nova = st.paginaAtual + delta;
+  if (nova < 1 || nova > st.totalPaginas) return;
+  st.paginaAtual = nova;
+  renderizarPaginaLivro();
+}
+
+function sairDaLeitura() {
+  const st = state.leituraAtual;
+  state.leituraAtual = null;
+  mostrarTela("tela-biblioteca");
+  abrirBiblioteca();
+  // avisa a IA que a pessoa andou lendo, pra ir formando o perfil espiritual dela com isso tambem
+  if (st && state.membro) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
 }
 
 async function gerarBanners() {
@@ -4312,6 +4423,7 @@ const SECOES_ADMIN_INFO = {
   lideres: "👤 Líderes", membros: "👤 Membros", visitantes: "❤️ Visitantes",
   cultos: "📖 Cultos", avisos: "🔔 Avisos", pastor: "🎙️ Pastor", estudos: "✨ Estudos",
   fotos: "📷 Fotos", igreja: "⚙️ Igreja", oracao: "🙏 Oração", eventos: "➕ Eventos", calendario: "📅 Calendário",
+  livros: "📚 Livros",
 };
 
 // ---------- admin: alternador de abas ----------
@@ -4432,6 +4544,7 @@ function abrirSecaoAdmin(secao) {
     igreja: () => { preencherFormIgrejaAdmin(); carregarPastoresPerfilAdmin(); },
     oracao: () => carregarOracaoAdmin("todos"),
     eventos: carregarEventosAdmin,
+    livros: carregarLivrosAdmin,
   };
   cargas[secao]?.();
 }
@@ -4725,6 +4838,55 @@ async function enviarPastorAdmin(ev) {
 }
 
 // ---------- admin: esboços ----------
+// ---------- admin: biblioteca de livros ----------
+async function carregarLivrosAdmin() {
+  const el = document.getElementById("admin-lista-livros");
+  const { data } = await sb.from("igr_livros").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
+  el.innerHTML = (data || []).map(l => `
+    <div class="card">
+      ${l.capa_url ? `<img class="capa-thumb" src="${l.capa_url}" alt="">` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div><b style="font-size:13.5px;">${l.titulo}</b><br><span class="hint" style="margin:0;">${l.autor || ""}</span></div>
+        <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;flex:none;" data-del-livro="${l.id}">Excluir</button>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum livro cadastrado.</div>`;
+  el.querySelectorAll("[data-del-livro]").forEach(b =>
+    b.addEventListener("click", () => excluirRegistro("igr_livros", b.dataset.delLivro, carregarLivrosAdmin)));
+}
+
+async function enviarLivroAdmin(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("al-titulo").value.trim();
+  const autor = document.getElementById("al-autor").value.trim();
+  const sinopse = document.getElementById("al-sinopse").value.trim();
+  const arquivoCapa = document.getElementById("al-capa").files[0];
+  const arquivoPdf = document.getElementById("al-arquivo").files[0];
+  if (!titulo || !arquivoCapa || !arquivoPdf) { alert("Preencha o título e envie a capa e o arquivo do livro."); return; }
+  if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const [capa_url, arquivo_url] = await Promise.all([
+      uploadArquivo(arquivoCapa, "livros"),
+      uploadArquivo(arquivoPdf, "livros"),
+    ]);
+    if (!capa_url || !arquivo_url) { alert("Não deu pra enviar a capa e/ou o arquivo. Tenta de novo."); return; }
+    const { error } = await sb.from("igr_livros").insert({
+      igreja_id: state.igreja.id, titulo, autor: autor || null, sinopse: sinopse || null, capa_url, arquivo_url,
+    });
+    if (error) { alert("Não deu pra publicar o livro: " + error.message); return; }
+    ev.target.reset();
+    enviarPush({ tipo: "todos" }, "Novo livro na biblioteca 📚", titulo);
+    carregarLivrosAdmin();
+  } catch (e) {
+    console.error("Erro ao publicar livro:", e);
+    alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Publicar livro";
+  }
+}
+
 async function carregarEsbocosAdmin() {
   const el = document.getElementById("admin-lista-esbocos");
   const { data } = await sb.from("igr_esbocos").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
@@ -5187,6 +5349,10 @@ async function iniciar() {
   document.getElementById("form-admin-aviso")?.addEventListener("submit", enviarAvisoAdmin);
   document.getElementById("form-admin-pastor")?.addEventListener("submit", enviarPastorAdmin);
   document.getElementById("form-admin-esboco")?.addEventListener("submit", enviarEsbocoAdmin);
+  document.getElementById("form-admin-livro")?.addEventListener("submit", enviarLivroAdmin);
+  document.getElementById("btn-voltar-leitura")?.addEventListener("click", sairDaLeitura);
+  document.getElementById("btn-pagina-anterior")?.addEventListener("click", () => mudarPaginaLivro(-1));
+  document.getElementById("btn-pagina-proxima")?.addEventListener("click", () => mudarPaginaLivro(1));
   document.getElementById("form-admin-album")?.addEventListener("submit", enviarAlbumAdmin);
   document.getElementById("btn-enviar-fotos")?.addEventListener("click", enviarFotosAlbum);
   document.getElementById("form-admin-igreja")?.addEventListener("submit", enviarIgrejaAdmin);
@@ -5256,6 +5422,7 @@ async function iniciar() {
       if (alvo === "tela-eventos") await carregarEventos();
       if (alvo === "tela-diario-historico") await carregarHistoricoDiario();
       if (alvo === "tela-diario-planos") await carregarPlanos();
+      if (alvo === "tela-biblioteca") await abrirBiblioteca();
     });
   });
   document.querySelectorAll("[data-close-a2hs]").forEach(b => b.addEventListener("click", fecharA2HS));

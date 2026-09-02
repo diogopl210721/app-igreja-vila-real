@@ -13,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=1787865620">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 <body>
 
@@ -216,6 +217,7 @@
         <button class="admin-grid-card" data-secao="oracao"><svg class="icon"><use href="#i-heart"/></svg>Oração</button>
         <button class="admin-grid-card" data-secao="eventos"><svg class="icon"><use href="#i-plus"/></svg>Eventos</button>
         <button class="admin-grid-card" data-secao="calendario"><svg class="icon"><use href="#i-calendar"/></svg>Calendário</button>
+        <button class="admin-grid-card" data-secao="livros"><svg class="icon"><use href="#i-book"/></svg>Livros</button>
       </div>
 
       <div class="admin-painel-aba" data-admin-painel="calendario" style="display:none;">
@@ -473,7 +475,8 @@
           <label class="interesse-item"><input type="checkbox" class="acesso-check-secao" value="igreja"> ⚙️ Igreja</label>
           <label class="interesse-item"><input type="checkbox" class="acesso-check-secao" value="oracao"> 🙏 Oração</label>
           <label class="interesse-item"><input type="checkbox" class="acesso-check-secao" value="eventos"> ➕ Eventos</label>
-          <label class="interesse-item" style="margin-bottom:14px;"><input type="checkbox" class="acesso-check-secao" value="calendario"> 📅 Calendário</label>
+          <label class="interesse-item"><input type="checkbox" class="acesso-check-secao" value="calendario"> 📅 Calendário</label>
+          <label class="interesse-item" style="margin-bottom:14px;"><input type="checkbox" class="acesso-check-secao" value="livros"> 📚 Livros</label>
           <button class="btn btn-primary" id="btn-salvar-acesso" type="button" disabled>Salvar acesso</button>
         </div>
 
@@ -561,6 +564,26 @@
         </div>
         <div class="section-label"><b>Esboços publicados</b></div>
         <div id="admin-lista-esbocos"></div>
+      </div>
+
+      <div class="admin-painel-aba" data-admin-painel="livros" style="display:none;">
+        <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
+        <div class="section-label"><b>Novo livro</b></div>
+        <p class="hint" style="margin-top:-6px;">O livro só pode ser lido dentro do app, página por página — não tem opção de baixar.</p>
+        <div class="card">
+          <form id="form-admin-livro">
+            <div class="field"><label>Título</label><input id="al-titulo" required placeholder="Ex: O Peregrino"></div>
+            <div class="field"><label>Autor (opcional)</label><input id="al-autor" placeholder="Ex: John Bunyan"></div>
+            <div class="field"><label>Sinopse (ajuda a IA a recomendar o livro certo pra cada pessoa)</label>
+              <textarea id="al-sinopse" rows="3" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Sobre o que é o livro, pra quem ele ajuda..."></textarea>
+            </div>
+            <div class="field"><label>Capa</label><input id="al-capa" type="file" accept="image/*" required></div>
+            <div class="field" style="margin-bottom:6px;"><label>Arquivo do livro (PDF)</label><input id="al-arquivo" type="file" accept="application/pdf" required></div>
+            <button class="btn btn-primary" type="submit">Publicar livro</button>
+          </form>
+        </div>
+        <div class="section-label"><b>Livros na biblioteca</b></div>
+        <div id="admin-lista-livros"><p class="hint"><span class="loading-dot"></span></p></div>
       </div>
 
       <div class="admin-painel-aba" data-admin-painel="fotos" style="display:none;">
@@ -852,6 +875,7 @@
       <div class="quicklinks" style="margin-top:16px;">
         <button class="quicklink" data-nav="tela-membro-estudos"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Estudos</button>
         <button class="quicklink" data-nav="tela-diario"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Meu Diário</button>
+        <button class="quicklink" data-nav="tela-biblioteca"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Livros</button>
         <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Fotos</button>
         <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Minhas fotos</button>
         <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Eventos</button>
@@ -1016,6 +1040,11 @@
         <span id="devo-referencia"></span>
       </div>
       <p class="reflect" id="devo-texto-completo"></p>
+
+      <div class="card row-avatar" id="devo-sugestao-livro" style="display:none;border:1.5px dashed var(--brand);cursor:pointer;margin-bottom:14px;">
+        <img id="devo-sugestao-capa" src="" alt="" style="width:52px;height:78px;object-fit:cover;border-radius:8px;flex:none;">
+        <div class="row-info"><b>📚 <span id="devo-sugestao-titulo"></span></b><span id="devo-sugestao-motivo"></span></div>
+      </div>
 
       <div class="section-label"><b>Como esse devocional tocou você?</b></div>
       <div class="reacao-row" id="devo-reacoes">
@@ -1402,6 +1431,33 @@
         <button class="btn btn-primary" id="btn-tema-estudo" type="button">📝 Montar estudo/pregação completo</button>
       </div>
       <div id="tema-resultado" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ============ BIBLIOTECA DE LIVROS ============ -->
+  <div class="screen" id="tela-biblioteca">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-home"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Livros</span>
+      <p class="hint" style="margin-bottom:14px;">Toque numa capa pra ler — a leitura fica salva de onde você parar.</p>
+      <div id="biblioteca-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <div class="screen" id="tela-leitura-livro">
+    <div style="display:flex;flex-direction:column;height:100%;background:#20232B;">
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#171923;flex:none;">
+        <button class="navitem" id="btn-voltar-leitura" style="width:auto;flex:none;color:#fff;"><svg class="icon" style="stroke:#fff;"><use href="#i-arrowleft"/></svg></button>
+        <span id="leitura-titulo-livro" style="color:#fff;font-weight:700;font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <span id="leitura-progresso-texto" style="color:rgba(255,255,255,.7);font-size:12px;flex:none;"></span>
+      </div>
+      <div id="leitura-canvas-wrap" style="flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:12px;" oncontextmenu="return false;">
+        <canvas id="leitura-canvas" style="max-width:100%;box-shadow:0 8px 24px rgba(0,0,0,.4);"></canvas>
+      </div>
+      <div style="display:flex;gap:10px;padding:12px 16px;background:#171923;flex:none;">
+        <button class="btn btn-ghost" id="btn-pagina-anterior" style="flex:1;">← Anterior</button>
+        <button class="btn btn-primary" id="btn-pagina-proxima" style="flex:1;">Próxima →</button>
+      </div>
     </div>
   </div>
 
