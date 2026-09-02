@@ -1051,6 +1051,8 @@ async function enviarLoginPin(ev) {
 function entrarComoMembro(membro) {
   state.membro = membro;
   localStorage.setItem("igr_membro", JSON.stringify(membro));
+  document.getElementById("tema-input").value = "";
+  document.getElementById("tema-resultado").innerHTML = "";
   atualizarVisibilidadeLouvor();
   if (state.eventoAtual && document.getElementById("evento-card-login-necessario").style.display === "block") {
     abrirEventoDetalhe(state.eventoAtual.id).then(() => escolherSouMembro());
@@ -1071,6 +1073,8 @@ function atualizarVisibilidadeLouvor() {
 function sair() {
   state.membro = null;
   localStorage.removeItem("igr_membro");
+  document.getElementById("tema-input").value = "";
+  document.getElementById("tema-resultado").innerHTML = "";
   mostrarTela("tela-visitante");
 }
 
