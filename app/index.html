@@ -1607,16 +1607,18 @@
 
       <div id="grupo-detalhe-gerenciar" style="display:none;">
         <div class="section-label"><b>Gerenciar (líder)</b></div>
-        <div class="card" id="grupo-bloco-editar-info" style="border:1.5px dashed var(--brand);">
-          <h3>Informações do grupo</h3>
+
+        <button class="btn btn-ghost" id="btn-toggle-grupo-info" type="button" style="margin-bottom:10px;border:1.5px dashed var(--brand);">ℹ️ Informações do grupo</button>
+        <div class="card" id="grupo-bloco-editar-info" style="border:1.5px dashed var(--brand);display:none;margin-bottom:10px;">
           <form id="form-grupo-info">
             <div class="field"><label>Descrição</label><textarea id="gi-descricao" rows="3" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Conte sobre esse grupo"></textarea></div>
             <div class="field" style="margin-bottom:6px;"><label>Capa (opcional)</label><input id="gi-capa" type="file" accept="image/*"></div>
             <button class="btn btn-primary" type="submit">Salvar informações</button>
           </form>
         </div>
-        <div class="card" id="grupo-bloco-avisos" style="border:1.5px dashed var(--brand);margin-top:10px;">
-          <h3>Postar aviso do grupo</h3>
+
+        <button class="btn btn-ghost" id="btn-toggle-grupo-aviso" type="button" style="margin-bottom:10px;border:1.5px dashed var(--brand);">📢 Postar aviso do grupo</button>
+        <div class="card" id="grupo-bloco-avisos" style="border:1.5px dashed var(--brand);display:none;">
           <form id="form-grupo-aviso">
             <div class="field"><label>Título</label><input id="ga-titulo" required placeholder="Ex: Reunião de sexta"></div>
             <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="ga-texto" placeholder="Data, horário, local..."></div>

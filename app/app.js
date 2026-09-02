@@ -1799,10 +1799,11 @@ async function criarCelula(grupoAlvo, prefixo) {
   prefixo = prefixo || "";
   const souAdmin = prefixo === "adm-";
   const monitorSel = souAdmin ? monitorSelecionadoCelulaAdmin : monitorSelecionadoCelula;
-  if (!monitorSel || !grupoAlvo) return;
-  const nome = document.getElementById(prefixo + "celula-nome-nova").value.trim();
+  if (!monitorSel) { alert("Busque e escolha um membro na lista primeiro."); return; }
+  if (!grupoAlvo) return;
   const tipo = document.getElementById(prefixo + "celula-tipo-nova").value;
-  if (!nome) return;
+  let nome = document.getElementById(prefixo + "celula-nome-nova").value.trim();
+  if (!nome) nome = `${tipo} ${monitorSel.nome.split(" ")[0]}`;
   const btn = document.getElementById(prefixo + "btn-criar-celula");
   btn.disabled = true; btn.textContent = "Criando...";
   const { error } = await sb.from("igr_celulas").insert({
@@ -5137,6 +5138,14 @@ async function iniciar() {
   document.getElementById("form-admin-pastor-perfil")?.addEventListener("submit", enviarPastorPerfilAdmin);
   document.getElementById("form-grupo-info")?.addEventListener("submit", enviarGrupoInfo);
   document.getElementById("form-grupo-aviso")?.addEventListener("submit", enviarAvisoGrupoDetalhe);
+  document.getElementById("btn-toggle-grupo-info")?.addEventListener("click", () => {
+    const bloco = document.getElementById("grupo-bloco-editar-info");
+    bloco.style.display = bloco.style.display === "none" ? "block" : "none";
+  });
+  document.getElementById("btn-toggle-grupo-aviso")?.addEventListener("click", () => {
+    const bloco = document.getElementById("grupo-bloco-avisos");
+    bloco.style.display = bloco.style.display === "none" ? "block" : "none";
+  });
   document.getElementById("form-louvor-escala")?.addEventListener("submit", enviarEscalaLouvor);
   document.getElementById("form-louvor-participante")?.addEventListener("submit", enviarParticipanteLouvor);
   document.getElementById("form-louvor-musica")?.addEventListener("submit", enviarMusicaLouvor);
