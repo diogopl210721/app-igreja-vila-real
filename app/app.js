@@ -2738,8 +2738,8 @@ async function abrirBiblioteca() {
     return `
       <div data-abrir-livro="${l.id}" style="cursor:pointer;">
         <img src="${l.capa_url}" alt="${l.titulo}" style="width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:12px;box-shadow:var(--shadow);">
-        <b style="font-size:12.5px;display:block;margin-top:6px;line-height:1.3;">${l.titulo}</b>
-        ${pct > 0 ? `<div style="background:var(--bg);border-radius:6px;height:5px;overflow:hidden;margin-top:4px;"><div style="height:100%;background:var(--brand);width:${pct}%;"></div></div><p class="hint" style="margin:2px 0 0;">${pct}% lido</p>` : ""}
+        <div style="background:var(--bg);border-radius:6px;height:5px;overflow:hidden;margin-top:8px;"><div style="height:100%;background:var(--brand);width:${pct}%;"></div></div>
+        <p class="hint" style="margin:2px 0 0;">${pct > 0 ? `${pct}% lido` : "Ainda não começou"}</p>
       </div>
     `;
   }).join("") || `<p class="hint">Nenhum livro na biblioteca ainda.</p>`;
@@ -2811,7 +2811,10 @@ async function renderizarPaginaLivro() {
   document.getElementById("btn-pagina-proxima").disabled = st.paginaAtual >= st.totalPaginas;
 
   if (st.progressoId) {
-    sb.from("igr_livros_progresso").update({ pagina_atual: st.paginaAtual, atualizado_em: new Date().toISOString() }).eq("id", st.progressoId);
+    const { error } = await sb.from("igr_livros_progresso")
+      .update({ pagina_atual: st.paginaAtual, atualizado_em: new Date().toISOString() })
+      .eq("id", st.progressoId);
+    if (error) console.error("Não deu pra salvar o progresso da leitura:", error);
   }
 }
 
@@ -2841,6 +2844,12 @@ function mudarPaginaLivro(delta) {
 function sairDaLeitura() {
   const st = state.leituraAtual;
   state.leituraAtual = null;
+  if (st?.progressoId) {
+    sb.from("igr_livros_progresso")
+      .update({ pagina_atual: st.paginaAtual, atualizado_em: new Date().toISOString() })
+      .eq("id", st.progressoId)
+      .then(({ error }) => { if (error) console.error("Não deu pra salvar o progresso ao sair:", error); });
+  }
   mostrarTela("tela-biblioteca");
   abrirBiblioteca();
   if (st) {
