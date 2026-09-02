@@ -1194,6 +1194,7 @@ async function montarHomeMembro() {
 
   await carregarAvisos("home-avisos");
   await carregarPedidosOracao();
+  carregarTopLeitores();
 
   const btnAvisoLider = document.getElementById("btn-abrir-aviso-lider");
   if (btnAvisoLider) btnAvisoLider.style.display = m.eh_lider ? "block" : "none";
@@ -2860,6 +2861,39 @@ function sairDaLeitura() {
   if (st && state.membro) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
 }
 
+// ---------- ranking publico de leitura (Biblia + livros), pra motivar engajamento ----------
+async function carregarTopLeitores() {
+  const el = document.getElementById("top-leitores-lista");
+  if (!el || !state.igreja) return;
+  const [{ data: leituras }, { data: progresso }] = await Promise.all([
+    sb.from("igr_leituras").select("membro_id").eq("igreja_id", state.igreja.id),
+    sb.from("igr_livros_progresso").select("pagina_atual, membro_id, igr_membros!inner(igreja_id)").eq("igr_membros.igreja_id", state.igreja.id),
+  ]);
+
+  const pontos = {};
+  (leituras || []).forEach(l => { pontos[l.membro_id] = (pontos[l.membro_id] || 0) + 2; });
+  (progresso || []).forEach(p => { pontos[p.membro_id] = (pontos[p.membro_id] || 0) + Math.round((p.pagina_atual || 0) / 10); });
+
+  const ids = Object.keys(pontos).filter(id => pontos[id] > 0);
+  if (!ids.length) { el.innerHTML = `<p class="hint">Ninguém pontuou ainda — seja o primeiro a ler! 📖</p>`; return; }
+
+  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url").in("id", ids);
+  const ranking = (membros || [])
+    .map(m => ({ ...m, pontos: pontos[m.id] || 0 }))
+    .sort((a, b) => b.pontos - a.pontos)
+    .slice(0, 5);
+
+  const medalhas = ["🥇", "🥈", "🥉", "4º", "5º"];
+  el.innerHTML = ranking.map((m, i) => `
+    <div class="card row-avatar" style="padding:10px 14px;">
+      <span style="font-size:16px;flex:none;width:26px;text-align:center;font-weight:700;">${medalhas[i]}</span>
+      ${m.foto_url ? `<img src="${m.foto_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(m.nome_completo)}
+      <div class="row-info"><b>${m.nome_completo.split(" ")[0]}</b><span>${m.pontos} pontos de leitura</span></div>
+      ${state.membro?.id === m.id ? `<span class="badge-inline" style="flex:none;">Você</span>` : ""}
+    </div>
+  `).join("");
+}
+
 async function gerarBanners() {
   const tema = document.getElementById("banner-tema").value.trim();
   if (!tema) { alert("Digite pelo menos o tema do evento."); return; }
@@ -3538,16 +3572,29 @@ async function buscarDiretorio(termo) {
 
   el.innerHTML = (data || []).map(m => {
     const meuNome = state.membro.nome_completo.split(" ")[0];
-    const msgWhats = `Oi ${m.nome_completo.split(" ")[0]}! Aqui é ${meuNome}, te encontrei no Diretório de Membros do app da igreja 💛`;
+    const msgWhats = `Oi ${m.nome_completo.split(" ")[0]}! Aqui é ${meuNome}, te encontrei na Mão Amiga do app da igreja 💛`;
     return `
     <div class="card row-avatar">
       ${m.foto_url ? `<img src="${m.foto_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(m.nome_completo)}
       <div class="row-info"><b>${m.nome_completo}</b><span>${m.profissao || "Membro da igreja"}</span></div>
-      ${jaConectados.has(m.id)
-        ? `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;flex:none;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`
-        : `<button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;flex:none;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}">Conectar</button>`}
+      <div style="display:flex;flex-direction:column;gap:6px;flex:none;">
+        <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-avisar="${m.id}" data-avisar-nome="${m.nome_completo}">📣 Avisar que preciso</button>
+        ${jaConectados.has(m.id)
+          ? `<a class="btn btn-primary" style="width:auto;padding:7px 12px;font-size:11.5px;text-align:center;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">WhatsApp</a>`
+          : `<button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}">Conectar</button>`}
+      </div>
     </div>`;
   }).join("") || `<div class="empty">Ninguém encontrado com esse termo.</div>`;
+
+  el.querySelectorAll("[data-avisar]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; btn.textContent = "Avisando...";
+      const meuNome = state.membro.nome_completo.split(" ")[0];
+      await enviarPush({ tipo: "membros", membro_ids: [btn.dataset.avisar] },
+        "Alguém está precisando de você! 🙋", `${meuNome} está procurando ajuda com "${termo}" e te achou na Mão Amiga.`);
+      btn.textContent = "✅ Avisado!";
+    });
+  });
 
   el.querySelectorAll("[data-conectar]").forEach(btn => {
     btn.addEventListener("click", async () => {
