@@ -609,10 +609,18 @@ async function carregarCultos() {
 async function carregarAvisos(targetId) {
   const { data } = await sb.from("igr_avisos").select("*").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false }).limit(8);
   const grupoMembro = state.membro?.grupo_id || null;
-  const visiveis = (data || []).filter(a => !a.grupo_id || a.grupo_id === grupoMembro);
+  const visiveis = (data || []).filter(a => !a.grupo_id || a.grupo_id === grupoMembro).slice(0, 5);
   const el = document.getElementById(targetId);
   if (!el) return;
-  el.innerHTML = visiveis.slice(0, 5).map(a => `
+
+  let minhasReacoes = {};
+  if (state.membro && visiveis.length) {
+    const { data: reacoes } = await sb.from("igr_avisos_reacoes").select("aviso_id, reacao")
+      .eq("membro_id", state.membro.id).in("aviso_id", visiveis.map(a => a.id));
+    (reacoes || []).forEach(r => { minhasReacoes[r.aviso_id] = r.reacao; });
+  }
+
+  el.innerHTML = visiveis.map(a => `
     <div class="card">
       ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
       ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
@@ -624,8 +632,26 @@ async function carregarAvisos(targetId) {
           <p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p>
         </div>
       </div>
+      ${state.membro ? `
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasReacoes[a.id] === "amei" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-reagir-aviso="${a.id}" data-reacao="amei" ${minhasReacoes[a.id] ? "disabled" : ""}>❤️ Amei</button>
+          <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasReacoes[a.id] === "orando" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-reagir-aviso="${a.id}" data-reacao="orando" ${minhasReacoes[a.id] ? "disabled" : ""}>🙏 Orando</button>
+        </div>
+      ` : ""}
     </div>
   `).join("") || `<div class="empty">Nenhum aviso no momento.</div>`;
+
+  el.querySelectorAll("[data-reagir-aviso]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const avisoId = btn.dataset.reagirAviso, reacao = btn.dataset.reacao;
+      const irmao = btn.parentElement.querySelector(`[data-reagir-aviso="${avisoId}"]:not([data-reacao="${reacao}"])`);
+      btn.disabled = true; if (irmao) irmao.disabled = true;
+      btn.style.background = "var(--brand-soft)"; btn.style.color = "var(--brand)";
+      const { error } = await sb.from("igr_avisos_reacoes").insert({ aviso_id: avisoId, membro_id: state.membro.id, reacao });
+      if (!error) darPontos("aviso_reacao", avisoId);
+      else if (irmao) { btn.disabled = false; irmao.disabled = false; btn.style.background = ""; btn.style.color = ""; }
+    });
+  });
 }
 
 // ---------- visitante ----------
@@ -1217,6 +1243,7 @@ async function montarHomeMembro() {
   await carregarAvisos("home-avisos");
   await carregarPedidosOracao();
   carregarTopLeitores();
+  carregarRankingDoMes();
   atualizarBadgeMensagens().then(n => {
     if (n > 0 && !state.avisoMensagensMostrado) {
       state.avisoMensagensMostrado = true;
@@ -1319,6 +1346,7 @@ async function enviarPedidoOracao(ev) {
     const { error } = await sb.from("igr_pedidos_oracao").insert({ igreja_id: state.igreja.id, membro_id: state.membro.id, texto });
     if (error) { alert("Não deu pra enviar o pedido: " + error.message); return; }
     document.getElementById("novo-pedido-texto").value = "";
+    darPontosUmaVezPorDia("pedido_oracao");
     await carregarPedidosOracao();
     if (state.membro.grupo_id) {
       const { data: lideres } = await sb.from("igr_membros").select("id")
@@ -1374,6 +1402,7 @@ function abrirDevocional() {
   }
 
   mostrarTela("tela-devocional-detalhe");
+  darPontosUmaVezPorDia("devocional_aberto");
   configurarReacoesDevocional();
 }
 
@@ -1439,6 +1468,7 @@ async function configurarCheckinDiario() {
       btn.classList.add("on");
       await sb.from("igr_checkins_diarios")
         .upsert({ membro_id: state.membro.id, humor: btn.dataset.reacao, data: hoje }, { onConflict: "membro_id,data" });
+      darPontos("checkin_humor");
       box.querySelector(".checkin-pergunta").textContent = "Obrigado! Isso ajuda a personalizar seu devocional 💛";
       setTimeout(() => { box.style.display = "none"; }, 1400);
     };
@@ -2319,6 +2349,7 @@ async function salvarMarcarVersiculo() {
     livro: alvo.livroNome, capitulo: parseInt(alvo.capitulo), versiculo_inicio: parseInt(alvo.versiculo),
     nota, compartilhado,
   });
+  darPontos("leitura_biblica");
   btn.disabled = false; btn.textContent = "Salvar";
   document.getElementById("biblia-marcar-painel").style.display = "none";
   if (nota) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
@@ -2411,6 +2442,7 @@ async function salvarLeituraDiario() {
   });
   btn.disabled = false; btn.textContent = "Salvar no meu diário";
   if (error) { alert("Não deu pra salvar: " + error.message); return; }
+  darPontos("leitura_biblica");
 
   document.getElementById("diario-livro").value = "";
   document.getElementById("diario-capitulo").value = "";
@@ -2790,7 +2822,7 @@ async function abrirLeituraLivro(livroId) {
   let { data: progresso } = await sb.from("igr_livros_progresso").select("*").eq("membro_id", state.membro.id).eq("livro_id", livroId).maybeSingle();
 
   const pdf = await pdfjsLib.getDocument(livro.arquivo_url).promise;
-  state.leituraAtual = { livro, pdf, paginaAtual: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id, zoom: 1 };
+  state.leituraAtual = { livro, pdf, paginaAtual: progresso?.pagina_atual || 1, paginaInicial: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id, zoom: 1 };
   if (!progresso) {
     const { data: novo } = await sb.from("igr_livros_progresso")
       .insert({ membro_id: state.membro.id, livro_id: livroId, pagina_atual: 1, total_paginas: pdf.numPages })
@@ -2801,6 +2833,38 @@ async function abrirLeituraLivro(livroId) {
   }
 
   await renderizarPaginaLivro();
+}
+
+// ---------- sistema de pontos (gamificacao) ----------
+const PONTOS = {
+  checkin_humor: 10,
+  leitura_biblica: 30,
+  livro_sessao: 15,
+  mensagem_enviada: 20,
+  devocional_aberto: 40,
+  aviso_reacao: 20,
+  evento_inscricao: 25,
+  conexao_mao_amiga: 15,
+  pedido_oracao: 10,
+};
+
+async function darPontos(tipo, referencia_id) {
+  if (!state.membro || !state.igreja) return;
+  const pontos = PONTOS[tipo];
+  if (!pontos) return;
+  await sb.from("igr_pontos_eventos").insert({
+    igreja_id: state.igreja.id, membro_id: state.membro.id, tipo, pontos, referencia_id: referencia_id || null,
+  });
+}
+
+// pra acoes que nao podem pontuar toda vez (ex: abrir o devocional) - so da ponto 1x por dia
+async function darPontosUmaVezPorDia(tipo) {
+  if (!state.membro || !state.igreja) return;
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data: jaGanhou } = await sb.from("igr_pontos_eventos").select("id")
+    .eq("membro_id", state.membro.id).eq("tipo", tipo).gte("created_at", hoje + "T00:00:00").maybeSingle();
+  if (jaGanhou) return;
+  await darPontos(tipo);
 }
 
 function mostrarToast(msg, duracaoMs, aoClicar) {
@@ -2887,6 +2951,7 @@ function sairDaLeitura() {
   if (st) {
     const pct = Math.round((st.paginaAtual / st.totalPaginas) * 100);
     mostrarToast(`📖 Página salva — você já leu ${pct}% de "${st.livro.titulo}"`);
+    if (st.paginaAtual > st.paginaInicial) darPontos("livro_sessao");
   }
   // avisa a IA que a pessoa andou lendo, pra ir formando o perfil espiritual dela com isso tambem
   if (st && state.membro) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
@@ -3016,6 +3081,7 @@ async function enviarMensagemChat(ev) {
   }).select().single();
   if (error) { alert("Não deu pra enviar. Tenta de novo."); input.value = texto; return; }
   adicionarBolhaChat(data, false);
+  darPontos("mensagem_enviada");
   const meuNome = state.membro.nome_completo.split(" ")[0];
   enviarPush({ tipo: "membros", membro_ids: [st.outroId] }, `Nova mensagem de ${meuNome} 💬`, texto);
 }
@@ -3036,6 +3102,7 @@ function configurarBotoesConectar(el) {
       const { error } = await sb.from("igr_membros_conexoes").insert({ membro_id: state.membro.id, conectado_id: outroId });
       if (error) { alert("Não deu pra conectar agora."); btn.disabled = false; btn.textContent = "Conectar"; return; }
       await sb.from("igr_membros_conexoes").insert({ membro_id: outroId, conectado_id: state.membro.id });
+      darPontos("conexao_mao_amiga");
       const meuNome = state.membro.nome_completo.split(" ")[0];
       enviarPush({ tipo: "membros", membro_ids: [outroId] }, "Nova conexão 🤝", `${meuNome} se conectou com você no app da igreja.`);
       const msgWhats = `Oi ${outroNome.split(" ")[0]}! Aqui é ${meuNome}, te vi no app da igreja 💛`;
@@ -3056,6 +3123,104 @@ function configurarBotoesChatDireto(el) {
   el.querySelectorAll("[data-abrir-chat-direto]").forEach(btn => {
     btn.addEventListener("click", () => abrirChat(btn.dataset.abrirChatDireto, btn.dataset.nomeChat, btn.dataset.fotoChat || null));
   });
+}
+
+// ---------- ranking do mes (gamificacao geral) + hall da fama ----------
+function primeiroDiaDoMes(offsetMeses) {
+  const d = new Date();
+  d.setDate(1); d.setHours(0, 0, 0, 0);
+  d.setMonth(d.getMonth() + (offsetMeses || 0));
+  return d;
+}
+
+async function garantirFechamentoMesAnterior() {
+  if (!state.igreja) return;
+  const inicioMesAtual = primeiroDiaDoMes(0);
+  const inicioMesAnterior = primeiroDiaDoMes(-1);
+  const mesAnteriorISO = inicioMesAnterior.toISOString().slice(0, 10);
+
+  const { data: jaFechado } = await sb.from("igr_ranking_vencedores").select("id")
+    .eq("igreja_id", state.igreja.id).eq("mes", mesAnteriorISO).limit(1).maybeSingle();
+  if (jaFechado) return;
+
+  const { data: pontosMesAnterior } = await sb.from("igr_pontos_eventos").select("membro_id, pontos")
+    .eq("igreja_id", state.igreja.id)
+    .gte("created_at", inicioMesAnterior.toISOString()).lt("created_at", inicioMesAtual.toISOString());
+  if (!pontosMesAnterior || !pontosMesAnterior.length) return; // ninguem pontuou no mes anterior, nada pra fechar
+
+  const totais = {};
+  pontosMesAnterior.forEach(p => { totais[p.membro_id] = (totais[p.membro_id] || 0) + p.pontos; });
+  const top3 = Object.entries(totais).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  if (!top3.length) return;
+
+  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url").in("id", top3.map(([id]) => id));
+  const membrosMapa = {}; (membros || []).forEach(m => { membrosMapa[m.id] = m; });
+
+  const linhas = top3.map(([membro_id, pontos], i) => ({
+    igreja_id: state.igreja.id, mes: mesAnteriorISO, posicao: i + 1,
+    membro_id, nome_membro: membrosMapa[membro_id]?.nome_completo || "Alguém da igreja",
+    foto_url: membrosMapa[membro_id]?.foto_url || null, pontos,
+  }));
+  await sb.from("igr_ranking_vencedores").insert(linhas);
+}
+
+async function carregarRankingDoMes() {
+  const el = document.getElementById("ranking-mes-lista");
+  if (!el || !state.igreja) return;
+  await garantirFechamentoMesAnterior();
+
+  const inicioMes = primeiroDiaDoMes(0);
+  const { data } = await sb.from("igr_pontos_eventos").select("membro_id, pontos")
+    .eq("igreja_id", state.igreja.id).gte("created_at", inicioMes.toISOString());
+
+  const totais = {};
+  (data || []).forEach(p => { totais[p.membro_id] = (totais[p.membro_id] || 0) + p.pontos; });
+  const ids = Object.keys(totais).filter(id => totais[id] > 0);
+
+  const diasRestantes = Math.ceil((primeiroDiaDoMes(1) - new Date()) / 86400000);
+  document.getElementById("ranking-mes-subtitulo").textContent = `Pontos por participar do app essa temporada. Faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"} pro fim do mês — os 3 primeiros ganham um brinde da igreja!`;
+
+  if (!ids.length) { el.innerHTML = `<p class="hint">Ninguém pontuou esse mês ainda — comece você! 🎮</p>`; return; }
+
+  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url").in("id", ids);
+  const ranking = (membros || [])
+    .map(m => ({ ...m, pontos: totais[m.id] || 0 }))
+    .sort((a, b) => b.pontos - a.pontos)
+    .slice(0, 5);
+
+  const medalhas = ["🥇", "🥈", "🥉", "4º", "5º"];
+  el.innerHTML = ranking.map((m, i) => `
+    <div class="card row-avatar" style="padding:10px 14px;${i < 3 ? "border:1.5px solid var(--brand-soft);" : ""}">
+      <span style="font-size:16px;flex:none;width:26px;text-align:center;font-weight:700;">${medalhas[i]}</span>
+      ${m.foto_url ? `<img src="${m.foto_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(m.nome_completo)}
+      <div class="row-info"><b>${m.nome_completo.split(" ")[0]}</b><span>${m.pontos} pontos</span></div>
+      ${state.membro?.id === m.id ? `<span class="badge-inline" style="flex:none;">Você</span>` : ""}
+    </div>
+  `).join("");
+}
+
+async function carregarHallFama() {
+  const el = document.getElementById("hall-fama-lista");
+  const { data } = await sb.from("igr_ranking_vencedores").select("*").eq("igreja_id", state.igreja.id)
+    .order("mes", { ascending: false }).order("posicao", { ascending: true });
+  if (!data || !data.length) { el.innerHTML = `<p class="hint">Ainda não tem nenhum mês fechado — o primeiro fecha no início do mês que vem.</p>`; return; }
+
+  const porMes = {};
+  data.forEach(v => { (porMes[v.mes] = porMes[v.mes] || []).push(v); });
+  const medalhas = ["🥇", "🥈", "🥉"];
+
+  el.innerHTML = Object.entries(porMes).map(([mes, vencedores]) => `
+    <div class="section-label"><b>${new Date(mes + "T00:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</b></div>
+    <div style="margin-bottom:14px;">
+      ${vencedores.map(v => `
+        <div class="card row-avatar" style="padding:10px 14px;">
+          <span style="font-size:16px;flex:none;width:26px;text-align:center;font-weight:700;">${medalhas[v.posicao - 1] || v.posicao + "º"}</span>
+          ${v.foto_url ? `<img src="${v.foto_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(v.nome_membro)}
+          <div class="row-info"><b>${v.nome_membro}</b><span>${v.pontos} pontos</span></div>
+        </div>
+      `).join("")}
+    </div>
+  `).join("");
 }
 
 async function carregarTopLeitores() {
@@ -3604,6 +3769,7 @@ async function inscreverMembroEvento() {
       return;
     }
     enviarPush({ tipo: "membros", membro_ids: [state.membro.id] }, "Inscrição confirmada! 🎉", `Você está inscrito(a) em "${evento.titulo}" — ${formatarPeriodo(evento.data, evento.data_fim)}.`);
+    darPontos("evento_inscricao");
     await avisarLiderPorIdadeEGenero(evento, state.membro.data_nascimento, state.membro.genero, state.membro.nome_completo);
     mostrarConfirmacaoInscricao(evento);
   } catch (e) {
@@ -5867,6 +6033,7 @@ async function iniciar() {
       if (alvo === "tela-diario-historico") await carregarHistoricoDiario();
       if (alvo === "tela-diario-planos") await carregarPlanos();
       if (alvo === "tela-biblioteca") await abrirBiblioteca();
+      if (alvo === "tela-hall-fama") await carregarHallFama();
       if (alvo === "tela-mensagens") await carregarListaMensagens();
     });
   });
