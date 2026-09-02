@@ -2761,7 +2761,7 @@ async function abrirLeituraLivro(livroId) {
   let { data: progresso } = await sb.from("igr_livros_progresso").select("*").eq("membro_id", state.membro.id).eq("livro_id", livroId).maybeSingle();
 
   const pdf = await pdfjsLib.getDocument(livro.arquivo_url).promise;
-  state.leituraAtual = { livro, pdf, paginaAtual: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id };
+  state.leituraAtual = { livro, pdf, paginaAtual: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id, zoom: 1 };
   if (!progresso) {
     const { data: novo } = await sb.from("igr_livros_progresso")
       .insert({ membro_id: state.membro.id, livro_id: livroId, pagina_atual: 1, total_paginas: pdf.numPages })
@@ -2774,17 +2774,36 @@ async function abrirLeituraLivro(livroId) {
   await renderizarPaginaLivro();
 }
 
+function mostrarToast(msg, duracaoMs) {
+  const el = document.getElementById("toast-generico");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.opacity = "1";
+  el.style.transform = "translate(-50%,0)";
+  clearTimeout(el._timeoutId);
+  el._timeoutId = setTimeout(() => {
+    el.style.opacity = "0";
+    el.style.transform = "translate(-50%,20px)";
+  }, duracaoMs || 3000);
+}
+
 async function renderizarPaginaLivro() {
   const st = state.leituraAtual;
   if (!st) return;
   const page = await st.pdf.getPage(st.paginaAtual);
   const canvas = document.getElementById("leitura-canvas");
-  const wrapW = document.getElementById("leitura-canvas-wrap").clientWidth - 24;
+  const wrapEl = document.getElementById("leitura-canvas-wrap");
+  const wrapW = wrapEl.clientWidth - 24;
+  const dpr = window.devicePixelRatio || 1;
   const viewportBase = page.getViewport({ scale: 1 });
-  const escala = wrapW / viewportBase.width;
-  const viewport = page.getViewport({ scale: escala });
-  canvas.width = viewport.width; canvas.height = viewport.height;
-  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  const zoom = st.zoom || 1;
+  const escalaExibicao = (wrapW / viewportBase.width) * zoom;
+  const viewportExibicao = page.getViewport({ scale: escalaExibicao });
+  // renderiza no buffer em resolucao mais alta (considerando a densidade de pixel da tela), pra letra sair nitida
+  const viewportBuffer = page.getViewport({ scale: escalaExibicao * dpr });
+  canvas.width = viewportBuffer.width; canvas.height = viewportBuffer.height;
+  canvas.style.width = `${viewportExibicao.width}px`; canvas.style.height = `${viewportExibicao.height}px`;
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport: viewportBuffer }).promise;
 
   const pct = Math.round((st.paginaAtual / st.totalPaginas) * 100);
   document.getElementById("leitura-progresso-texto").textContent = `${st.paginaAtual}/${st.totalPaginas} · ${pct}%`;
@@ -2794,6 +2813,20 @@ async function renderizarPaginaLivro() {
   if (st.progressoId) {
     sb.from("igr_livros_progresso").update({ pagina_atual: st.paginaAtual, atualizado_em: new Date().toISOString() }).eq("id", st.progressoId);
   }
+}
+
+function mudarZoomLivro(delta) {
+  const st = state.leituraAtual;
+  if (!st) return;
+  st.zoom = Math.min(3, Math.max(0.6, (st.zoom || 1) + delta));
+  renderizarPaginaLivro();
+}
+
+function resetarZoomLargura() {
+  const st = state.leituraAtual;
+  if (!st) return;
+  st.zoom = 1;
+  renderizarPaginaLivro();
 }
 
 function mudarPaginaLivro(delta) {
@@ -2810,6 +2843,10 @@ function sairDaLeitura() {
   state.leituraAtual = null;
   mostrarTela("tela-biblioteca");
   abrirBiblioteca();
+  if (st) {
+    const pct = Math.round((st.paginaAtual / st.totalPaginas) * 100);
+    mostrarToast(`📖 Página salva — você já leu ${pct}% de "${st.livro.titulo}"`);
+  }
   // avisa a IA que a pessoa andou lendo, pra ir formando o perfil espiritual dela com isso tambem
   if (st && state.membro) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
 }
@@ -5397,6 +5434,9 @@ async function iniciar() {
   });
   document.getElementById("btn-voltar-leitura")?.addEventListener("click", sairDaLeitura);
   document.getElementById("btn-pagina-anterior")?.addEventListener("click", () => mudarPaginaLivro(-1));
+  document.getElementById("btn-zoom-menos")?.addEventListener("click", () => mudarZoomLivro(-0.2));
+  document.getElementById("btn-zoom-mais")?.addEventListener("click", () => mudarZoomLivro(0.2));
+  document.getElementById("btn-zoom-largura")?.addEventListener("click", resetarZoomLargura);
   document.getElementById("btn-pagina-proxima")?.addEventListener("click", () => mudarPaginaLivro(1));
   document.getElementById("form-admin-album")?.addEventListener("submit", enviarAlbumAdmin);
   document.getElementById("btn-enviar-fotos")?.addEventListener("click", enviarFotosAlbum);
