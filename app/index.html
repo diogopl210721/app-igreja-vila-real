@@ -42,6 +42,7 @@
     <symbol id="i-whatsapp" viewBox="0 0 24 24"><path d="M4 20l1.3-4.7A8 8 0 1 1 9 18.5z"/><path d="M8.5 9c0 3.5 3 6.5 6.5 6.5"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4z"/></symbol>
   </defs>
 </svg>
 
@@ -886,6 +887,7 @@
         <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
         <button class="quicklink" data-nav="tela-diretorio"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Mão Amiga</button>
+        <button class="quicklink" data-nav="tela-mensagens" style="position:relative;"><span class="quicklink-ic"><svg class="icon"><use href="#i-chat"/></svg></span>Mensagens<span id="msgs-badge-quicklink" style="display:none;position:absolute;top:-2px;right:18px;background:#E74C3C;color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px;"></span></button>
       </div>
 
       <div style="margin-top:16px;">
@@ -1657,6 +1659,35 @@
     </div>
   </div>
 
+  <!-- ============ MENSAGENS (CHAT DENTRO DO APP) ============ -->
+  <div class="screen" id="tela-mensagens">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-home">
+        <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">💬 Mensagens</span>
+      <p class="hint" style="margin-bottom:14px;">Suas conversas com outros membros, direto no app.</p>
+      <div id="msgs-lista-conversas"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <div class="screen" id="tela-chat">
+    <div style="display:flex;flex-direction:column;height:100%;">
+      <div class="topbar" style="flex:none;">
+        <button class="navitem" id="btn-voltar-chat" style="width:auto;flex:none;"><svg class="icon"><use href="#i-arrowleft"/></svg></button>
+        <div id="chat-avatar-nome" style="display:flex;align-items:center;gap:10px;flex:1;overflow:hidden;">
+          <span id="chat-avatar-el"></span>
+          <b id="chat-nome-titulo" style="font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></b>
+        </div>
+      </div>
+      <div id="chat-mensagens" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:8px;"></div>
+      <form id="form-chat-enviar" style="display:flex;gap:8px;padding:10px 14px calc(10px + var(--safe-bottom));background:var(--card);border-top:1px solid var(--line);flex:none;">
+        <input id="chat-input-texto" autocomplete="off" placeholder="Escreva uma mensagem..." style="flex:1;padding:12px 14px;border-radius:20px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;">
+        <button class="btn btn-primary" type="submit" style="width:auto;padding:0 18px;border-radius:20px;">Enviar</button>
+      </form>
+    </div>
+  </div>
+
   <div class="screen" id="tela-grupos-lista">
     <div class="scroll no-nav">
       <div class="voltar-btn" data-nav="tela-membro-home">
@@ -1829,6 +1860,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788315793"></script>
+<script src="app.js?v=1788316169"></script>
 </body>
 </html>

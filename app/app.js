@@ -1195,6 +1195,7 @@ async function montarHomeMembro() {
   await carregarAvisos("home-avisos");
   await carregarPedidosOracao();
   carregarTopLeitores();
+  atualizarBadgeMensagens();
 
   const btnAvisoLider = document.getElementById("btn-abrir-aviso-lider");
   if (btnAvisoLider) btnAvisoLider.style.display = m.eh_lider ? "block" : "none";
@@ -2862,19 +2863,166 @@ function sairDaLeitura() {
 }
 
 // ---------- ranking publico de leitura (Biblia + livros), pra motivar engajamento ----------
+// ---------- mensagens diretas (chat dentro do app) ----------
+async function contarMensagensNaoLidas() {
+  if (!state.membro) return 0;
+  const { count } = await sb.from("igr_mensagens_diretas").select("id", { count: "exact", head: true })
+    .eq("destinatario_id", state.membro.id).eq("lida", false);
+  return count || 0;
+}
+
+async function atualizarBadgeMensagens() {
+  const badge = document.getElementById("msgs-badge-quicklink");
+  if (!badge) return;
+  const n = await contarMensagensNaoLidas();
+  if (n > 0) { badge.textContent = n > 9 ? "9+" : String(n); badge.style.display = "flex"; }
+  else { badge.style.display = "none"; }
+}
+
+async function carregarListaMensagens() {
+  const el = document.getElementById("msgs-lista-conversas");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  if (!state.membro) { el.innerHTML = `<p class="hint">Faça login pra ver suas mensagens.</p>`; return; }
+
+  const { data } = await sb.from("igr_mensagens_diretas")
+    .select("*").or(`remetente_id.eq.${state.membro.id},destinatario_id.eq.${state.membro.id}`)
+    .order("created_at", { ascending: false });
+
+  const conversas = {};
+  (data || []).forEach(m => {
+    const outroId = m.remetente_id === state.membro.id ? m.destinatario_id : m.remetente_id;
+    if (!conversas[outroId]) conversas[outroId] = { ultima: m, naoLidas: 0 };
+    if (m.destinatario_id === state.membro.id && !m.lida) conversas[outroId].naoLidas++;
+  });
+
+  const ids = Object.keys(conversas);
+  if (!ids.length) { el.innerHTML = `<p class="hint">Nenhuma conversa ainda. Toque em "Conectar" em alguém na Mão Amiga ou no Top Leitores pra começar.</p>`; return; }
+
+  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url").in("id", ids);
+  const membrosMapa = {};
+  (membros || []).forEach(m => { membrosMapa[m.id] = m; });
+
+  const lista = ids.map(id => ({ id, ...conversas[id], membro: membrosMapa[id] }))
+    .filter(c => c.membro)
+    .sort((a, b) => new Date(b.ultima.created_at) - new Date(a.ultima.created_at));
+
+  el.innerHTML = lista.map(c => `
+    <div class="card row-avatar" data-abrir-chat="${c.id}" style="cursor:pointer;">
+      ${c.membro.foto_url ? `<img src="${c.membro.foto_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(c.membro.nome_completo)}
+      <div class="row-info"><b>${c.membro.nome_completo}</b><span>${c.ultima.remetente_id === state.membro.id ? "Você: " : ""}${c.ultima.texto.slice(0, 40)}${c.ultima.texto.length > 40 ? "…" : ""}</span></div>
+      ${c.naoLidas > 0 ? `<span style="background:#E74C3C;color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 6px;flex:none;">${c.naoLidas}</span>` : ""}
+    </div>
+  `).join("");
+
+  el.querySelectorAll("[data-abrir-chat]").forEach(card => {
+    card.addEventListener("click", () => {
+      const c = lista.find(x => x.id === card.dataset.abrirChat);
+      abrirChat(c.membro.id, c.membro.nome_completo, c.membro.foto_url);
+    });
+  });
+}
+
+async function abrirChat(outroId, outroNome, outroFoto) {
+  if (!state.membro) return;
+  state.chatAtual = { outroId, outroNome };
+  document.getElementById("chat-nome-titulo").textContent = outroNome;
+  document.getElementById("chat-avatar-el").innerHTML = outroFoto
+    ? `<img src="${outroFoto}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`
+    : avatarIniciais(outroNome, 32);
+  mostrarTela("tela-chat");
+  await renderizarMensagensChat();
+
+  // marca como lidas as mensagens que essa pessoa me mandou
+  await sb.from("igr_mensagens_diretas").update({ lida: true })
+    .eq("remetente_id", outroId).eq("destinatario_id", state.membro.id).eq("lida", false);
+  atualizarBadgeMensagens();
+
+  // escuta mensagens novas em tempo real enquanto o chat estiver aberto
+  if (state.chatCanal) sb.removeChannel(state.chatCanal);
+  state.chatCanal = sb.channel(`chat-${state.membro.id}-${outroId}`)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "igr_mensagens_diretas" }, (payload) => {
+      const m = payload.new;
+      const daConversa = (m.remetente_id === outroId && m.destinatario_id === state.membro.id);
+      if (!daConversa) return;
+      adicionarBolhaChat(m, false);
+      sb.from("igr_mensagens_diretas").update({ lida: true }).eq("id", m.id);
+    })
+    .subscribe();
+}
+
+async function renderizarMensagensChat() {
+  const st = state.chatAtual;
+  const el = document.getElementById("chat-mensagens");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const { data } = await sb.from("igr_mensagens_diretas").select("*")
+    .or(`and(remetente_id.eq.${state.membro.id},destinatario_id.eq.${st.outroId}),and(remetente_id.eq.${st.outroId},destinatario_id.eq.${state.membro.id})`)
+    .order("created_at", { ascending: true });
+  el.innerHTML = "";
+  (data || []).forEach(m => adicionarBolhaChat(m, true));
+  el.scrollTop = el.scrollHeight;
+}
+
+function adicionarBolhaChat(m, semScroll) {
+  const el = document.getElementById("chat-mensagens");
+  const minha = m.remetente_id === state.membro.id;
+  const bolha = document.createElement("div");
+  bolha.style.cssText = `max-width:78%;padding:9px 13px;border-radius:16px;font-size:13.5px;line-height:1.4;align-self:${minha ? "flex-end" : "flex-start"};background:${minha ? "var(--brand)" : "var(--bg)"};color:${minha ? "#fff" : "var(--ink)"};${minha ? "border-bottom-right-radius:4px;" : "border-bottom-left-radius:4px;"}`;
+  bolha.textContent = m.texto;
+  el.appendChild(bolha);
+  if (!semScroll) el.scrollTop = el.scrollHeight;
+}
+
+async function enviarMensagemChat(ev) {
+  ev.preventDefault();
+  const input = document.getElementById("chat-input-texto");
+  const texto = input.value.trim();
+  const st = state.chatAtual;
+  if (!texto || !st || !state.membro) return;
+  input.value = "";
+  const { data, error } = await sb.from("igr_mensagens_diretas").insert({
+    igreja_id: state.igreja.id, remetente_id: state.membro.id, destinatario_id: st.outroId, texto,
+  }).select().single();
+  if (error) { alert("Não deu pra enviar. Tenta de novo."); input.value = texto; return; }
+  adicionarBolhaChat(data, false);
+  const meuNome = state.membro.nome_completo.split(" ")[0];
+  enviarPush({ tipo: "membros", membro_ids: [st.outroId] }, `Nova mensagem de ${meuNome} 💬`, texto);
+}
+
+function sairDoChat() {
+  if (state.chatCanal) { sb.removeChannel(state.chatCanal); state.chatCanal = null; }
+  state.chatAtual = null;
+  mostrarTela("tela-mensagens");
+  carregarListaMensagens();
+}
+
 function configurarBotoesConectar(el) {
   el.querySelectorAll("[data-conectar]").forEach(btn => {
     btn.addEventListener("click", async () => {
       btn.disabled = true; btn.textContent = "Conectando...";
       const outroId = btn.dataset.conectar;
+      const outroNome = btn.dataset.nome;
       const { error } = await sb.from("igr_membros_conexoes").insert({ membro_id: state.membro.id, conectado_id: outroId });
       if (error) { alert("Não deu pra conectar agora."); btn.disabled = false; btn.textContent = "Conectar"; return; }
       await sb.from("igr_membros_conexoes").insert({ membro_id: outroId, conectado_id: state.membro.id });
       const meuNome = state.membro.nome_completo.split(" ")[0];
       enviarPush({ tipo: "membros", membro_ids: [outroId] }, "Nova conexão 🤝", `${meuNome} se conectou com você no app da igreja.`);
-      const msgWhats = `Oi ${btn.dataset.nome.split(" ")[0]}! Aqui é ${meuNome}, te vi no app da igreja 💛`;
-      btn.outerHTML = `<a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;flex:none;" href="${linkWhatsapp(btn.dataset.telefone, msgWhats)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`;
+      const msgWhats = `Oi ${outroNome.split(" ")[0]}! Aqui é ${meuNome}, te vi no app da igreja 💛`;
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "display:flex;gap:6px;flex:none;";
+      wrapper.innerHTML = `
+        <button class="btn btn-primary" style="width:auto;padding:8px 12px;font-size:11.5px;" data-abrir-chat-direto="${outroId}" data-nome-chat="${outroNome}" data-foto-chat="${btn.dataset.foto || ""}">💬 Chat no app</button>
+        <a class="btn btn-ghost" style="width:auto;padding:8px 12px;font-size:11.5px;" href="${linkWhatsapp(btn.dataset.telefone, msgWhats)}" target="_blank" rel="noopener">WhatsApp</a>
+      `;
+      btn.replaceWith(wrapper);
+      configurarBotoesChatDireto(wrapper);
     });
+  });
+  configurarBotoesChatDireto(el);
+}
+
+function configurarBotoesChatDireto(el) {
+  el.querySelectorAll("[data-abrir-chat-direto]").forEach(btn => {
+    btn.addEventListener("click", () => abrirChat(btn.dataset.abrirChatDireto, btn.dataset.nomeChat, btn.dataset.fotoChat || null));
   });
 }
 
@@ -2912,8 +3060,11 @@ async function carregarTopLeitores() {
     let acao = "";
     if (!souEu && state.membro) {
       acao = jaConectados.has(m.id)
-        ? `<a class="btn btn-primary" style="width:auto;padding:7px 12px;font-size:11.5px;flex:none;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">💬 WhatsApp</a>`
-        : `<button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;flex:none;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}">💬 Conectar</button>`;
+        ? `<div style="display:flex;gap:6px;flex:none;">
+             <button class="btn btn-primary" style="width:auto;padding:7px 10px;font-size:11.5px;" data-abrir-chat-direto="${m.id}" data-nome-chat="${m.nome_completo}" data-foto-chat="${m.foto_url || ""}">💬</button>
+             <a class="btn btn-ghost" style="width:auto;padding:7px 10px;font-size:11.5px;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">Zap</a>
+           </div>`
+        : `<button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;flex:none;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}" data-foto="${m.foto_url || ""}">💬 Conectar</button>`;
     }
     return `
     <div class="card row-avatar" style="padding:10px 14px;">
@@ -3613,8 +3764,11 @@ async function buscarDiretorio(termo) {
       <div style="display:flex;flex-direction:column;gap:6px;flex:none;">
         <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-avisar="${m.id}" data-avisar-nome="${m.nome_completo}">📣 Avisar que preciso</button>
         ${jaConectados.has(m.id)
-          ? `<a class="btn btn-primary" style="width:auto;padding:7px 12px;font-size:11.5px;text-align:center;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">WhatsApp</a>`
-          : `<button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}">Conectar</button>`}
+          ? `<div style="display:flex;gap:6px;">
+               <button class="btn btn-primary" style="width:auto;padding:7px 10px;font-size:11.5px;flex:1;" data-abrir-chat-direto="${m.id}" data-nome-chat="${m.nome_completo}" data-foto-chat="${m.foto_url || ""}">💬 Chat</button>
+               <a class="btn btn-ghost" style="width:auto;padding:7px 10px;font-size:11.5px;flex:1;text-align:center;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">Zap</a>
+             </div>`
+          : `<button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}" data-foto="${m.foto_url || ""}">Conectar</button>`}
       </div>
     </div>`;
   }).join("") || `<div class="empty">Ninguém encontrado com esse termo.</div>`;
@@ -5518,6 +5672,8 @@ async function iniciar() {
   });
   document.getElementById("btn-voltar-leitura")?.addEventListener("click", sairDaLeitura);
   document.getElementById("btn-pagina-anterior")?.addEventListener("click", () => mudarPaginaLivro(-1));
+  document.getElementById("btn-voltar-chat")?.addEventListener("click", sairDoChat);
+  document.getElementById("form-chat-enviar")?.addEventListener("submit", enviarMensagemChat);
   document.getElementById("btn-zoom-menos")?.addEventListener("click", () => mudarZoomLivro(-0.2));
   document.getElementById("btn-zoom-mais")?.addEventListener("click", () => mudarZoomLivro(0.2));
   document.getElementById("btn-zoom-largura")?.addEventListener("click", resetarZoomLargura);
@@ -5593,6 +5749,7 @@ async function iniciar() {
       if (alvo === "tela-diario-historico") await carregarHistoricoDiario();
       if (alvo === "tela-diario-planos") await carregarPlanos();
       if (alvo === "tela-biblioteca") await abrirBiblioteca();
+      if (alvo === "tela-mensagens") await carregarListaMensagens();
     });
   });
   document.querySelectorAll("[data-close-a2hs]").forEach(b => b.addEventListener("click", fecharA2HS));
