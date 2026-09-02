@@ -227,6 +227,14 @@
         <p class="hint" style="margin-top:-6px;">Diferente do calendário do líder (que avisa só o grupo dele), isso aqui notifica a igreja inteira.</p>
         <div class="card">
           <div class="field"><label>Título</label><input id="adm-cal-titulo" required placeholder="Ex: Conferência de Missões"></div>
+          <div class="field"><label>Tipo (opcional — já cria/vincula automaticamente)</label>
+            <select id="adm-cal-tipo">
+              <option value="">Só reservar no Calendário</option>
+              <option value="culto">Culto</option>
+              <option value="evento">Evento (com inscrição)</option>
+              <option value="aviso">Aviso pra todo mundo</option>
+            </select>
+          </div>
           <div class="field"><label>Local</label><input id="adm-cal-local" required placeholder="Ex: Templo, Salão..."></div>
           <div class="field"><label>Data (início)</label><input id="adm-cal-data" type="date" required></div>
           <div class="field"><label>Data final (opcional — pra evento de vários dias)</label><input id="adm-cal-data-fim" type="date"></div>
@@ -522,6 +530,11 @@
           <form id="form-admin-aviso">
             <div class="field"><label>Título</label><input id="aa-titulo" required placeholder="Ex: Retiro de família"></div>
             <div class="field"><label>Texto</label><input id="aa-texto" placeholder="Detalhes do aviso"></div>
+            <div class="field"><label>Data do evento (opcional — se preencher, já entra no Calendário)</label><input id="aa-data" type="date"></div>
+            <div style="display:flex;gap:10px;">
+              <div class="field" style="flex:1;"><label>Horário (opcional)</label><input id="aa-horario" placeholder="Ex: 19h30"></div>
+              <div class="field" style="flex:1;"><label>Local (opcional)</label><input id="aa-local" placeholder="Ex: Templo"></div>
+            </div>
             <div class="field"><label>Banner (opcional)</label><input id="aa-imagem" type="file" accept="image/*"></div>
             <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="aa-video" type="file" accept="video/*"></div>
             <button class="btn btn-primary" type="submit">Publicar aviso</button>
@@ -1860,6 +1873,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788340666"></script>
+<script src="app.js?v=1788341767"></script>
 </body>
 </html>

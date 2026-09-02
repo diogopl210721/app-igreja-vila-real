@@ -3335,6 +3335,7 @@ async function enviarCalendario(ev) {
 
 async function enviarCalendarioAdmin() {
   const titulo = document.getElementById("adm-cal-titulo").value.trim();
+  const tipo = document.getElementById("adm-cal-tipo").value;
   const local = document.getElementById("adm-cal-local").value.trim();
   const data = document.getElementById("adm-cal-data").value;
   const data_fim = document.getElementById("adm-cal-data-fim").value || null;
@@ -3347,15 +3348,48 @@ async function enviarCalendarioAdmin() {
   btn.disabled = true; btn.textContent = "Publicando...";
   const arquivo = document.getElementById("adm-cal-imagem").files[0];
   const imagem_url = await uploadArquivo(arquivo, "calendario");
-  const { error } = await sb.from("igr_calendario_eventos").insert({
+
+  // se um Tipo foi escolhido, cria a origem (culto/evento/aviso) e ja deixa vinculada ao calendario
+  let tipoColuna = null, origemId = null;
+  if (tipo === "culto") {
+    const { data: novoCulto, error } = await sb.from("igr_cultos").insert({
+      igreja_id: state.igreja.id, titulo, local, horario: horario || null, imagem_url,
+      data: dia_semana ? null : data, data_inicio: dia_semana ? data : null, data_fim: dia_semana ? data_fim : null,
+      dia_semana, ordem: Date.now(),
+    }).select().single();
+    if (error) { alert("Não deu pra criar o culto: " + error.message); btn.disabled = false; btn.textContent = "Publicar e notificar todo mundo"; return; }
+    tipoColuna = "culto_id"; origemId = novoCulto?.id;
+  } else if (tipo === "evento") {
+    const { data: novoEvento, error } = await sb.from("igr_eventos").insert({
+      igreja_id: state.igreja.id, titulo, descricao: observacoes || null, local, data, data_fim, horario: horario || null,
+      banner_url: imagem_url, gratuito: true, criado_por_nome: state.adminNome || "Administração",
+    }).select().single();
+    if (error) { alert("Não deu pra criar o evento: " + error.message); btn.disabled = false; btn.textContent = "Publicar e notificar todo mundo"; return; }
+    tipoColuna = "evento_id"; origemId = novoEvento?.id;
+  } else if (tipo === "aviso") {
+    const { data: novoAviso, error } = await sb.from("igr_avisos").insert({
+      igreja_id: state.igreja.id, titulo, texto: observacoes || null, imagem_url,
+      data_evento: data, horario_evento: horario || null, local_evento: local, publicado_em: new Date().toISOString(),
+    }).select().single();
+    if (error) { alert("Não deu pra criar o aviso: " + error.message); btn.disabled = false; btn.textContent = "Publicar e notificar todo mundo"; return; }
+    tipoColuna = "aviso_id"; origemId = novoAviso?.id;
+  }
+
+  const payloadCalendario = {
     igreja_id: state.igreja.id, grupo_id: null,
     criado_por_nome: state.adminNome || "Administração",
     titulo, local, data, data_fim, dia_semana, horario: horario || null, observacoes: observacoes || null, imagem_url,
-  });
+  };
+  if (tipoColuna) payloadCalendario[tipoColuna] = origemId;
+  const { error } = tipoColuna
+    ? await sb.from("igr_calendario_eventos").upsert(payloadCalendario, { onConflict: tipoColuna })
+    : await sb.from("igr_calendario_eventos").insert(payloadCalendario);
+
   btn.disabled = false; btn.textContent = "Publicar e notificar todo mundo";
   if (error) { alert("Não deu pra publicar: " + error.message); return; }
 
   document.getElementById("adm-cal-titulo").value = "";
+  document.getElementById("adm-cal-tipo").value = "";
   document.getElementById("adm-cal-local").value = "";
   document.getElementById("adm-cal-data").value = "";
   document.getElementById("adm-cal-data-fim").value = "";
@@ -4937,6 +4971,17 @@ function cancelarEdicaoCulto() {
   document.querySelector("#form-admin-culto button[type=submit]").textContent = "Adicionar culto";
   document.getElementById("ac-cancelar-edicao").style.display = "none";
 }
+// ---------- sincronizacao automatica: Cultos/Eventos/Avisos <-> Calendario da Igreja ----------
+async function sincronizarCalendarioDeOrigem({ tipoColuna, origemId, titulo, local, data, data_fim, horario, observacoes, dia_semana, imagem_url }) {
+  if (!origemId || !data) return;
+  await sb.from("igr_calendario_eventos").upsert({
+    [tipoColuna]: origemId, igreja_id: state.igreja.id, grupo_id: null,
+    titulo, local: local || "A definir", data, data_fim: data_fim || null,
+    horario: horario || null, observacoes: observacoes || null, dia_semana: dia_semana || null,
+    imagem_url: imagem_url || null, criado_por_nome: state.adminNome || state.membro?.nome_completo || "",
+  }, { onConflict: tipoColuna });
+}
+
 async function enviarCultoAdmin(ev) {
   ev.preventDefault();
   const titulo = document.getElementById("ac-titulo").value.trim();
@@ -4957,15 +5002,23 @@ async function enviarCultoAdmin(ev) {
   try {
     const arquivo = document.getElementById("ac-imagem").files[0];
     const novaImagem = await uploadArquivo(arquivo, "cultos");
+    let cultoId = editando?.id;
     if (editando) {
       const imagem_url = novaImagem || editando.imagem_url || null;
       const { error } = await sb.from("igr_cultos").update({ titulo, dia_semana, horario, local, imagem_url, data: data_especifica, data_inicio, data_fim }).eq("id", editando.id);
       if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
       cancelarEdicaoCulto();
     } else {
-      const { error } = await sb.from("igr_cultos").insert({ igreja_id: state.igreja.id, titulo, dia_semana, horario, local, imagem_url: novaImagem, data: data_especifica, data_inicio, data_fim, ordem: Date.now() });
+      const { data: novoCulto, error } = await sb.from("igr_cultos").insert({ igreja_id: state.igreja.id, titulo, dia_semana, horario, local, imagem_url: novaImagem, data: data_especifica, data_inicio, data_fim, ordem: Date.now() }).select().single();
       if (error) { alert("Não deu pra salvar o culto: " + error.message); return; }
+      cultoId = novoCulto?.id;
       ev.target.reset();
+    }
+    // sincroniza automaticamente com o Calendário da Igreja (só quando tem uma data concreta pra mostrar)
+    if (data_especifica) {
+      await sincronizarCalendarioDeOrigem({ tipoColuna: "culto_id", origemId: cultoId, titulo, local, horario, imagem_url: novaImagem || editando?.imagem_url, data: data_especifica, data_fim: data_especifica });
+    } else if (data_inicio && data_fim) {
+      await sincronizarCalendarioDeOrigem({ tipoColuna: "culto_id", origemId: cultoId, titulo, local, horario, imagem_url: novaImagem || editando?.imagem_url, data: data_inicio, data_fim, dia_semana });
     }
     carregarCultosAdmin();
   } catch (e) {
@@ -5019,6 +5072,9 @@ async function enviarAvisoAdmin(ev) {
   ev.preventDefault();
   const titulo = document.getElementById("aa-titulo").value.trim();
   const texto = document.getElementById("aa-texto").value.trim();
+  const data_evento = document.getElementById("aa-data").value || null;
+  const horario_evento = document.getElementById("aa-horario").value.trim() || null;
+  const local_evento = document.getElementById("aa-local").value.trim() || null;
   if (!titulo) return;
   if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
   const btn = ev.target.querySelector("button[type=submit]");
@@ -5029,17 +5085,23 @@ async function enviarAvisoAdmin(ev) {
     const arquivoVideo = document.getElementById("aa-video").files[0];
     const novaImagem = await uploadArquivo(arquivo, "avisos");
     const novoVideo = await uploadArquivo(arquivoVideo, "avisos");
+    let avisoId = editando?.id;
     if (editando) {
       const imagem_url = novaImagem || editando.imagem_url || null;
       const video_url = novoVideo || editando.video_url || null;
-      const { error } = await sb.from("igr_avisos").update({ titulo, texto, imagem_url, video_url }).eq("id", editando.id);
+      const { error } = await sb.from("igr_avisos").update({ titulo, texto, imagem_url, video_url, data_evento, horario_evento, local_evento }).eq("id", editando.id);
       if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
       cancelarEdicaoAviso();
     } else {
-      const { error } = await sb.from("igr_avisos").insert({ igreja_id: state.igreja.id, titulo, texto, imagem_url: novaImagem, video_url: novoVideo, publicado_em: new Date().toISOString() });
+      const { data: novoAviso, error } = await sb.from("igr_avisos").insert({ igreja_id: state.igreja.id, titulo, texto, imagem_url: novaImagem, video_url: novoVideo, data_evento, horario_evento, local_evento, publicado_em: new Date().toISOString() }).select().single();
       if (error) { alert("Não deu pra publicar o aviso: " + error.message); return; }
+      avisoId = novoAviso?.id;
       ev.target.reset();
       enviarPush({ tipo: "todos" }, titulo, texto);
+    }
+    // aviso pra todos com data preenchida ja entra automaticamente no Calendário da Igreja
+    if (data_evento) {
+      await sincronizarCalendarioDeOrigem({ tipoColuna: "aviso_id", origemId: avisoId, titulo, local: local_evento, horario: horario_evento, observacoes: texto, imagem_url: novaImagem || editando?.imagem_url, data: data_evento, data_fim: data_evento });
     }
     carregarAvisosAdmin();
   } catch (e) {
