@@ -2799,17 +2799,6 @@ async function abrirBiblioteca() {
   }
   state.livrosProgressoMapa = progressoMapa;
 
-  const todosNichos = [...new Set(state.livrosCache.flatMap(l => l.nichos || []))].sort();
-  const pillsEl = document.getElementById("biblioteca-nichos-pills");
-  pillsEl.innerHTML = todosNichos.map(n => `<button type="button" class="badge-inline" data-pill-nicho="${n}" style="border:none;cursor:pointer;">${n}</button>`).join("");
-  pillsEl.querySelectorAll("[data-pill-nicho]").forEach(pill => {
-    pill.addEventListener("click", () => {
-      const campo = document.getElementById("biblioteca-busca");
-      campo.value = campo.value.trim() === pill.dataset.pillNicho ? "" : pill.dataset.pillNicho;
-      renderizarListaLivros(campo.value);
-    });
-  });
-
   renderizarListaLivros(document.getElementById("biblioteca-busca").value);
 }
 
