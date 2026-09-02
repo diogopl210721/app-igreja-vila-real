@@ -3061,14 +3061,10 @@ function configurarBotoesChatDireto(el) {
 async function carregarTopLeitores() {
   const el = document.getElementById("top-leitores-lista");
   if (!el || !state.igreja) return;
-  const [{ data: leituras }, { data: progresso }] = await Promise.all([
-    sb.from("igr_leituras").select("membro_id").eq("igreja_id", state.igreja.id),
-    sb.from("igr_livros_progresso").select("pagina_atual, membro_id, igr_membros!inner(igreja_id)").eq("igr_membros.igreja_id", state.igreja.id),
-  ]);
+  const { data: leituras } = await sb.from("igr_leituras").select("membro_id").eq("igreja_id", state.igreja.id);
 
   const pontos = {};
-  (leituras || []).forEach(l => { pontos[l.membro_id] = (pontos[l.membro_id] || 0) + 2; });
-  (progresso || []).forEach(p => { pontos[p.membro_id] = (pontos[p.membro_id] || 0) + Math.round((p.pagina_atual || 0) / 10); });
+  (leituras || []).forEach(l => { pontos[l.membro_id] = (pontos[l.membro_id] || 0) + 1; });
 
   const ids = Object.keys(pontos).filter(id => pontos[id] > 0);
   if (!ids.length) { el.innerHTML = `<p class="hint">Ninguém pontuou ainda — seja o primeiro a ler! 📖</p>`; return; }
