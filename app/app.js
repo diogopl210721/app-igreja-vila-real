@@ -5362,12 +5362,18 @@ async function registrarServiceWorker() {
 async function configurarCaixaPush() {
   const box = document.getElementById("push-ativar-box");
   if (!box || !state.membro) return;
+  if (localStorage.getItem("push_dispensado_" + state.membro.id) === "1") { box.style.display = "none"; return; }
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) { box.style.display = "none"; return; }
   if (Notification.permission === "denied") { box.style.display = "none"; return; }
 
   const reg = await navigator.serviceWorker.getRegistration();
   const inscricaoAtual = reg ? await reg.pushManager.getSubscription() : null;
   box.style.display = inscricaoAtual ? "none" : "block";
+}
+
+function dispensarCaixaPush() {
+  if (state.membro) localStorage.setItem("push_dispensado_" + state.membro.id, "1");
+  document.getElementById("push-ativar-box").style.display = "none";
 }
 
 async function ativarPush() {
@@ -5377,10 +5383,11 @@ async function ativarPush() {
     const permissao = await Notification.requestPermission();
     if (permissao !== "granted") {
       alert("Sem a permissão de notificações não conseguimos te avisar. Você pode ativar depois nas configurações do navegador.");
+      dispensarCaixaPush();
       return;
     }
     const reg = await registrarServiceWorker();
-    if (!reg) { alert("Seu navegador não suporta notificações push."); return; }
+    if (!reg) { alert("Seu navegador não suporta notificações push."); dispensarCaixaPush(); return; }
     const inscricao = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: base64ParaUint8Array(VAPID_PUBLIC_KEY),
@@ -5392,8 +5399,8 @@ async function ativarPush() {
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
     }, { onConflict: "membro_id,endpoint" });
-    if (error) { alert("Não deu pra ativar agora: " + error.message); return; }
-    document.getElementById("push-ativar-box").style.display = "none";
+    if (error) { alert("Não deu pra ativar agora: " + error.message); dispensarCaixaPush(); return; }
+    dispensarCaixaPush();
   } catch (e) {
     console.error("Erro ao ativar push:", e);
     alert("Não deu pra ativar agora. Tente de novo em instantes.");
@@ -5559,6 +5566,7 @@ async function iniciar() {
     }
   });
   document.getElementById("btn-ativar-push")?.addEventListener("click", ativarPush);
+  document.getElementById("btn-dispensar-push")?.addEventListener("click", dispensarCaixaPush);
   registrarServiceWorker();
   document.getElementById("form-lider-aviso")?.addEventListener("submit", enviarAvisoLider);
   configurarPinBoxes();
