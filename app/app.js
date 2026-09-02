@@ -471,6 +471,14 @@ async function enviarMensagemPerfil(pessoa) {
     nome_origem: state.membro?.nome_completo || "Alguém da igreja",
     texto,
   });
+  // manda tambem pelo chat normal do app, pra aparecer em Mensagens igual qualquer outra conversa
+  if (state.membro) {
+    await sb.from("igr_mensagens_diretas").insert({
+      igreja_id: state.igreja.id, remetente_id: state.membro.id, destinatario_id: pessoa.id, texto,
+    });
+    const meuNome = state.membro.nome_completo.split(" ")[0];
+    enviarPush({ tipo: "membros", membro_ids: [pessoa.id] }, `${meuNome} te desejou feliz aniversário! 🎉`, texto);
+  }
   btn.disabled = false; btn.textContent = pessoa.telefone ? "💬 Enviar (perfil + WhatsApp)" : "Enviar mensagem";
   const statusEl = document.getElementById("aniv-msg-status");
   if (error) { statusEl.textContent = "Não deu pra enviar agora. Tente de novo."; return; }
@@ -478,8 +486,15 @@ async function enviarMensagemPerfil(pessoa) {
   if (pessoa.telefone) {
     window.open(linkWhatsapp(pessoa.telefone, texto), "_blank", "noopener");
   }
-  statusEl.textContent = "Mensagem salva no perfil dela(e)! 💛";
+  statusEl.textContent = "Mensagem enviada — salva no perfil e nas Mensagens dela(e)! 💛";
   setTimeout(fecharModalAniversariante, 1200);
+}
+
+async function contarMensagensPerfilNaoLidas() {
+  if (!state.membro) return 0;
+  const { count } = await sb.from("igr_interacoes_perfil").select("id", { count: "exact", head: true })
+    .eq("membro_destino_id", state.membro.id).eq("lida", false);
+  return count || 0;
 }
 
 async function carregarMensagensRecebidas() {
@@ -493,6 +508,8 @@ async function carregarMensagensRecebidas() {
       <span class="hint">${formatarData(m.created_at)}</span>
     </div>
   `).join("") || `<p class="hint">Nenhuma mensagem recebida ainda.</p>`;
+  await sb.from("igr_interacoes_perfil").update({ lida: true }).eq("membro_destino_id", state.membro.id).eq("lida", false);
+  atualizarBadgeMensagens();
 }
 
 function formatarData(dataIso) {
@@ -1195,7 +1212,12 @@ async function montarHomeMembro() {
   await carregarAvisos("home-avisos");
   await carregarPedidosOracao();
   carregarTopLeitores();
-  atualizarBadgeMensagens();
+  atualizarBadgeMensagens().then(n => {
+    if (n > 0 && !state.avisoMensagensMostrado) {
+      state.avisoMensagensMostrado = true;
+      mostrarToast(`💬 Você tem ${n} mensage${n > 1 ? "ns" : "m"} nova${n > 1 ? "s" : ""}! Toque pra ver.`, 5000, () => { mostrarTela("tela-mensagens"); carregarListaMensagens(); });
+    }
+  });
 
   const btnAvisoLider = document.getElementById("btn-abrir-aviso-lider");
   if (btnAvisoLider) btnAvisoLider.style.display = m.eh_lider ? "block" : "none";
@@ -2776,12 +2798,15 @@ async function abrirLeituraLivro(livroId) {
   await renderizarPaginaLivro();
 }
 
-function mostrarToast(msg, duracaoMs) {
+function mostrarToast(msg, duracaoMs, aoClicar) {
   const el = document.getElementById("toast-generico");
   if (!el) return;
   el.textContent = msg;
   el.style.opacity = "1";
   el.style.transform = "translate(-50%,0)";
+  el.style.pointerEvents = aoClicar ? "auto" : "none";
+  el.style.cursor = aoClicar ? "pointer" : "default";
+  el.onclick = aoClicar || null;
   clearTimeout(el._timeoutId);
   el._timeoutId = setTimeout(() => {
     el.style.opacity = "0";
@@ -2874,9 +2899,11 @@ async function contarMensagensNaoLidas() {
 async function atualizarBadgeMensagens() {
   const badge = document.getElementById("msgs-badge-quicklink");
   if (!badge) return;
-  const n = await contarMensagensNaoLidas();
+  const [nChat, nPerfil] = await Promise.all([contarMensagensNaoLidas(), contarMensagensPerfilNaoLidas()]);
+  const n = nChat + nPerfil;
   if (n > 0) { badge.textContent = n > 9 ? "9+" : String(n); badge.style.display = "flex"; }
   else { badge.style.display = "none"; }
+  return n;
 }
 
 async function carregarListaMensagens() {
