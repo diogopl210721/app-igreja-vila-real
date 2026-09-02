@@ -48,6 +48,11 @@
 
 <div id="app">
 
+  <div id="tela-carregando-inicial" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:999;">
+    <img src="assets/logo.png" alt="" style="width:64px;height:64px;object-fit:contain;">
+    <span class="loading-dot"></span>
+  </div>
+
   <!-- ============ BARRA SUPERIOR GLOBAL ============ -->
   <header class="appbar">
     <button class="appbar-btn" id="btn-abrir-drawer" aria-label="Menu"><svg class="icon"><use href="#i-menu"/></svg></button>
@@ -121,7 +126,7 @@
   </nav>
 
   <!-- ============ VISITANTE ============ -->
-  <div class="screen active" id="tela-visitante">
+  <div class="screen" id="tela-visitante">
     <div class="scroll no-nav">
       <div class="hero-boasvindas">
         <span class="emoji-boasvindas">🙌</span>
@@ -911,7 +916,7 @@
 
       <div style="margin-top:16px;">
         <div class="section-label"><b>🏆 Top Leitores</b></div>
-        <p class="hint" style="margin-top:-6px;">Quem mais está lendo a Bíblia essa temporada.</p>
+        <p class="hint" style="margin-top:-6px;">Quem mais leu a Bíblia desde sempre — um reconhecimento permanente, nunca reseta.</p>
         <div id="top-leitores-lista"><p class="hint"><span class="loading-dot"></span></p></div>
       </div>
 
@@ -919,6 +924,18 @@
         <div class="section-label"><b>🎮 Ranking do Mês</b></div>
         <p class="hint" style="margin-top:-6px;" id="ranking-mes-subtitulo">Pontos por participar do app — devocional, Bíblia, livros, mensagens, orações e mais. Os 3 primeiros no fim do mês ganham um brinde da igreja!</p>
         <div id="ranking-mes-lista"><p class="hint"><span class="loading-dot"></span></p></div>
+        <button class="btn btn-ghost" id="btn-toggle-como-pontuar" type="button" style="margin-top:8px;">❓ Como faço pra pontuar?</button>
+        <div class="card" id="bloco-como-pontuar" style="display:none;margin-top:8px;font-size:13px;line-height:1.9;">
+          🙂 Registrar o humor do dia — <b>10 pts</b><br>
+          📖 Ler e marcar um versículo (Bíblia ou Diário) — <b>30 pts</b><br>
+          📚 Ler um trecho de um livro da biblioteca — <b>15 pts</b><br>
+          💬 Mandar uma mensagem pra alguém — <b>20 pts</b><br>
+          ☀️ Abrir o devocional do dia — <b>40 pts</b> (1x por dia)<br>
+          ❤️ Reagir a um aviso (Amei/Orando) — <b>20 pts</b><br>
+          🎟️ Se inscrever num evento — <b>25 pts</b><br>
+          🤝 Conectar com alguém na Mão Amiga — <b>15 pts</b><br>
+          🙏 Pedir oração — <b>10 pts</b> (1x por dia)
+        </div>
         <button class="btn btn-ghost" data-nav="tela-hall-fama" style="margin-top:8px;">🏅 Hall da Fama — campeões dos meses anteriores</button>
       </div>
 
@@ -1904,6 +1921,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788358409"></script>
+<script src="app.js?v=1788359117"></script>
 </body>
 </html>

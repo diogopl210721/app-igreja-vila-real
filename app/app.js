@@ -5968,6 +5968,10 @@ async function iniciar() {
   document.getElementById("form-admin-pastor-perfil")?.addEventListener("submit", enviarPastorPerfilAdmin);
   document.getElementById("form-grupo-info")?.addEventListener("submit", enviarGrupoInfo);
   document.getElementById("form-grupo-aviso")?.addEventListener("submit", enviarAvisoGrupoDetalhe);
+  document.getElementById("btn-toggle-como-pontuar")?.addEventListener("click", () => {
+    const bloco = document.getElementById("bloco-como-pontuar");
+    bloco.style.display = bloco.style.display === "none" ? "block" : "none";
+  });
   document.getElementById("btn-toggle-grupo-info")?.addEventListener("click", () => {
     const bloco = document.getElementById("grupo-bloco-editar-info");
     bloco.style.display = bloco.style.display === "none" ? "block" : "none";
@@ -6165,20 +6169,30 @@ async function iniciar() {
 
   // Carregamento de dados: cada etapa isolada, uma falha não derruba as outras.
   try { await carregarIgreja(); } catch (e) { console.error("Falha ao carregar igreja:", e); }
+
+  // se já tem sessão de membro salva, valida e entra direto — sem esperar carregar
+  // os dados só-de-visitante (cultos/avisos/fotos), que essa pessoa nem vai ver
+  if (state.membro) {
+    try {
+      const { data } = await sb.from("igr_membros").select("*").eq("id", state.membro.id).maybeSingle();
+      if (data) {
+        state.membro = data; atualizarVisibilidadeLouvor();
+        await montarHomeMembro();
+        mostrarTela("tela-membro-home");
+        document.getElementById("tela-carregando-inicial")?.remove();
+        try { configurarBannerA2HS(); } catch (e) { console.error("Falha no banner A2HS:", e); }
+        return;
+      }
+      localStorage.removeItem("igr_membro");
+    } catch (e) { console.error("Falha ao validar sessão:", e); }
+  }
+
   try { await carregarCultos(); } catch (e) { console.error("Falha ao carregar cultos:", e); }
   try { await carregarAvisos("visitante-avisos"); } catch (e) { console.error("Falha ao carregar avisos:", e); }
   try { await carregarFotosPreviewVisitante(); } catch (e) { console.error("Falha ao carregar preview de fotos:", e); }
   try { configurarBannerA2HS(); } catch (e) { console.error("Falha no banner A2HS:", e); }
-
-  if (state.membro) {
-    // valida se o membro ainda existe (evita sessão presa após limpeza de dados de teste)
-    try {
-      const { data } = await sb.from("igr_membros").select("*").eq("id", state.membro.id).maybeSingle();
-      if (data) { state.membro = data; atualizarVisibilidadeLouvor(); await montarHomeMembro(); mostrarTela("tela-membro-home"); return; }
-      localStorage.removeItem("igr_membro");
-    } catch (e) { console.error("Falha ao validar sessão:", e); }
-  }
   mostrarTela("tela-visitante");
+  document.getElementById("tela-carregando-inicial")?.remove();
 }
 
 iniciar();
