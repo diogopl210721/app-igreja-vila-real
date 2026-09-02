@@ -4836,7 +4836,7 @@ async function identificarMusicaComIA() {
   const linkCifra = document.getElementById("lm-form-cifra").value.trim();
   if ((!titulo && !linkCifra) || state.louvorMusicaEditando) return;
   const status = document.getElementById("lm-status-ia");
-  status.textContent = linkCifra ? "✨ Lendo a página da cifra..." : "✨ Buscando informações da música...";
+  status.textContent = "✨ Pesquisando na web (título, tom, BPM, Spotify, letra, vídeo)... pode levar uns segundos.";
   status.style.display = "block";
   try {
     const { data, error } = await sb.functions.invoke("igr-identificar-musica", { body: { titulo: titulo || null, linkCifra: linkCifra || null } });
@@ -4846,7 +4846,11 @@ async function identificarMusicaComIA() {
     if (!document.getElementById("lm-form-tom").value.trim() && data.tom) document.getElementById("lm-form-tom").value = data.tom;
     if (!document.getElementById("lm-form-bpm").value && data.bpm) document.getElementById("lm-form-bpm").value = data.bpm;
     if (!document.getElementById("lm-form-categoria").value.trim() && data.categoria) document.getElementById("lm-form-categoria").value = data.categoria;
-    status.textContent = data.confianca === "alta" ? "" : "✨ Preenchido automaticamente (confira antes de salvar).";
+    if (!document.getElementById("lm-form-cifra").value.trim() && data.linkCifra) document.getElementById("lm-form-cifra").value = data.linkCifra;
+    if (!document.getElementById("lm-form-spotify").value.trim() && data.linkSpotify) document.getElementById("lm-form-spotify").value = data.linkSpotify;
+    if (!document.getElementById("lm-form-letra").value.trim() && data.linkLetra) document.getElementById("lm-form-letra").value = data.linkLetra;
+    if (!document.getElementById("lm-form-video").value.trim() && data.linkVideo) document.getElementById("lm-form-video").value = data.linkVideo;
+    status.textContent = data.confianca === "alta" ? "" : "✨ Preenchido automaticamente (confira antes de salvar — links que ela não achou com certeza ficaram em branco).";
     status.style.display = data.confianca === "alta" ? "none" : "block";
   } catch (e) {
     console.error("Erro ao identificar música:", e);
