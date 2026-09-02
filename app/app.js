@@ -536,6 +536,8 @@ function tempoRelativo(iso) {
 
 function mostrarTela(id) {
   fecharLightbox();
+  const telaAnterior = document.querySelector(".screen.active")?.id;
+  if (telaAnterior && telaAnterior !== id) state.telaAnterior = telaAnterior;
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   document.getElementById("bottomnav").style.display =
@@ -543,6 +545,13 @@ function mostrarTela(id) {
   document.querySelectorAll(".navitem").forEach(n => n.classList.remove("on"));
   const nav = document.querySelector(`.navitem[data-target="${id}"]`);
   if (nav) nav.classList.add("on");
+  if (id === "tela-membro-louvor") {
+    const voltarBtn = document.querySelector("#tela-membro-louvor .voltar-btn");
+    if (voltarBtn) {
+      const vemDeGrupos = telaAnterior === "tela-grupos-lista" || telaAnterior === "tela-grupo-detalhe";
+      voltarBtn.dataset.nav = vemDeGrupos ? telaAnterior : "tela-membro-home";
+    }
+  }
   window.scrollTo(0, 0);
 }
 
@@ -5261,7 +5270,9 @@ async function carregarMembrosAdminGrupos() {
     <div class="admin-grid-card" style="position:relative;cursor:default;" data-grupo-membros="${g.id}" data-grupo-nome="${g.nome}">
       <button type="button" class="editar-grupo-icone" data-editar-grupo="${g.id}" aria-label="Editar grupo" title="Editar grupo">✏️</button>
       <div data-abrir-grupo="${g.id}" data-grupo-nome-abrir="${g.nome}" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
-        <svg class="icon"><use href="#i-user"/></svg>
+        ${g.capa_url
+          ? `<img src="${g.capa_url}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover;">`
+          : `<svg class="icon"><use href="#i-user"/></svg>`}
         ${g.nome}
         <span style="font-weight:400;font-size:11.5px;color:var(--ink-soft);">${contagem[g.id] || 0} membro(s)</span>
       </div>

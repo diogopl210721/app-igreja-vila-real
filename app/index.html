@@ -1386,8 +1386,14 @@
       <div class="voltar-btn" data-nav="tela-louvor-repertorio"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:10px;" id="lm-titulo-tela">Nova música</span>
       <form id="form-louvor-musica">
-        <div class="field"><label>Título</label><input id="lm-form-titulo" required placeholder="Ex: Reckless Love" autocomplete="off"></div>
+        <div class="field"><label>Link Cifra (cole primeiro — a IA já preenche o resto sozinha)</label>
+          <div style="display:flex;gap:8px;">
+            <input id="lm-form-cifra" placeholder="https://cifraclub.com.br/..." style="flex:1;">
+            <button type="button" id="btn-lm-buscar-cifra" class="btn btn-ghost" style="width:auto;flex:none;padding:0 14px;font-size:12px;">✨ Buscar</button>
+          </div>
+        </div>
         <p class="hint" id="lm-status-ia" style="display:none;margin:-8px 0 12px;">✨ Buscando informações da música...</p>
+        <div class="field"><label>Título</label><input id="lm-form-titulo" required placeholder="Ex: Reckless Love" autocomplete="off"></div>
         <div class="field"><label>Artista</label><input id="lm-form-artista"></div>
         <div class="field"><label>Álbum (opcional)</label><input id="lm-form-album"></div>
         <div style="display:flex;gap:10px;">
@@ -1397,12 +1403,6 @@
         <div class="field"><label>Categoria</label><input id="lm-form-categoria" placeholder="Ex: Louvor, Adoração"></div>
         <div class="field"><label>Link Spotify</label><input id="lm-form-spotify" placeholder="https://open.spotify.com/..."></div>
         <div class="field"><label>Link Letra</label><input id="lm-form-letra" placeholder="https://letras.mus.br/..."></div>
-        <div class="field"><label>Link Cifra</label>
-          <div style="display:flex;gap:8px;">
-            <input id="lm-form-cifra" placeholder="https://cifraclub.com.br/..." style="flex:1;">
-            <button type="button" id="btn-lm-buscar-cifra" class="btn btn-ghost" style="width:auto;flex:none;padding:0 14px;font-size:12px;">✨ Buscar</button>
-          </div>
-        </div>
         <div class="field" style="margin-bottom:6px;"><label>Link Vídeo (YouTube)</label><input id="lm-form-video" placeholder="https://youtube.com/..."></div>
         <button class="btn btn-primary" type="submit">Salvar música</button>
         <button class="btn btn-ghost" type="button" id="btn-lm-excluir" style="display:none;margin-top:8px;color:#C0392B;">🗑 Excluir do repertório</button>
@@ -2078,6 +2078,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788376846"></script>
+<script src="app.js?v=1788377010"></script>
 </body>
 </html>
