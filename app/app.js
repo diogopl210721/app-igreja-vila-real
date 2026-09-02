@@ -1602,8 +1602,12 @@ function abrirGrupoDetalhe(grupoId) {
   gerBox.style.display = souLiderDesseGrupo ? "block" : "none";
   if (souLiderDesseGrupo) {
     const permissoes = state.membro.permissoes || [];
-    document.getElementById("grupo-bloco-editar-info").style.display = permissoes.includes("editar_grupo") ? "block" : "none";
-    document.getElementById("grupo-bloco-avisos").style.display = permissoes.includes("postar_avisos") ? "block" : "none";
+    const podeEditarGrupo = permissoes.includes("editar_grupo");
+    const podePostarAvisos = permissoes.includes("postar_avisos");
+    document.getElementById("btn-toggle-grupo-info").style.display = podeEditarGrupo ? "block" : "none";
+    document.getElementById("grupo-bloco-editar-info").style.display = "none";
+    document.getElementById("btn-toggle-grupo-aviso").style.display = podePostarAvisos ? "block" : "none";
+    document.getElementById("grupo-bloco-avisos").style.display = "none";
     document.getElementById("grupo-bloco-oracao").style.display = permissoes.includes("gerenciar_oracao") ? "block" : "none";
     document.getElementById("gi-descricao").value = grupo.descricao || "";
     if (permissoes.includes("gerenciar_oracao")) carregarOracaoDoGrupo(grupo.id);
