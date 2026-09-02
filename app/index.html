@@ -1205,8 +1205,8 @@
       <div class="quicklinks">
         <button class="quicklink" data-nav="tela-louvor-escalas"><span class="quicklink-ic"><svg class="icon"><use href="#i-calendar"/></svg></span>Escalas</button>
         <button class="quicklink" data-nav="tela-louvor-repertorio"><span class="quicklink-ic"><svg class="icon"><use href="#i-music"/></svg></span>Repertório</button>
-        <button class="quicklink" id="quicklink-louvor-funcoes" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Funções</button>
-        <button class="quicklink" id="quicklink-louvor-visao-geral" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Visão Geral</button>
+        <button class="quicklink" id="quicklink-louvor-funcoes"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Funções</button>
+        <button class="quicklink" id="quicklink-louvor-visao-geral"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Visão Geral</button>
       </div>
 
       <div class="section-label"><b>Minhas próximas escalas</b></div>
@@ -1254,6 +1254,10 @@
             <button class="btn btn-primary" id="btn-led-confirmar" style="flex:1;">✅ Confirmo</button>
             <button class="btn btn-ghost" id="btn-led-recusar" style="flex:1;">❌ Não vou poder</button>
           </div>
+          <div id="led-bloco-justificativa" style="display:none;margin-top:10px;">
+            <div class="field" style="margin-bottom:8px;"><input id="led-justificativa-texto" placeholder="Por quê? (opcional, ajuda o líder a se organizar)"></div>
+            <button class="btn btn-ghost" id="btn-led-enviar-justificativa" style="width:auto;padding:8px 16px;font-size:12.5px;">Enviar</button>
+          </div>
           <p class="hint" id="led-status-atual" style="margin-top:8px;"></p>
         </div>
       </div>
@@ -1279,58 +1283,57 @@
       <div class="voltar-btn" data-nav="tela-louvor-escalas"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:10px;" id="lef-titulo-tela">Nova escala</span>
 
-      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;">
-        <button class="btn btn-primary" id="lef-tab-detalhes" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">Detalhes</button>
-        <button class="btn btn-ghost" id="lef-tab-participantes" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">Participantes</button>
-        <button class="btn btn-ghost" id="lef-tab-musicas" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">Músicas</button>
-        <button class="btn btn-ghost" id="lef-tab-roteiro" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">Roteiro</button>
-      </div>
-
-      <!-- aba Detalhes -->
-      <div id="lef-view-detalhes">
-        <form id="form-louvor-escala">
-          <div class="field"><label>Título da escala</label><input id="le-titulo" required placeholder="Ex: Culto de Domingo"></div>
+      <form id="form-louvor-escala" onsubmit="return false;">
+        <div class="field"><label>Título da escala</label><input id="le-titulo" required placeholder="Ex: Culto de Domingo"></div>
+        <div style="display:flex;gap:10px;">
+          <div class="field" style="flex:1;"><label>Data</label><input id="le-data" type="date" required></div>
+          <div class="field" style="flex:1;"><label>Horário</label><input id="le-horario" placeholder="Ex: 18:00"></div>
+        </div>
+        <div class="field"><label>Repetir semanalmente até (opcional)</label>
           <div style="display:flex;gap:10px;">
-            <div class="field" style="flex:1;"><label>Data</label><input id="le-data" type="date" required></div>
-            <div class="field" style="flex:1;"><label>Horário</label><input id="le-horario" placeholder="Ex: 18:00"></div>
+            <select id="le-dia-semana" style="flex:1;">
+              <option value="">Não se repete</option>
+              <option value="domingo">Domingo</option><option value="segunda">Segunda</option><option value="terca">Terça</option>
+              <option value="quarta">Quarta</option><option value="quinta">Quinta</option><option value="sexta">Sexta</option><option value="sabado">Sábado</option>
+            </select>
+            <input id="le-data-fim" type="date" style="flex:1;">
           </div>
-          <div class="field"><label>Repetir semanalmente até (opcional)</label>
-            <div style="display:flex;gap:10px;">
-              <select id="le-dia-semana" style="flex:1;">
-                <option value="">Não se repete</option>
-                <option value="domingo">Domingo</option><option value="segunda">Segunda</option><option value="terca">Terça</option>
-                <option value="quarta">Quarta</option><option value="quinta">Quinta</option><option value="sexta">Sexta</option><option value="sabado">Sábado</option>
-              </select>
-              <input id="le-data-fim" type="date" style="flex:1;">
-            </div>
+        </div>
+        <div class="field"><label>Observações (opcional)</label><input id="le-observacoes" placeholder="Ex: chegar 1h antes pra passagem de som"></div>
+        <label class="interesse-item" style="margin-bottom:10px;"><input type="checkbox" id="le-publicada" checked> Publicar (visível pro grupo)</label>
+        <label class="interesse-item" style="margin-bottom:6px;"><input type="checkbox" id="le-pedir-confirmacao" checked> Pedir confirmação de presença</label>
+      </form>
+
+      <div class="section-label" style="margin-top:18px;"><b>Participantes</b></div>
+      <div class="field" style="position:relative;margin-bottom:8px;">
+        <input id="lef-busca-participante" autocomplete="off" placeholder="Digite o nome do membro...">
+        <div id="lef-sugestoes-participante" class="autocomplete-lista" style="display:none;"></div>
+      </div>
+      <div id="lef-funcao-escolha" style="display:none;margin-bottom:10px;">
+        <div class="field" style="display:flex;gap:8px;align-items:flex-end;">
+          <div style="flex:1;"><label style="font-size:12px;font-weight:600;color:var(--ink-soft);">Função de <span id="lef-nome-selecionado"></span></label>
+            <select id="lef-funcao-select"></select>
           </div>
-          <div class="field"><label>Observações (opcional)</label><input id="le-observacoes" placeholder="Ex: chegar 1h antes pra passagem de som"></div>
-          <label class="interesse-item" style="margin-bottom:10px;"><input type="checkbox" id="le-publicada" checked> Publicar (visível pro grupo)</label>
-          <label class="interesse-item" style="margin-bottom:14px;"><input type="checkbox" id="le-pedir-confirmacao" checked> Pedir confirmação de presença</label>
-          <button class="btn btn-primary" type="submit">Salvar detalhes</button>
-        </form>
+          <button class="btn btn-primary" id="btn-lef-confirmar-participante" style="width:auto;padding:0 18px;height:48px;">Adicionar</button>
+        </div>
       </div>
+      <button class="btn btn-ghost" id="btn-lef-sugerir-participantes" style="margin-bottom:12px;">✨ Sugerir automaticamente</button>
+      <div id="lef-lista-participantes" style="margin-bottom:20px;"></div>
 
-      <!-- aba Participantes -->
-      <div id="lef-view-participantes" style="display:none;">
-        <button class="btn btn-primary" id="btn-lef-add-participante" style="margin-bottom:8px;">➕ Adicionar</button>
-        <button class="btn btn-ghost" id="btn-lef-sugerir-participantes" style="margin-bottom:14px;">✨ Sugerir automaticamente</button>
-        <div id="lef-lista-participantes"></div>
+      <div class="section-label"><b>Músicas</b></div>
+      <div class="field" style="position:relative;margin-bottom:8px;">
+        <input id="lef-busca-musica" autocomplete="off" placeholder="Digite o nome da música...">
+        <div id="lef-sugestoes-musica" class="autocomplete-lista" style="display:none;"></div>
       </div>
+      <button class="btn btn-ghost" id="btn-lef-sugerir-musicas" style="margin-bottom:12px;">✨ Sugerir automaticamente</button>
+      <div id="lef-lista-musicas" style="margin-bottom:20px;"></div>
 
-      <!-- aba Músicas -->
-      <div id="lef-view-musicas" style="display:none;">
-        <button class="btn btn-primary" id="btn-lef-add-musica" style="margin-bottom:8px;">➕ Adicionar do repertório</button>
-        <button class="btn btn-ghost" id="btn-lef-sugerir-musicas" style="margin-bottom:14px;">✨ Sugerir automaticamente</button>
-        <div id="lef-lista-musicas"></div>
-      </div>
+      <div class="section-label"><b>Roteiro</b></div>
+      <p class="hint" style="margin-bottom:10px;">As músicas escolhidas acima já entram aqui automaticamente. Adicione outros momentos do culto (oferta, prédica etc).</p>
+      <button class="btn btn-ghost" id="btn-lef-add-roteiro-item" style="margin-bottom:12px;">➕ Adicionar item ao roteiro</button>
+      <div id="lef-lista-roteiro" style="margin-bottom:24px;"></div>
 
-      <!-- aba Roteiro -->
-      <div id="lef-view-roteiro" style="display:none;">
-        <p class="hint" style="margin-bottom:10px;">As músicas selecionadas na aba "Músicas" já entram aqui automaticamente. Adicione outros momentos do culto (oferta, prédica etc).</p>
-        <button class="btn btn-primary" id="btn-lef-add-roteiro-item" style="margin-bottom:14px;">➕ Adicionar item</button>
-        <div id="lef-lista-roteiro"></div>
-      </div>
+      <button class="btn btn-primary" id="btn-lef-salvar-tudo">✅ Salvar e notificar todos</button>
     </div>
   </div>
 
@@ -2075,6 +2078,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788365993"></script>
+<script src="app.js?v=1788376846"></script>
 </body>
 </html>
