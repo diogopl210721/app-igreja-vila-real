@@ -1625,14 +1625,25 @@ async function abrirAulaMateriais(aulaId) {
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
 
   const { data: materiais } = await sb.from("igr_estudos_materiais").select("*").eq("aula_id", aulaId).order("ordem");
+  state.materiaisAulaCache = materiais || [];
   el.innerHTML = (materiais || []).map(mat => `
     <div class="card row-avatar" style="padding:9px 14px;">
       <span style="font-size:18px;flex:none;">${mat.tipo === "imagem" ? "🖼️" : "📄"}</span>
       <div class="row-info"><b>${mat.titulo || (mat.tipo === "imagem" ? "Foto" : "PDF")}</b></div>
-      <a class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" href="${mat.arquivo_url}" target="_blank" rel="noopener" data-baixar-material="${mat.id}">Ver/Baixar</a>
+      <div style="display:flex;gap:6px;flex:none;">
+        <button type="button" class="btn btn-primary" style="width:auto;padding:6px 10px;font-size:11px;" data-ver-material="${mat.id}">👁 Ler</button>
+        <a class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" href="${mat.arquivo_url}" download data-baixar-material="${mat.id}">📥</a>
+      </div>
     </div>
   `).join("") || `<p class="hint">Nenhum material adicionado ainda nessa aula.</p>`;
   el.querySelectorAll("[data-baixar-material]").forEach(a => a.addEventListener("click", () => darPontos("estudo_sessao")));
+  el.querySelectorAll("[data-ver-material]").forEach(btn => btn.addEventListener("click", () => {
+    const mat = state.materiaisAulaCache.find(m => m.id === btn.dataset.verMaterial);
+    if (!mat) return;
+    darPontos("estudo_sessao");
+    if (mat.tipo === "imagem") abrirLightboxImagemUnica(mat.arquivo_url);
+    else abrirVisualizadorPdfMaterial(mat.arquivo_url, mat.titulo || aula.titulo);
+  }));
 
   let concluida = false;
   if (state.membro) {
@@ -1643,6 +1654,18 @@ async function abrirAulaMateriais(aulaId) {
   btnConcluir.textContent = concluida ? "✓ Aula concluída" : "✓ Marcar aula como concluída";
   btnConcluir.className = concluida ? "btn btn-ghost" : "btn btn-primary";
   btnConcluir.disabled = concluida;
+}
+
+async function abrirVisualizadorPdfMaterial(url, titulo) {
+  mostrarTela("tela-leitura-livro");
+  document.getElementById("leitura-titulo-livro").textContent = titulo;
+  document.getElementById("leitura-progresso-texto").textContent = "Carregando...";
+  const pdf = await pdfjsLib.getDocument(url).promise;
+  state.leituraAtual = {
+    tipo: "material", item: { titulo }, tabelaProgresso: null,
+    pdf, paginaAtual: 1, paginaInicial: 1, totalPaginas: pdf.numPages, progressoId: null, zoom: 1,
+  };
+  await renderizarPaginaLivro();
 }
 
 async function marcarAulaConcluida() {
@@ -3123,11 +3146,13 @@ function sairDaLeitura() {
   if (st?.tipo === "estudo") {
     mostrarTela("tela-estudos-lista");
     carregarListaEstudos(state.estudosCategoriaAtual);
+  } else if (st?.tipo === "material") {
+    mostrarTela("tela-aula-materiais");
   } else {
     mostrarTela("tela-biblioteca");
     abrirBiblioteca();
   }
-  if (st) {
+  if (st && st.tipo !== "material") {
     const pct = Math.round((st.paginaAtual / st.totalPaginas) * 100);
     mostrarToast(`📖 Página salva — você já leu ${pct}% de "${st.item.titulo}"`);
     if (st.paginaAtual > st.paginaInicial) darPontos(st.tipo === "estudo" ? "estudo_sessao" : "livro_sessao");
@@ -6454,7 +6479,6 @@ async function carregarModulosAdmin(categoria) {
 function iniciarEdicaoModulo(modulo) {
   state.editando.modulo = modulo;
   document.getElementById("am-titulo").value = modulo.titulo || "";
-  document.getElementById("am-tema").value = modulo.tema || "";
   document.querySelector("#form-admin-modulo-estudo button[type=submit]").textContent = "Salvar alterações";
   document.getElementById("am-cancelar-edicao").style.display = "inline-block";
   document.getElementById("form-admin-modulo-estudo").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -6470,7 +6494,6 @@ async function enviarModuloEstudoAdmin(ev) {
   ev.preventDefault();
   const categoria = state.estudosAdminCategoria || "escola_biblica";
   const titulo = document.getElementById("am-titulo").value.trim();
-  const tema = document.getElementById("am-tema").value.trim();
   if (!titulo) return;
   if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
   const btn = ev.target.querySelector("button[type=submit]");
@@ -6484,7 +6507,7 @@ async function enviarModuloEstudoAdmin(ev) {
     } else if (!editando || !editando.capa_url) {
       btn.textContent = "✨ Gerando capa...";
       try {
-        const { data: gerada, error: erroGeracao } = await sb.functions.invoke("igr-gerar-capa-estudo", { body: { titulo, tema, categoria } });
+        const { data: gerada, error: erroGeracao } = await sb.functions.invoke("igr-gerar-capa-estudo", { body: { titulo, categoria } });
         if (!erroGeracao && gerada?.ok) {
           const arquivoCapaIA = base64ParaArquivo(gerada.imagemBase64, gerada.mimeType, `capa-ia-${Date.now()}.png`);
           novaCapa = await uploadArquivo(arquivoCapaIA, "estudos");
@@ -6494,11 +6517,11 @@ async function enviarModuloEstudoAdmin(ev) {
     }
 
     if (editando) {
-      const { error } = await sb.from("igr_estudos_modulos").update({ titulo, tema: tema || null, capa_url: novaCapa || editando.capa_url || null }).eq("id", editando.id);
+      const { error } = await sb.from("igr_estudos_modulos").update({ titulo, capa_url: novaCapa || editando.capa_url || null }).eq("id", editando.id);
       if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
       cancelarEdicaoModulo();
     } else {
-      const { error } = await sb.from("igr_estudos_modulos").insert({ igreja_id: state.igreja.id, categoria, titulo, tema: tema || null, capa_url: novaCapa });
+      const { error } = await sb.from("igr_estudos_modulos").insert({ igreja_id: state.igreja.id, categoria, titulo, capa_url: novaCapa });
       if (error) { alert("Não deu pra criar o módulo: " + error.message); return; }
       ev.target.reset();
       enviarPush({ tipo: "todos" }, "Novo módulo de estudo 📘", titulo);
