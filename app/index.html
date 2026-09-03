@@ -14,6 +14,8 @@
 <link rel="stylesheet" href="style.css?v=1787865620">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -1873,7 +1875,19 @@
           <div class="field"><label>Link de pagamento (opcional)</label><input id="ev-link-pagamento" placeholder="Link do Mercado Pago ou outro"></div>
         </div>
 
-        <div class="field" style="margin-bottom:6px;"><label>Banner (formato story, 9:16 — igual Instagram)</label><input id="ev-banner" type="file" accept="image/*"></div>
+        <div class="field" style="margin-bottom:6px;"><label>Banner (formato story, 9:16 — igual Instagram)</label>
+          <input id="ev-banner" type="file" accept="image/*">
+        </div>
+        <button class="btn btn-ghost" type="button" id="btn-ev-ler-banner" style="margin-bottom:6px;">✨ Ler banner com IA e preencher</button>
+        <p class="hint" id="ev-status-ia" style="display:none;margin:-4px 0 12px;">✨ Lendo o banner...</p>
+
+        <div class="field" style="position:relative;">
+          <label>Organizador do evento (opcional — pode baixar a lista de inscritos direto no app)</label>
+          <input id="ev-busca-organizador" autocomplete="off" placeholder="Digite o nome de quem vai organizar...">
+          <div id="ev-sugestoes-organizador" class="autocomplete-lista" style="display:none;"></div>
+        </div>
+        <input type="hidden" id="ev-organizador-id">
+
         <p class="error-msg" id="ev-erro"></p>
         <button class="btn btn-primary" type="submit">Salvar evento</button>
       </form>
@@ -1891,6 +1905,7 @@
       <p class="hint" id="evento-detalhe-info" style="margin-bottom:6px;"></p>
       <p class="reflect" id="evento-detalhe-descricao" style="margin-bottom:10px;"></p>
       <p class="hint" id="evento-detalhe-vagas" style="margin-bottom:14px;font-weight:700;"></p>
+      <button class="btn btn-ghost" id="btn-compartilhar-evento" style="margin-bottom:14px;">📤 Compartilhar evento</button>
       <div class="card" id="evento-detalhe-pagamento" style="display:none;margin-bottom:14px;">
         <p style="font-weight:700;font-size:13.5px;margin:0 0 8px;">💰 Valor: <span id="evento-pagamento-valor"></span></p>
         <p class="hint" id="evento-pagamento-pix" style="margin-bottom:6px;display:none;"></p>
@@ -1946,7 +1961,9 @@
         <div class="card" id="evento-card-confirmado" style="display:none;text-align:center;">
           <p style="font-size:15px;font-weight:700;margin:0 0 6px;" id="evento-confirmado-titulo">Inscrição confirmada! 🎉</p>
           <p class="hint" style="margin-bottom:14px;" id="evento-confirmado-texto">Te esperamos lá.</p>
-          <a class="btn btn-primary" id="btn-whatsapp-confirmacao" href="#" target="_blank" rel="noopener">Confirmar no WhatsApp</a>
+          <a class="btn btn-primary" id="btn-whatsapp-confirmacao" href="#" target="_blank" rel="noopener" style="margin-bottom:8px;">Confirmar no WhatsApp</a>
+          <button class="btn btn-ghost" id="btn-comprovante-inscricao" style="display:none;margin-bottom:8px;">📄 Baixar comprovante (com QR code)</button>
+          <button class="btn btn-ghost" id="btn-compartilhar-evento-confirmado">📤 Chamar mais alguém pro evento</button>
         </div>
       </div>
     </div>
@@ -1959,6 +1976,7 @@
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;" id="inscritos-titulo-evento">Inscritos</span>
+      <button class="btn btn-primary" id="btn-baixar-lista-inscritos" style="margin-bottom:14px;">📄 Baixar lista em PDF</button>
       <div id="inscritos-dashboard" style="margin-bottom:16px;"></div>
       <div id="inscritos-lista"></div>
     </div>
@@ -2177,6 +2195,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788447826"></script>
+<script src="app.js?v=1788448873"></script>
 </body>
 </html>

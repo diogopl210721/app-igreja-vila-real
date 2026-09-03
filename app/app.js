@@ -3836,7 +3836,11 @@ async function abrirEventoDetalhe(eventoId) {
     pagBox.style.display = "none";
   }
 
-  document.getElementById("evento-detalhe-gerenciar").style.display = podeEditarEvento(evento) ? "block" : "none";
+  document.getElementById("btn-compartilhar-evento").onclick = () => compartilharEvento(evento);
+
+  document.getElementById("btn-editar-evento").style.display = podeEditarEvento(evento) ? "block" : "none";
+  const podeVerListaInscritos = podeEditarEvento(evento) || (state.membro && evento.organizador_membro_id === state.membro.id);
+  document.getElementById("evento-detalhe-gerenciar").style.display = podeVerListaInscritos ? "block" : "none";
 
   const lotado = evento.vagas_maximas && totalInscritos >= evento.vagas_maximas;
   esconderCartoesInscricaoEvento();
@@ -3887,7 +3891,7 @@ function escolherSouVisitante() {
   document.getElementById("evento-card-visitante").style.display = "block";
 }
 
-function mostrarConfirmacaoInscricao(evento) {
+function mostrarConfirmacaoInscricao(evento, inscricao) {
   esconderCartoesInscricaoEvento();
   document.getElementById("evento-card-confirmado").style.display = "block";
   const msg = `Oi! Me inscrevi no evento "${evento.titulo}" (${formatarPeriodo(evento.data, evento.data_fim)}). Confirmando minha presença!${evento.gratuito === false ? " Vou te enviar o comprovante de pagamento por aqui também 💛" : " 💛"}`;
@@ -3902,6 +3906,70 @@ function mostrarConfirmacaoInscricao(evento) {
     tituloConf.textContent = "Inscrição confirmada! 🎉";
     textoConf.textContent = "Te esperamos lá.";
   }
+  const btnComprovante = document.getElementById("btn-comprovante-inscricao");
+  if (btnComprovante) {
+    btnComprovante.style.display = inscricao ? "block" : "none";
+    btnComprovante.onclick = () => gerarPdfComprovanteInscricao(inscricao, evento);
+  }
+  const btnCompartilharEvento = document.getElementById("btn-compartilhar-evento-confirmado");
+  if (btnCompartilharEvento) btnCompartilharEvento.onclick = () => compartilharEvento(evento);
+}
+
+function gerarCodigoCheckin() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase() + Date.now().toString(36).slice(-4).toUpperCase();
+}
+
+async function gerarPdfComprovanteInscricao(inscricao, evento) {
+  if (!inscricao) return;
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a5" });
+    const w = doc.internal.pageSize.getWidth();
+
+    doc.setFillColor(61, 90, 254);
+    doc.rect(0, 0, w, 30, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text(state.igreja?.nome || "Igreja", w / 2, 13, { align: "center" });
+    doc.setFontSize(11);
+    doc.text("Comprovante de inscrição", w / 2, 22, { align: "center" });
+
+    doc.setTextColor(20, 20, 20);
+    doc.setFontSize(15);
+    doc.text(evento.titulo, w / 2, 42, { align: "center", maxWidth: w - 20 });
+
+    doc.setFontSize(11);
+    let y = 54;
+    const linha = (label, valor) => { if (!valor) return; doc.setFont(undefined, "bold"); doc.text(label, 14, y); doc.setFont(undefined, "normal"); doc.text(String(valor), 55, y); y += 8; };
+    linha("Inscrito(a):", inscricao.nome);
+    linha("Data:", formatarPeriodo(evento.data, evento.data_fim));
+    if (evento.horario) linha("Horário:", evento.horario);
+    if (evento.local) linha("Local:", evento.local);
+    linha("Telefone:", inscricao.telefone);
+
+    const codigo = inscricao.codigo_checkin || inscricao.id;
+    const qrDataUrl = await QRCode.toDataURL(codigo, { margin: 1, width: 240 });
+    const qrSize = 45;
+    doc.addImage(qrDataUrl, "PNG", (w - qrSize) / 2, y + 4, qrSize, qrSize);
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text("Apresente esse QR code na entrada", w / 2, y + qrSize + 12, { align: "center" });
+    doc.text(codigo, w / 2, y + qrSize + 18, { align: "center" });
+
+    doc.save(`inscricao-${(evento.titulo || "evento").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`);
+  } catch (e) {
+    console.error("Erro ao gerar PDF do comprovante:", e);
+    alert("Não deu pra gerar o comprovante agora. Tenta de novo.");
+  }
+}
+
+async function compartilharEvento(evento) {
+  const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
+  const texto = `📅 ${evento.titulo}\n${formatarPeriodo(evento.data, evento.data_fim)}${evento.horario ? " às " + evento.horario : ""}${evento.local ? "\n📍 " + evento.local : ""}\n\nVem participar comigo! Inscrições no app da ${state.igreja?.nome || "igreja"}: ${link}`;
+  if (navigator.share) {
+    try { await navigator.share({ text: texto }); return; } catch { /* usuário cancelou */ }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
 }
 
 async function inscreverMembroEvento() {
@@ -3909,11 +3977,12 @@ async function inscreverMembroEvento() {
   const btn = document.getElementById("btn-inscrever-membro");
   btn.disabled = true; btn.textContent = "Inscrevendo...";
   try {
-    const { error } = await sb.from("igr_eventos_inscricoes").insert({
+    const codigo_checkin = gerarCodigoCheckin();
+    const { data: inscricao, error } = await sb.from("igr_eventos_inscricoes").insert({
       evento_id: evento.id, membro_id: state.membro.id,
       nome: state.membro.nome_completo, telefone: state.membro.telefone,
-      data_nascimento: state.membro.data_nascimento || null,
-    });
+      data_nascimento: state.membro.data_nascimento || null, codigo_checkin,
+    }).select().single();
     if (error) {
       if (error.code === "23503") {
         alert("Sua sessão de membro não é mais válida (a conta pode ter sido removida). Saia e entre de novo, ou se inscreva como visitante.");
@@ -3926,7 +3995,7 @@ async function inscreverMembroEvento() {
     enviarPush({ tipo: "membros", membro_ids: [state.membro.id] }, "Inscrição confirmada! 🎉", `Você está inscrito(a) em "${evento.titulo}" — ${formatarPeriodo(evento.data, evento.data_fim)}.`);
     darPontos("evento_inscricao");
     await avisarLiderPorIdadeEGenero(evento, state.membro.data_nascimento, state.membro.genero, state.membro.nome_completo);
-    mostrarConfirmacaoInscricao(evento);
+    mostrarConfirmacaoInscricao(evento, inscricao);
   } catch (e) {
     console.error("Erro ao inscrever membro:", e);
     alert("Não deu pra inscrever agora. Verifique sua conexão e tente de novo.");
@@ -3946,10 +4015,11 @@ async function inscreverVisitanteEvento(ev) {
   const btn = ev.target.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Inscrevendo...";
   try {
-    const { error } = await sb.from("igr_eventos_inscricoes").insert({ evento_id: evento.id, nome, telefone, data_nascimento });
+    const codigo_checkin = gerarCodigoCheckin();
+    const { data: inscricao, error } = await sb.from("igr_eventos_inscricoes").insert({ evento_id: evento.id, nome, telefone, data_nascimento, codigo_checkin }).select().single();
     if (error) { alert("Não deu pra inscrever agora: " + error.message); return; }
     await avisarLiderPorIdadeEGenero(evento, data_nascimento, genero, nome);
-    mostrarConfirmacaoInscricao(evento);
+    mostrarConfirmacaoInscricao(evento, inscricao);
   } catch (e) {
     console.error("Erro ao inscrever visitante:", e);
     alert("Não deu pra inscrever agora. Verifique sua conexão e tente de novo.");
@@ -3999,9 +4069,85 @@ function abrirFormEvento(evento) {
   document.getElementById("ev-valor").value = evento?.valor || "";
   document.getElementById("ev-pix").value = evento?.pix_chave || "";
   document.getElementById("ev-link-pagamento").value = evento?.link_pagamento || "";
+  document.getElementById("ev-organizador-id").value = evento?.organizador_membro_id || "";
+  document.getElementById("ev-busca-organizador").value = "";
+  if (evento?.organizador_membro_id) {
+    sb.from("igr_membros").select("nome_completo").eq("id", evento.organizador_membro_id).maybeSingle().then(({ data }) => {
+      if (data) document.getElementById("ev-busca-organizador").value = data.nome_completo;
+    });
+  }
   document.getElementById("ev-erro").classList.remove("show");
   mostrarTela("tela-evento-form");
 }
+
+function configurarBuscaOrganizadorEvento() {
+  const input = document.getElementById("ev-busca-organizador");
+  const sugestoesEl = document.getElementById("ev-sugestoes-organizador");
+  if (!input || input._jaConfigurado) return;
+  input._jaConfigurado = true;
+  input.addEventListener("input", async () => {
+    document.getElementById("ev-organizador-id").value = "";
+    const termo = normalizarBusca(input.value);
+    if (!termo || !state.igreja) { sugestoesEl.style.display = "none"; return; }
+    const { data: membros } = await sb.from("igr_membros").select("id, nome_completo").eq("igreja_id", state.igreja.id);
+    const bateram = (membros || []).filter(m => normalizarBusca(m.nome_completo).includes(termo)).slice(0, 6);
+    if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
+    sugestoesEl.innerHTML = bateram.map(m => `<div class="autocomplete-item" data-organizador-id="${m.id}" data-organizador-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
+    sugestoesEl.style.display = "block";
+    sugestoesEl.querySelectorAll("[data-organizador-id]").forEach(item => {
+      item.addEventListener("click", () => {
+        document.getElementById("ev-organizador-id").value = item.dataset.organizadorId;
+        input.value = item.dataset.organizadorNome;
+        sugestoesEl.style.display = "none";
+      });
+    });
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+
+async function lerBannerComIA() {
+  const arquivo = document.getElementById("ev-banner").files[0];
+  if (!arquivo) { alert("Escolhe o banner primeiro, aí eu leio ele."); return; }
+  const status = document.getElementById("ev-status-ia");
+  status.textContent = "✨ Lendo o banner...";
+  status.style.display = "block";
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(arquivo);
+    });
+    const { data, error } = await sb.functions.invoke("igr-ler-banner-evento", { body: { imagemBase64: base64, imagemMimeType: arquivo.type } });
+    if (error || !data?.ok) {
+      let mensagem = data?.error;
+      if (!mensagem && error?.context?.json) { try { mensagem = (await error.context.json())?.error; } catch {} }
+      status.textContent = mensagem || "Não consegui ler o banner agora.";
+      return;
+    }
+    if (!document.getElementById("ev-titulo").value.trim() && data.titulo) document.getElementById("ev-titulo").value = data.titulo;
+    if (!document.getElementById("ev-descricao").value.trim() && data.descricao) document.getElementById("ev-descricao").value = data.descricao;
+    if (!document.getElementById("ev-local").value.trim() && data.local) document.getElementById("ev-local").value = data.local;
+    if (!document.getElementById("ev-data").value && data.data) definirValorData("ev-data", data.data);
+    if (!document.getElementById("ev-data-fim").value && data.data_fim) definirValorData("ev-data-fim", data.data_fim);
+    if (!document.getElementById("ev-horario").value.trim() && data.horario) document.getElementById("ev-horario").value = data.horario;
+    if (data.gratuito === false) {
+      document.getElementById("ev-gratuito").value = "nao";
+      document.getElementById("ev-pagamento-detalhes").style.display = "block";
+      if (!document.getElementById("ev-valor").value.trim() && data.valor) document.getElementById("ev-valor").value = data.valor;
+    } else if (data.gratuito === true) {
+      document.getElementById("ev-gratuito").value = "sim";
+      document.getElementById("ev-pagamento-detalhes").style.display = "none";
+    }
+    status.textContent = "✨ Preenchido — confira antes de salvar.";
+  } catch (e) {
+    console.error("Erro ao ler banner:", e);
+    status.textContent = "Não consegui ler o banner agora.";
+  }
+}
+
 
 async function enviarFormEvento(ev) {
   ev.preventDefault();
@@ -4017,6 +4163,7 @@ async function enviarFormEvento(ev) {
   const valor = gratuito ? null : document.getElementById("ev-valor").value.trim() || null;
   const pix_chave = gratuito ? null : document.getElementById("ev-pix").value.trim() || null;
   const link_pagamento = gratuito ? null : document.getElementById("ev-link-pagamento").value.trim() || null;
+  const organizador_membro_id = document.getElementById("ev-organizador-id").value || null;
   const errEl = document.getElementById("ev-erro");
   errEl.classList.remove("show");
 
@@ -4038,7 +4185,7 @@ async function enviarFormEvento(ev) {
     const arquivo = document.getElementById("ev-banner").files[0];
     const novoBanner = await uploadArquivo(arquivo, "eventos");
     const editando = state.editandoEvento;
-    const campos = { titulo, descricao, local, data, data_fim, horario, vagas_minimas, vagas_maximas, gratuito, valor, pix_chave, link_pagamento };
+    const campos = { titulo, descricao, local, data, data_fim, horario, vagas_minimas, vagas_maximas, gratuito, valor, pix_chave, link_pagamento, organizador_membro_id };
     let eventoId = editando?.id;
     let bannerFinal = novoBanner;
 
@@ -4108,6 +4255,49 @@ async function abrirInscritosEvento(evento) {
       <span>${i.telefone}</span>
     </div>
   `).join("") || `<div class="empty">Ninguém se inscreveu ainda.</div>`;
+
+  document.getElementById("btn-baixar-lista-inscritos").onclick = () => gerarPdfListaInscritos(evento, data || []);
+}
+
+function gerarPdfListaInscritos(evento, inscritos) {
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const w = doc.internal.pageSize.getWidth();
+
+    doc.setFillColor(61, 90, 254);
+    doc.rect(0, 0, w, 24, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(15);
+    doc.text(evento.titulo, 14, 11, { maxWidth: w - 28 });
+    doc.setFontSize(10);
+    doc.text(`${formatarPeriodo(evento.data, evento.data_fim)}${evento.local ? " · " + evento.local : ""} · ${inscritos.length} inscrito(s)`, 14, 19);
+
+    doc.setTextColor(20, 20, 20);
+    doc.setFontSize(10);
+    let y = 34;
+    doc.setFont(undefined, "bold");
+    doc.text("#", 14, y); doc.text("Nome", 22, y); doc.text("Telefone", 130, y); doc.text("Idade", 170, y);
+    doc.setFont(undefined, "normal");
+    y += 4;
+    doc.setDrawColor(220, 220, 220);
+    doc.line(14, y, w - 14, y);
+    y += 6;
+
+    inscritos.forEach((i, idx) => {
+      if (y > 280) { doc.addPage(); y = 20; }
+      doc.text(String(idx + 1), 14, y);
+      doc.text(i.nome || "", 22, y, { maxWidth: 105 });
+      doc.text(i.telefone || "", 130, y);
+      doc.text(i.data_nascimento ? String(calcularIdade(i.data_nascimento)) : "-", 170, y);
+      y += 7;
+    });
+
+    doc.save(`inscritos-${(evento.titulo || "evento").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`);
+  } catch (e) {
+    console.error("Erro ao gerar PDF da lista:", e);
+    alert("Não deu pra gerar o PDF agora. Tenta de novo.");
+  }
 }
 
 async function carregarEventosAdmin() {
@@ -7322,6 +7512,8 @@ async function iniciar() {
   });
   document.getElementById("btn-admin-novo-evento")?.addEventListener("click", () => abrirFormEvento(null));
   document.getElementById("form-evento")?.addEventListener("submit", enviarFormEvento);
+  document.getElementById("btn-ev-ler-banner")?.addEventListener("click", lerBannerComIA);
+  configurarBuscaOrganizadorEvento();
   document.getElementById("ev-gratuito")?.addEventListener("change", (ev) => {
     document.getElementById("ev-pagamento-detalhes").style.display = ev.target.value === "nao" ? "block" : "none";
   });
