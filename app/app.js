@@ -4759,38 +4759,23 @@ async function carregarFuncoesLouvor() {
   }));
 }
 
-function renderizarChipsPessoasFuncao() {
-  const el = document.getElementById("lf-pessoas-selecionadas");
-  const pessoas = state.louvorFuncaoPessoasSelecionadas || [];
-  if (!pessoas.length) { el.innerHTML = ""; return; }
-  el.innerHTML = `<p class="hint" style="margin:0;">✅ ${pessoas.length > 1 ? "Adicionados" : "Adicionado"}: ${pessoas.map(p =>
-    `${p.nome_completo} <button type="button" data-remover-pessoa-funcao="${p.id}" style="border:none;background:none;cursor:pointer;color:var(--brand);font-size:12px;text-decoration:underline;padding:0;">remover</button>`
-  ).join(", ")}</p>`;
-  el.querySelectorAll("[data-remover-pessoa-funcao]").forEach(b => b.addEventListener("click", () => {
-    state.louvorFuncaoPessoasSelecionadas = pessoas.filter(p => p.id !== b.dataset.removerPessoaFuncao);
-    renderizarChipsPessoasFuncao();
-  }));
-}
-
 function configurarBuscaPessoaFuncao() {
   const input = document.getElementById("lf-busca-pessoa");
   const sugestoesEl = document.getElementById("lf-sugestoes-pessoa");
   if (!input || input._jaConfigurado) return;
   input._jaConfigurado = true;
   input.addEventListener("input", async () => {
+    state.louvorFuncaoPessoaSelecionada = null;
     const termo = normalizarBusca(input.value);
     if (!termo) { sugestoesEl.style.display = "none"; return; }
     const membros = await membrosDoGrupoLouvor();
-    const jaSelecionados = new Set((state.louvorFuncaoPessoasSelecionadas || []).map(p => p.id));
-    const bateram = membros.filter(m => !jaSelecionados.has(m.id) && normalizarBusca(m.nome_completo).includes(termo)).slice(0, 6);
+    const bateram = membros.filter(m => normalizarBusca(m.nome_completo).includes(termo)).slice(0, 6);
     if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
     sugestoesEl.innerHTML = bateram.map(m => `<div class="autocomplete-item" data-pessoa-id="${m.id}" data-pessoa-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
     sugestoesEl.style.display = "block";
     sugestoesEl.querySelectorAll("[data-pessoa-id]").forEach(item => {
       item.addEventListener("click", () => {
-        state.louvorFuncaoPessoasSelecionadas = [...(state.louvorFuncaoPessoasSelecionadas || []), { id: item.dataset.pessoaId, nome_completo: item.dataset.pessoaNome }];
-        renderizarChipsPessoasFuncao();
-        // deixa o nome escolhido visivel no campo (em vez de limpar), pra ficar claro que foi adicionado
+        state.louvorFuncaoPessoaSelecionada = { id: item.dataset.pessoaId, nome_completo: item.dataset.pessoaNome };
         input.value = item.dataset.pessoaNome;
         sugestoesEl.style.display = "none";
       });
@@ -4801,28 +4786,26 @@ function configurarBuscaPessoaFuncao() {
   });
 }
 
-async function iniciarEdicaoFuncaoLouvor(funcao) {
+function iniciarEdicaoFuncaoLouvor(funcao) {
   state.louvorFuncaoEditando = funcao;
+  state.louvorFuncaoPessoaSelecionada = null;
   document.getElementById("lf-titulo-tela").textContent = "Editar função";
   document.getElementById("lf-nome").value = funcao.nome;
   document.getElementById("lf-emoji").value = funcao.emoji || "🎤";
   renderizarEmojiPickerLouvor(funcao.emoji || "🎤");
   document.getElementById("lf-cancelar-edicao").style.display = "block";
   document.querySelector("#form-louvor-funcao button[type=submit]").textContent = "Salvar alterações";
-  const { data: vinculos } = await sb.from("igr_louvor_membro_funcoes").select("membro_id, igr_membros(nome_completo)").eq("funcao_id", funcao.id);
-  state.louvorFuncaoPessoasSelecionadas = (vinculos || []).filter(v => v.igr_membros).map(v => ({ id: v.membro_id, nome_completo: v.igr_membros.nome_completo }));
-  renderizarChipsPessoasFuncao();
+  document.getElementById("lf-busca-pessoa").value = "";
   document.getElementById("form-louvor-funcao").scrollIntoView({ behavior: "smooth" });
 }
 
 function cancelarEdicaoFuncaoLouvor() {
   state.louvorFuncaoEditando = null;
-  state.louvorFuncaoPessoasSelecionadas = [];
+  state.louvorFuncaoPessoaSelecionada = null;
   document.getElementById("lf-titulo-tela").textContent = "Funções do grupo";
   document.getElementById("form-louvor-funcao").reset();
   document.getElementById("lf-emoji").value = "🎤";
   renderizarEmojiPickerLouvor("🎤");
-  renderizarChipsPessoasFuncao();
   document.getElementById("lf-cancelar-edicao").style.display = "none";
   document.querySelector("#form-louvor-funcao button[type=submit]").textContent = "Salvar função";
 }
@@ -4832,7 +4815,7 @@ async function enviarFuncaoLouvor(ev) {
   const emoji = document.getElementById("lf-emoji").value.trim() || "🎤";
   const nome = document.getElementById("lf-nome").value.trim();
   if (!nome) return;
-  const pessoas = state.louvorFuncaoPessoasSelecionadas || [];
+  const pessoa = state.louvorFuncaoPessoaSelecionada;
   const editando = state.louvorFuncaoEditando;
   let funcaoId = editando?.id;
   if (editando) {
@@ -4845,10 +4828,9 @@ async function enviarFuncaoLouvor(ev) {
     if (error) { alert("Não deu pra adicionar: " + error.message); return; }
     funcaoId = nova.id;
   }
-  // sincroniza quem toca essa funcao com quem foi selecionado no formulario
-  await sb.from("igr_louvor_membro_funcoes").delete().eq("funcao_id", funcaoId);
-  if (pessoas.length) {
-    await sb.from("igr_louvor_membro_funcoes").insert(pessoas.map(p => ({ membro_id: p.id, funcao_id: funcaoId })));
+  // so adiciona quem foi escolhido no campo - nunca remove quem ja estava vinculado (isso e feito em 👥)
+  if (pessoa) {
+    await sb.from("igr_louvor_membro_funcoes").upsert({ membro_id: pessoa.id, funcao_id: funcaoId }, { onConflict: "membro_id,funcao_id" });
   }
   cancelarEdicaoFuncaoLouvor();
   carregarFuncoesLouvor();
