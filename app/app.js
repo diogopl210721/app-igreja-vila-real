@@ -3679,7 +3679,10 @@ function abrirDiaCalendario(dataISO) {
       ${(ev.data_fim && ev.data_fim !== ev.data) || ev.dia_semana ? `<p class="hint" style="margin:4px 0 0;">📅 ${formatarPeriodoCalendario(ev.data, ev.data_fim, ev.dia_semana)}</p>` : ""}
       ${ev.igr_grupos?.nome ? `<span class="badge-inline" style="margin-top:6px;">${ev.igr_grupos.nome}</span>` : `<span class="badge-inline" style="margin-top:6px;">Igreja toda</span>`}
       ${ev.observacoes ? `<p style="margin:6px 0 0;font-size:12.5px;">${ev.observacoes}</p>` : ""}
-      <button class="btn btn-ghost" data-add-agenda-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;margin-top:10px;">📲 Adicionar na minha agenda</button>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" data-add-agenda-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;">📲 Adicionar na minha agenda</button>
+        <button class="btn btn-ghost" data-compartilhar-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;">📤 Compartilhar</button>
+      </div>
     </div>
   `).join("") || `<div class="empty">Nada marcado pra esse dia.</div>`;
 
@@ -3689,9 +3692,39 @@ function abrirDiaCalendario(dataISO) {
       if (ev) adicionarCalendarioAgenda(ev.titulo, ev.data, ev.data_fim, ev.horario, ev.local, ev.observacoes);
     });
   });
+  el.querySelectorAll("[data-compartilhar-calendario]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ev = eventosDoDia.find(e => e.id === btn.dataset.compartilharCalendario);
+      if (ev) compartilharEventoCalendario(ev);
+    });
+  });
   el.querySelectorAll("[data-ampliar-imagem]").forEach(img => {
     img.addEventListener("click", () => abrirLightboxImagemUnica(img.dataset.ampliarImagem));
   });
+}
+
+async function compartilharEventoCalendario(ev) {
+  const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
+  let texto = `📅 ${ev.titulo}\n${formatarPeriodoCalendario(ev.data, ev.data_fim, ev.dia_semana)}${ev.horario ? " às " + ev.horario : ""}`;
+  if (ev.local) texto += `\n📍 ${ev.local}`;
+  if (ev.observacoes) texto += `\n${ev.observacoes}`;
+  texto += `\n\nVia app da ${state.igreja?.nome || "igreja"}: ${link}`;
+  if (navigator.share) {
+    try {
+      const shareData = { text: texto };
+      if (ev.imagem_url && navigator.canShare) {
+        try {
+          const resp = await fetch(ev.imagem_url);
+          const blob = await resp.blob();
+          const arquivo = new File([blob], "evento.jpg", { type: blob.type || "image/jpeg" });
+          if (navigator.canShare({ files: [arquivo] })) shareData.files = [arquivo];
+        } catch { /* segue só com texto se não der pra anexar a imagem */ }
+      }
+      await navigator.share(shareData);
+      return;
+    } catch { /* usuário cancelou */ }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
 }
 
 async function enviarCalendario(ev) {
