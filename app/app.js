@@ -4762,11 +4762,10 @@ async function carregarFuncoesLouvor() {
 function renderizarChipsPessoasFuncao() {
   const el = document.getElementById("lf-pessoas-selecionadas");
   const pessoas = state.louvorFuncaoPessoasSelecionadas || [];
-  el.innerHTML = pessoas.map(p => `
-    <span class="badge-inline" style="display:inline-flex;align-items:center;gap:5px;padding:5px 6px 5px 10px;">${p.nome_completo}
-      <button type="button" data-remover-pessoa-funcao="${p.id}" style="border:none;background:none;cursor:pointer;font-size:13px;line-height:1;color:inherit;">✕</button>
-    </span>
-  `).join("");
+  if (!pessoas.length) { el.innerHTML = ""; return; }
+  el.innerHTML = `<p class="hint" style="margin:0;">✅ ${pessoas.length > 1 ? "Adicionados" : "Adicionado"}: ${pessoas.map(p =>
+    `${p.nome_completo} <button type="button" data-remover-pessoa-funcao="${p.id}" style="border:none;background:none;cursor:pointer;color:var(--brand);font-size:12px;text-decoration:underline;padding:0;">remover</button>`
+  ).join(", ")}</p>`;
   el.querySelectorAll("[data-remover-pessoa-funcao]").forEach(b => b.addEventListener("click", () => {
     state.louvorFuncaoPessoasSelecionadas = pessoas.filter(p => p.id !== b.dataset.removerPessoaFuncao);
     renderizarChipsPessoasFuncao();
@@ -4791,7 +4790,8 @@ function configurarBuscaPessoaFuncao() {
       item.addEventListener("click", () => {
         state.louvorFuncaoPessoasSelecionadas = [...(state.louvorFuncaoPessoasSelecionadas || []), { id: item.dataset.pessoaId, nome_completo: item.dataset.pessoaNome }];
         renderizarChipsPessoasFuncao();
-        input.value = "";
+        // deixa o nome escolhido visivel no campo (em vez de limpar), pra ficar claro que foi adicionado
+        input.value = item.dataset.pessoaNome;
         sugestoesEl.style.display = "none";
       });
     });
