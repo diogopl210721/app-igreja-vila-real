@@ -1654,7 +1654,7 @@ async function marcarAulaConcluida() {
     { onConflict: "aula_id,membro_id" }
   );
   if (error) { alert("Não deu pra salvar: " + error.message); btn.disabled = false; btn.textContent = "✓ Marcar aula como concluída"; return; }
-  darPontos("estudo_sessao");
+  darPontos(state.moduloAtual?.categoria === "escola_biblica" ? "aula_escola_biblica" : "estudo_sessao");
   btn.textContent = "✓ Aula concluída";
   btn.className = "btn btn-ghost";
 }
@@ -2994,6 +2994,7 @@ const PONTOS = {
   leitura_biblica: 30,
   livro_sessao: 15,
   estudo_sessao: 15,
+  aula_escola_biblica: 2,
   devocional_aberto: 40,
   aviso_reacao: 20,
   evento_inscricao: 25,
