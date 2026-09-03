@@ -601,18 +601,25 @@
 
       <div class="admin-painel-aba" data-admin-painel="estudos" style="display:none;">
         <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
-        <div class="section-label"><b>Novo esboço de pregação</b></div>
+        <div class="section-label" id="ae-titulo-secao"><b>Novo estudo</b></div>
         <div class="card">
           <form id="form-admin-esboco">
+            <div class="field"><label>Categoria</label>
+              <select id="ae-categoria">
+                <option value="escola_biblica">📘 Escola Bíblica</option>
+                <option value="esboco">🗒️ Esboço de pregação</option>
+                <option value="diversos">✨ Estudos diversos</option>
+              </select>
+            </div>
             <div class="field"><label>Título</label><input id="ae-titulo" required placeholder="Ex: O Fruto do Espírito"></div>
-            <div class="field"><label>Pregador (opcional)</label><input id="ae-pregador" placeholder="Ex: Pr. José"></div>
-            <div class="field"><label>Capa (opcional)</label><input id="ae-capa" type="file" accept="image/*"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Arquivo do estudo (PDF, opcional)</label><input id="ae-arquivo" type="file" accept="application/pdf,image/*"></div>
-            <button class="btn btn-primary" type="submit">Publicar esboço</button>
+            <div class="field"><label>Tema (do que se trata)</label><textarea id="ae-tema" rows="2" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Uma breve descrição do assunto..."></textarea></div>
+            <div class="field"><label>Capa (opcional — a IA cria uma se deixar em branco)</label><input id="ae-capa" type="file" accept="image/*"></div>
+            <div class="field" style="margin-bottom:6px;"><label>Arquivo do estudo (PDF)</label><input id="ae-arquivo" type="file" accept="application/pdf,image/*"></div>
+            <button class="btn btn-primary" type="submit">Publicar estudo</button>
             <button class="btn btn-ghost" type="button" id="ae-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoEsboco()">Cancelar edição</button>
           </form>
         </div>
-        <div class="section-label"><b>Esboços publicados</b></div>
+        <div class="section-label"><b>Estudos publicados</b></div>
         <div id="admin-lista-esbocos"></div>
       </div>
 
@@ -954,10 +961,9 @@
         <button class="btn btn-ghost" id="btn-toggle-como-pontuar" type="button" style="margin-top:8px;">❓ Como faço pra pontuar?</button>
         <div class="card" id="bloco-como-pontuar" style="display:none;margin-top:8px;font-size:13px;line-height:1.9;">
           🙂 Registrar o humor do dia — <b>10 pts</b><br>
-          📖 Ler e marcar um versículo (Bíblia ou Diário) — <b>30 pts</b><br>
-          📚 Ler um trecho de um livro da biblioteca — <b>15 pts</b><br>
-          💬 Mandar uma mensagem pra alguém — <b>20 pts</b><br>
-          ☀️ Abrir o devocional do dia — <b>40 pts</b> (1x por dia)<br>
+          📖 Ler e marcar um versículo (Bíblia ou Diário) — <b>30 pts</b> (quantas vezes quiser)<br>
+          📚 Ler um trecho de um livro ou estudo — <b>15 pts</b><br>
+          ☀️ Abrir o devocional — <b>40 pts</b> (até 3x por dia — manhã, tarde e noite)<br>
           ❤️ Reagir a um aviso (Amei/Orando) — <b>20 pts</b><br>
           🎟️ Se inscrever num evento — <b>25 pts</b><br>
           🤝 Conectar com alguém na Mão Amiga — <b>15 pts</b><br>
@@ -1187,8 +1193,12 @@
       <div class="voltar-btn" data-nav="tela-membro-home">
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
       </div>
-      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:14px;">Esboços de pregação</span>
-      <div id="lista-esbocos"><p class="hint"><span class="loading-dot"></span></p></div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:14px;">Estudos</span>
+      <div class="quicklinks">
+        <button class="quicklink" data-abrir-categoria-estudo="escola_biblica"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Escola Bíblica</button>
+        <button class="quicklink" data-abrir-categoria-estudo="esboco"><span class="quicklink-ic"><svg class="icon"><use href="#i-file"/></svg></span>Esboços</button>
+        <button class="quicklink" data-abrir-categoria-estudo="diversos"><span class="quicklink-ic"><svg class="icon"><use href="#i-sparkle"/></svg></span>Diversos</button>
+      </div>
     </div>
     <div class="bottomnav" style="display:flex;">
       <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
@@ -1197,6 +1207,17 @@
       <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
       <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-phone"/></svg>Contatos</button>
       <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
+    </div>
+  </div>
+
+  <!-- ============ LISTA DE ESTUDOS (Escola Biblica / Esboco / Diversos) ============ -->
+  <div class="screen" id="tela-estudos-lista">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-membro-estudos"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;" id="estudos-titulo-tela">Estudos</span>
+      <p class="hint" style="margin-bottom:12px;">Toque num estudo pra ler ou baixar.</p>
+      <div class="field"><input id="estudos-busca" placeholder="Buscar por título ou tema..."></div>
+      <div id="estudos-lista" style="display:flex;flex-direction:column;gap:12px;margin-top:14px;"><p class="hint"><span class="loading-dot"></span></p></div>
     </div>
   </div>
 
@@ -2105,6 +2126,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788429674"></script>
+<script src="app.js?v=1788431997"></script>
 </body>
 </html>

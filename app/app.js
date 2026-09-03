@@ -1409,7 +1409,7 @@ async function gerarDevocionalDoDia() {
   if (!state.membro) return null;
   try {
     const { data, error } = await sb.functions.invoke("igr-personalizar-devocional", {
-      body: { membro_id: state.membro.id },
+      body: { membro_id: state.membro.id, periodo: periodoDoDia() },
     });
     if (error || !data?.ok) { console.error("Erro ao gerar devocional:", error || data); return null; }
     return data;
@@ -1443,7 +1443,7 @@ function abrirDevocional() {
   }
 
   mostrarTela("tela-devocional-detalhe");
-  darPontosUmaVezPorDia("devocional_aberto");
+  darPontosUmaVezPorPeriodo("devocional_aberto");
   configurarReacoesDevocional();
 }
 
@@ -1517,23 +1517,84 @@ async function configurarCheckinDiario() {
 }
 
 // ---------- estudos / pastor / história ----------
-async function carregarEsbocos() {
-  const { data } = await sb.from("igr_esbocos").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
-  const el = document.getElementById("lista-esbocos");
-  el.innerHTML = (data || []).map(e => `
-    <div class="card">
-      ${e.capa_url ? `<img class="capa-thumb" src="${e.capa_url}" alt="" ${e.arquivo_url ? `onclick="window.open('${e.arquivo_url}','_blank')"` : ""}>` : ""}
-      <div class="lesson">
-        ${!e.capa_url ? `<div class="thumb warm"><svg class="icon"><use href="#i-file"/></svg></div>` : ""}
-        <div class="meta"><h3>${e.titulo}</h3><span class="hint">${e.autor || ""}</span></div>
+const NOMES_CATEGORIA_ESTUDO = { escola_biblica: "Escola Bíblica", esboco: "Esboços de pregação", diversos: "Estudos diversos" };
+
+function abrirCategoriaEstudo(categoria) {
+  state.estudosCategoriaAtual = categoria;
+  document.getElementById("estudos-titulo-tela").textContent = NOMES_CATEGORIA_ESTUDO[categoria] || "Estudos";
+  document.getElementById("estudos-busca").value = "";
+  mostrarTela("tela-estudos-lista");
+  carregarListaEstudos(categoria);
+}
+
+async function carregarListaEstudos(categoria) {
+  const el = document.getElementById("estudos-lista");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const { data } = await sb.from("igr_estudos").select("*").eq("igreja_id", state.igreja.id).eq("categoria", categoria).order("created_at", { ascending: false });
+  state.estudosCache = data || [];
+
+  let progressoMapa = {};
+  if (state.membro) {
+    const { data: progresso } = await sb.from("igr_estudos_progresso").select("*").eq("membro_id", state.membro.id);
+    (progresso || []).forEach(p => { progressoMapa[p.estudo_id] = p; });
+  }
+  state.estudosProgressoMapa = progressoMapa;
+
+  renderizarListaEstudos(document.getElementById("estudos-busca").value);
+}
+
+function renderizarListaEstudos(termoBusca) {
+  const el = document.getElementById("estudos-lista");
+  const termo = normalizarBusca(termoBusca);
+  const estudos = (state.estudosCache || []).filter(e => !termo || normalizarBusca(e.titulo + " " + (e.tema || "")).includes(termo));
+
+  el.innerHTML = estudos.map(e => {
+    const prog = state.estudosProgressoMapa?.[e.id];
+    const pct = prog && prog.total_paginas ? Math.round((prog.pagina_atual / prog.total_paginas) * 100) : 0;
+    const tema = e.tema || "";
+    const temaCurto = tema.length > 100 ? tema.slice(0, 100) + "…" : tema;
+    return `
+      <div class="card" data-abrir-estudo="${e.id}" style="display:flex;gap:12px;cursor:pointer;">
+        ${e.capa_url
+          ? `<img src="${e.capa_url}" alt="${e.titulo}" style="width:60px;height:90px;object-fit:cover;border-radius:8px;flex:none;box-shadow:var(--shadow);">`
+          : `<div style="width:60px;height:90px;border-radius:8px;background:var(--bg);flex:none;display:flex;align-items:center;justify-content:center;font-size:22px;">📄</div>`}
+        <div style="flex:1;min-width:0;">
+          <b style="font-size:14px;display:block;line-height:1.25;">${e.titulo}</b>
+          ${tema ? `<p style="font-size:12px;color:var(--ink-soft);margin:5px 0 0;line-height:1.4;">${temaCurto}</p>` : ""}
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+            ${prog?.baixou
+              ? `<span class="badge-inline" style="font-size:10px;">✓ Baixado</span>`
+              : ""}
+            ${e.arquivo_url ? `
+            <div style="flex:1;background:var(--line);border-radius:999px;height:5px;overflow:hidden;"><div style="height:100%;background:${pct >= 100 ? "var(--mint)" : "var(--brand)"};border-radius:999px;width:${pct}%;"></div></div>
+            <span style="font-size:10.5px;font-weight:700;color:${pct > 0 ? "var(--brand)" : "var(--ink-faint)"};flex:none;">${pct}%</span>
+            <button type="button" class="btn btn-ghost" style="width:auto;flex:none;padding:5px 10px;font-size:11px;" data-baixar-estudo="${e.id}">📥</button>
+            ` : `<span class="hint" style="margin:0;">Sem arquivo ainda</span>`}
+          </div>
+        </div>
       </div>
-      ${e.arquivo_url ? `
-        <div class="card-actions-row">
-          <a class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:12px;" href="${e.arquivo_url}" target="_blank" rel="noopener">Ler</a>
-          <a class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" href="${e.arquivo_url}" download>Baixar</a>
-        </div>` : ""}
-    </div>
-  `).join("") || `<div class="empty">Nenhum esboço publicado ainda.</div>`;
+    `;
+  }).join("") || `<p class="hint">${termoBusca ? "Nenhum estudo encontrado com essa busca." : "Nenhum estudo publicado ainda nessa categoria."}</p>`;
+
+  el.querySelectorAll("[data-abrir-estudo]").forEach(card => {
+    card.addEventListener("click", () => abrirLeituraEstudo(card.dataset.abrirEstudo));
+  });
+  el.querySelectorAll("[data-baixar-estudo]").forEach(btn => {
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const estudo = state.estudosCache.find(e => e.id === btn.dataset.baixarEstudo);
+      if (!estudo?.arquivo_url) return;
+      window.open(estudo.arquivo_url, "_blank", "noopener");
+      if (state.membro) {
+        await sb.from("igr_estudos_progresso").upsert(
+          { membro_id: state.membro.id, estudo_id: estudo.id, baixou: true },
+          { onConflict: "estudo_id,membro_id" }
+        );
+        darPontos("estudo_sessao");
+        carregarListaEstudos(state.estudosCategoriaAtual);
+      }
+    });
+  });
 }
 
 async function carregarMensagensPastor() {
@@ -2846,7 +2907,10 @@ async function abrirLeituraLivro(livroId) {
   }
 
   const pdf = await pdfjsLib.getDocument(livro.arquivo_url).promise;
-  state.leituraAtual = { livro, pdf, paginaAtual: progresso?.pagina_atual || 1, paginaInicial: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id, zoom: 1 };
+  state.leituraAtual = {
+    tipo: "livro", item: livro, tabelaProgresso: "igr_livros_progresso", colunaItem: "livro_id",
+    pdf, paginaAtual: progresso?.pagina_atual || 1, paginaInicial: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id, zoom: 1,
+  };
 
   if (state.membro) {
     if (!progresso) {
@@ -2862,18 +2926,57 @@ async function abrirLeituraLivro(livroId) {
   await renderizarPaginaLivro();
 }
 
+async function abrirLeituraEstudo(estudoId) {
+  const estudo = state.estudosCache?.find(e => e.id === estudoId);
+  if (!estudo || !estudo.arquivo_url) return;
+
+  mostrarTela("tela-leitura-livro");
+  document.getElementById("leitura-titulo-livro").textContent = estudo.titulo;
+  document.getElementById("leitura-progresso-texto").textContent = "Carregando...";
+
+  let progresso = null;
+  if (state.membro) {
+    const { data } = await sb.from("igr_estudos_progresso").select("*").eq("membro_id", state.membro.id).eq("estudo_id", estudoId).maybeSingle();
+    progresso = data;
+  }
+
+  const pdf = await pdfjsLib.getDocument(estudo.arquivo_url).promise;
+  state.leituraAtual = {
+    tipo: "estudo", item: estudo, tabelaProgresso: "igr_estudos_progresso", colunaItem: "estudo_id",
+    pdf, paginaAtual: progresso?.pagina_atual || 1, paginaInicial: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id, zoom: 1,
+  };
+
+  if (state.membro) {
+    if (!progresso) {
+      const { data: novo } = await sb.from("igr_estudos_progresso")
+        .insert({ membro_id: state.membro.id, estudo_id: estudoId, pagina_atual: 1, total_paginas: pdf.numPages })
+        .select().single();
+      state.leituraAtual.progressoId = novo?.id;
+    } else if (progresso.total_paginas !== pdf.numPages) {
+      await sb.from("igr_estudos_progresso").update({ total_paginas: pdf.numPages }).eq("id", progresso.id);
+    }
+  }
+
+  await renderizarPaginaLivro();
+}
+
 // ---------- sistema de pontos (gamificacao) ----------
 const PONTOS = {
   checkin_humor: 10,
   leitura_biblica: 30,
   livro_sessao: 15,
-  mensagem_enviada: 20,
+  estudo_sessao: 15,
   devocional_aberto: 40,
   aviso_reacao: 20,
   evento_inscricao: 25,
   conexao_mao_amiga: 15,
   pedido_oracao: 10,
 };
+
+function periodoDoDia() {
+  const hora = new Date().getHours();
+  return hora < 12 ? "manha" : hora < 18 ? "tarde" : "noite";
+}
 
 async function darPontos(tipo, referencia_id) {
   if (!state.membro || !state.igreja) return;
@@ -2892,6 +2995,17 @@ async function darPontosUmaVezPorDia(tipo) {
     .eq("membro_id", state.membro.id).eq("tipo", tipo).gte("created_at", hoje + "T00:00:00").maybeSingle();
   if (jaGanhou) return;
   await darPontos(tipo);
+}
+
+// o devocional pontua ate 3x por dia (manha/tarde/noite) - abrir de novo no MESMO periodo nao pontua de novo
+async function darPontosUmaVezPorPeriodo(tipo) {
+  if (!state.membro || !state.igreja) return;
+  const hoje = new Date().toISOString().slice(0, 10);
+  const periodo = periodoDoDia();
+  const { data: jaGanhou } = await sb.from("igr_pontos_eventos").select("id, referencia_id")
+    .eq("membro_id", state.membro.id).eq("tipo", tipo).gte("created_at", hoje + "T00:00:00");
+  if ((jaGanhou || []).some(p => p.referencia_id === periodo)) return;
+  await darPontos(tipo, periodo);
 }
 
 function mostrarToast(msg, duracaoMs, aoClicar) {
@@ -2938,7 +3052,7 @@ async function renderizarPaginaLivro() {
   document.getElementById("btn-pagina-proxima").disabled = st.paginaAtual >= st.totalPaginas;
 
   if (st.progressoId) {
-    const { error } = await sb.from("igr_livros_progresso")
+    const { error } = await sb.from(st.tabelaProgresso)
       .update({ pagina_atual: st.paginaAtual, atualizado_em: new Date().toISOString() })
       .eq("id", st.progressoId);
     if (error) console.error("Não deu pra salvar o progresso da leitura:", error);
@@ -2972,20 +3086,25 @@ function sairDaLeitura() {
   const st = state.leituraAtual;
   state.leituraAtual = null;
   if (st?.progressoId) {
-    sb.from("igr_livros_progresso")
+    sb.from(st.tabelaProgresso)
       .update({ pagina_atual: st.paginaAtual, atualizado_em: new Date().toISOString() })
       .eq("id", st.progressoId)
       .then(({ error }) => { if (error) console.error("Não deu pra salvar o progresso ao sair:", error); });
   }
-  mostrarTela("tela-biblioteca");
-  abrirBiblioteca();
+  if (st?.tipo === "estudo") {
+    mostrarTela("tela-estudos-lista");
+    carregarListaEstudos(state.estudosCategoriaAtual);
+  } else {
+    mostrarTela("tela-biblioteca");
+    abrirBiblioteca();
+  }
   if (st) {
     const pct = Math.round((st.paginaAtual / st.totalPaginas) * 100);
-    mostrarToast(`📖 Página salva — você já leu ${pct}% de "${st.livro.titulo}"`);
-    if (st.paginaAtual > st.paginaInicial) darPontos("livro_sessao");
+    mostrarToast(`📖 Página salva — você já leu ${pct}% de "${st.item.titulo}"`);
+    if (st.paginaAtual > st.paginaInicial) darPontos(st.tipo === "estudo" ? "estudo_sessao" : "livro_sessao");
   }
   // avisa a IA que a pessoa andou lendo, pra ir formando o perfil espiritual dela com isso tambem
-  if (st && state.membro) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
+  if (st && st.tipo === "livro" && state.membro) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
 }
 
 // ---------- ranking publico de leitura (Biblia + livros), pra motivar engajamento ----------
@@ -3112,7 +3231,6 @@ async function enviarMensagemChat(ev) {
   }).select().single();
   if (error) { alert("Não deu pra enviar. Tenta de novo."); input.value = texto; return; }
   adicionarBolhaChat(data, false);
-  darPontos("mensagem_enviada");
   const meuNome = state.membro.nome_completo.split(" ")[0];
   enviarPush({ tipo: "membros", membro_ids: [st.outroId] }, `Nova mensagem de ${meuNome} 💬`, texto);
 }
@@ -6289,20 +6407,20 @@ async function enviarLivroAdmin(ev) {
 
 async function carregarEsbocosAdmin() {
   const el = document.getElementById("admin-lista-esbocos");
-  const { data } = await sb.from("igr_esbocos").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
+  const { data } = await sb.from("igr_estudos").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
   el.innerHTML = (data || []).map(e => `
     <div class="card">
       ${e.capa_url ? `<img class="capa-thumb" src="${e.capa_url}" alt="">` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-        <div><b style="font-size:13.5px;">${e.titulo}</b><br><span class="hint" style="margin:0;">${e.autor || ""}</span></div>
+        <div><span class="badge-inline" style="margin-bottom:4px;">${NOMES_CATEGORIA_ESTUDO[e.categoria] || e.categoria}</span><br><b style="font-size:13.5px;">${e.titulo}</b></div>
         <div style="display:flex;gap:6px;flex:none;">
           <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${e.id}">Editar</button>
           <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${e.id}">Excluir</button>
         </div>
       </div>
     </div>
-  `).join("") || `<div class="empty">Nenhum esboço cadastrado.</div>`;
-  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_esbocos", b.dataset.del, carregarEsbocosAdmin)));
+  `).join("") || `<div class="empty">Nenhum estudo cadastrado.</div>`;
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_estudos", b.dataset.del, carregarEsbocosAdmin)));
   el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
     const item = (data || []).find(x => x.id === b.dataset.edit);
     if (item) iniciarEdicaoEsboco(item);
@@ -6310,8 +6428,10 @@ async function carregarEsbocosAdmin() {
 }
 function iniciarEdicaoEsboco(item) {
   state.editando.esboco = item;
+  document.getElementById("ae-titulo-secao").innerHTML = "<b>Editar estudo</b>";
+  document.getElementById("ae-categoria").value = item.categoria || "diversos";
   document.getElementById("ae-titulo").value = item.titulo || "";
-  document.getElementById("ae-pregador").value = item.autor || "";
+  document.getElementById("ae-tema").value = item.tema || "";
   const btn = document.querySelector("#form-admin-esboco button[type=submit]");
   btn.textContent = "Salvar alterações";
   document.getElementById("ae-cancelar-edicao").style.display = "inline-block";
@@ -6319,43 +6439,67 @@ function iniciarEdicaoEsboco(item) {
 }
 function cancelarEdicaoEsboco() {
   state.editando.esboco = null;
+  document.getElementById("ae-titulo-secao").innerHTML = "<b>Novo estudo</b>";
   document.getElementById("form-admin-esboco").reset();
-  document.querySelector("#form-admin-esboco button[type=submit]").textContent = "Publicar esboço";
+  document.querySelector("#form-admin-esboco button[type=submit]").textContent = "Publicar estudo";
   document.getElementById("ae-cancelar-edicao").style.display = "none";
 }
+
+function base64ParaArquivo(base64, mimeType, nomeArquivo) {
+  const bytes = atob(base64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new File([arr], nomeArquivo, { type: mimeType });
+}
+
 async function enviarEsbocoAdmin(ev) {
   ev.preventDefault();
+  const categoria = document.getElementById("ae-categoria").value;
   const titulo = document.getElementById("ae-titulo").value.trim();
-  const autor = document.getElementById("ae-pregador").value.trim();
+  const tema = document.getElementById("ae-tema").value.trim();
   if (!titulo) return;
   if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
   const btn = ev.target.querySelector("button[type=submit]");
   const editando = state.editando.esboco;
   btn.disabled = true; btn.textContent = "Enviando...";
   try {
-    const [novaCapa, novoArquivo] = await Promise.all([
-      uploadArquivo(document.getElementById("ae-capa").files[0], "esbocos"),
-      uploadArquivo(document.getElementById("ae-arquivo").files[0], "esbocos"),
-    ]);
+    const arquivoCapaEscolhido = document.getElementById("ae-capa").files[0];
+    let novaCapa = null;
+    if (arquivoCapaEscolhido) {
+      novaCapa = await uploadArquivo(arquivoCapaEscolhido, "estudos");
+    } else if (!editando || !editando.capa_url) {
+      // ninguem enviou capa - deixa a IA criar uma
+      btn.textContent = "✨ Gerando capa...";
+      try {
+        const { data: gerada, error: erroGeracao } = await sb.functions.invoke("igr-gerar-capa-estudo", { body: { titulo, tema, categoria } });
+        if (!erroGeracao && gerada?.ok) {
+          const arquivoCapaIA = base64ParaArquivo(gerada.imagemBase64, gerada.mimeType, `capa-ia-${Date.now()}.png`);
+          novaCapa = await uploadArquivo(arquivoCapaIA, "estudos");
+        }
+      } catch (e) { console.error("Não deu pra gerar a capa com IA:", e); }
+      btn.textContent = "Enviando...";
+    }
+    const novoArquivo = await uploadArquivo(document.getElementById("ae-arquivo").files[0], "estudos");
+
     if (editando) {
       const capa_url = novaCapa || editando.capa_url || null;
       const arquivo_url = novoArquivo || editando.arquivo_url || null;
-      const { error } = await sb.from("igr_esbocos").update({ titulo, autor, capa_url, arquivo_url }).eq("id", editando.id);
+      const { error } = await sb.from("igr_estudos").update({ categoria, titulo, tema: tema || null, capa_url, arquivo_url }).eq("id", editando.id);
       if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
       cancelarEdicaoEsboco();
     } else {
-      const { error } = await sb.from("igr_esbocos").insert({ igreja_id: state.igreja.id, titulo, autor, capa_url: novaCapa, arquivo_url: novoArquivo });
-      if (error) { alert("Não deu pra publicar o esboço: " + error.message); return; }
+      const { error } = await sb.from("igr_estudos").insert({ igreja_id: state.igreja.id, categoria, titulo, tema: tema || null, capa_url: novaCapa, arquivo_url: novoArquivo });
+      if (error) { alert("Não deu pra publicar o estudo: " + error.message); return; }
       ev.target.reset();
       enviarPush({ tipo: "todos" }, "Novo estudo disponível 📖", titulo);
     }
     carregarEsbocosAdmin();
   } catch (e) {
-    console.error("Erro ao publicar esboço:", e);
+    console.error("Erro ao publicar estudo:", e);
     alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
   } finally {
     btn.disabled = false;
-    if (!state.editando.esboco) btn.textContent = "Publicar esboço";
+    if (!state.editando.esboco) btn.textContent = "Publicar estudo";
   }
 }
 
@@ -6816,6 +6960,9 @@ async function iniciar() {
   document.getElementById("btn-lef-salvar-tudo")?.addEventListener("click", salvarTudoEscalaLouvor);
   document.getElementById("btn-lr-nova-musica")?.addEventListener("click", () => abrirFormMusicaLouvor(null));
   document.getElementById("lr-busca")?.addEventListener("input", (ev) => renderizarRepertorioLouvor(ev.target.value));
+  document.querySelectorAll("[data-abrir-categoria-estudo]").forEach(btn =>
+    btn.addEventListener("click", () => abrirCategoriaEstudo(btn.dataset.abrirCategoriaEstudo)));
+  document.getElementById("estudos-busca")?.addEventListener("input", (ev) => renderizarListaEstudos(ev.target.value));
   document.getElementById("quicklink-louvor-funcoes")?.addEventListener("click", () => { mostrarTela("tela-louvor-funcoes"); cancelarEdicaoFuncaoLouvor(); carregarFuncoesLouvor(); });
   configurarBuscaPessoaFuncao();
   document.getElementById("lf-cancelar-edicao")?.addEventListener("click", cancelarEdicaoFuncaoLouvor);
@@ -6859,7 +7006,7 @@ async function iniciar() {
     btn.addEventListener("click", async () => {
       const alvo = btn.dataset.nav;
       mostrarTela(alvo);
-      if (alvo === "tela-membro-estudos") await carregarEsbocos();
+      if (alvo === "tela-membro-estudos") { /* hub estatico, sem carregamento */ }
       if (alvo === "tela-membro-louvor") await carregarLouvor();
       if (alvo === "tela-louvor-escalas") await carregarListaEscalasLouvor(state.louvorTabAtual || "proximas");
       if (alvo === "tela-louvor-repertorio") await carregarRepertorioLouvor();
