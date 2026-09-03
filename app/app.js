@@ -1340,14 +1340,15 @@ async function montarHomeMembro() {
     }
   });
 
+  const souLiderOuAdmin = !!(state.adminNome || m.eh_lider);
   const btnAvisoLider = document.getElementById("btn-abrir-aviso-lider");
-  if (btnAvisoLider) btnAvisoLider.style.display = m.eh_lider ? "block" : "none";
+  if (btnAvisoLider) btnAvisoLider.style.display = souLiderOuAdmin ? "block" : "none";
   const btnBannerLider = document.getElementById("btn-abrir-banner-lider");
-  if (btnBannerLider) btnBannerLider.style.display = m.eh_lider ? "block" : "none";
+  if (btnBannerLider) btnBannerLider.style.display = souLiderOuAdmin ? "block" : "none";
   const liderVisitantesBox = document.getElementById("lider-visitantes-box");
   if (liderVisitantesBox) {
-    liderVisitantesBox.style.display = m.eh_lider ? "block" : "none";
-    if (m.eh_lider) await carregarVisitantesLider();
+    liderVisitantesBox.style.display = souLiderOuAdmin ? "block" : "none";
+    if (souLiderOuAdmin) await carregarVisitantesLider();
   }
 }
 
@@ -1831,11 +1832,11 @@ function abrirGrupoDetalhe(grupoId) {
   document.getElementById("grupo-detalhe-nome").textContent = grupo.nome;
   document.getElementById("grupo-detalhe-descricao").textContent = grupo.descricao || "Ainda não há uma descrição desse grupo.";
 
-  const souLiderDesseGrupo = state.membro?.eh_lider && state.membro?.grupo_id === grupo.id;
+  const souLiderDesseGrupo = !!(state.adminNome || (state.membro?.eh_lider && state.membro?.grupo_id === grupo.id));
   const gerBox = document.getElementById("grupo-detalhe-gerenciar");
   gerBox.style.display = souLiderDesseGrupo ? "block" : "none";
   if (souLiderDesseGrupo) {
-    const permissoes = state.membro.permissoes || [];
+    const permissoes = state.adminNome ? ["editar_grupo", "postar_avisos", "gerenciar_oracao"] : (state.membro.permissoes || []);
     const podeEditarGrupo = permissoes.includes("editar_grupo");
     const podePostarAvisos = permissoes.includes("postar_avisos");
     document.getElementById("btn-toggle-grupo-info").style.display = podeEditarGrupo ? "block" : "none";
@@ -3579,7 +3580,7 @@ async function aprovarBanner() {
 async function carregarCalendario() {
   document.getElementById("calendario-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
   const btnAdd = document.getElementById("btn-add-calendario");
-  const podeAdicionar = !!(state.membro?.eh_lider);
+  const podeAdicionar = !!(state.adminNome || state.membro?.eh_lider);
   if (btnAdd) btnAdd.style.display = podeAdicionar ? "block" : "none";
 
   const { data } = await sb.from("igr_calendario_eventos").select("*, igr_grupos(nome)")
@@ -4647,7 +4648,7 @@ function abrirLightboxImagemUnica(url) {
 const DIA_SEMANA_NOMES_LOUVOR = { domingo: "Domingo", segunda: "Segunda", terca: "Terça", quarta: "Quarta", quinta: "Quinta", sexta: "Sexta", sabado: "Sábado" };
 
 function souLiderLouvor() {
-  return !!(state.membro?.eh_lider && (state.membro?.permissoes || []).includes("gerenciar_louvor"));
+  return !!(state.adminNome || (state.membro?.eh_lider && (state.membro?.permissoes || []).includes("gerenciar_louvor")));
 }
 
 // pega todo mundo do grupo de Louvor, incluindo quem tem Louvor como grupo adicional (nao so principal)
