@@ -880,10 +880,8 @@ function abrirEditarPerfil() {
   mostrarTela("tela-editar-perfil");
 }
 
-async function carregarMinhaPontuacaoPerfil() {
-  const box = document.getElementById("ep-minha-pontuacao");
-  const texto = document.getElementById("ep-pontos-texto");
-  if (!state.membro || !state.igreja) { box.style.display = "none"; return; }
+async function computarMinhaPontuacaoMes() {
+  if (!state.membro || !state.igreja) return null;
   const inicioMes = primeiroDiaDoMes(0);
   const { data } = await sb.from("igr_pontos_eventos").select("membro_id, pontos")
     .eq("igreja_id", state.igreja.id).gte("created_at", inicioMes.toISOString());
@@ -891,15 +889,31 @@ async function carregarMinhaPontuacaoPerfil() {
   const totais = {};
   (data || []).forEach(p => { totais[p.membro_id] = (totais[p.membro_id] || 0) + p.pontos; });
   const meusPontos = totais[state.membro.id] || 0;
-
-  if (!meusPontos) {
-    box.style.display = "block";
-    texto.textContent = "Você ainda não pontuou esse mês — participe do app pra entrar no Ranking do Mês! 🎮";
-    return;
-  }
+  if (!meusPontos) return { pontos: 0, colocacao: null };
   const colocacao = Object.values(totais).filter(p => p > meusPontos).length + 1;
+  return { pontos: meusPontos, colocacao };
+}
+
+async function carregarMinhaPontuacaoPerfil() {
+  const box = document.getElementById("ep-minha-pontuacao");
+  const texto = document.getElementById("ep-pontos-texto");
+  if (!state.membro || !state.igreja) { box.style.display = "none"; return; }
+  const resultado = await computarMinhaPontuacaoMes();
+  if (!resultado) { box.style.display = "none"; return; }
   box.style.display = "block";
-  texto.textContent = `${meusPontos} pontos — ${colocacao}º lugar no Ranking do Mês`;
+  texto.textContent = resultado.pontos
+    ? `${resultado.pontos} pontos — ${resultado.colocacao}º lugar no Ranking do Mês`
+    : "Você ainda não pontuou esse mês — participe do app pra entrar no Ranking do Mês! 🎮";
+}
+
+async function carregarMinhaPontuacaoHome() {
+  const el = document.getElementById("home-minha-pontuacao");
+  if (!el || !state.membro || !state.igreja) { if (el) el.style.display = "none"; return; }
+  const resultado = await computarMinhaPontuacaoMes();
+  if (!resultado || !resultado.pontos) { el.style.display = "none"; return; }
+  el.style.display = "block";
+  el.innerHTML = `<button class="badge-inline" id="btn-home-minha-pontuacao" style="border:none;cursor:pointer;">🎮 ${resultado.pontos} pontos este mês — ${resultado.colocacao}º lugar</button>`;
+  document.getElementById("btn-home-minha-pontuacao").addEventListener("click", abrirEditarPerfil);
 }
 
 async function carregarParentesExistentes(membroId) {
@@ -1284,6 +1298,7 @@ async function montarHomeMembro() {
   await carregarAvisos("home-avisos");
   await carregarPedidosOracao();
   carregarRankingDoMes();
+  carregarMinhaPontuacaoHome();
   atualizarBadgeMensagens().then(n => {
     if (n > 0 && !state.avisoMensagensMostrado) {
       state.avisoMensagensMostrado = true;
