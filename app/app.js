@@ -1826,7 +1826,7 @@ function configurarBuscaMonitor(prefixo) {
           document.getElementById(prefixo + "celula-monitor-selecionado").style.display = "block";
           const nomeInput = document.getElementById(prefixo + "celula-nome-nova");
           if (!nomeInput.value) nomeInput.value = `Célula ${item.dataset.nome.split(" ")[0]}`;
-          input.value = "";
+          input.value = item.dataset.nome;
           sugestoesEl.style.display = "none";
           document.getElementById(prefixo + "btn-criar-celula").disabled = false;
         });
@@ -5140,7 +5140,7 @@ function configurarBuscaPromoverLider() {
           document.getElementById("promo-lider-nome-selecionado").textContent = item.dataset.nome;
           document.getElementById("promo-lider-selecionado").style.display = "block";
           if (item.dataset.grupo) document.getElementById("promo-lider-grupo").value = item.dataset.grupo;
-          input.value = "";
+          input.value = item.dataset.nome;
           sugestoesEl.style.display = "none";
           document.getElementById("btn-promover-lider").disabled = false;
         });
@@ -5763,7 +5763,7 @@ function configurarBuscaAcessos() {
           document.querySelectorAll(".acesso-check-secao").forEach(chk => {
             chk.checked = secoesAtuais.includes(chk.value);
           });
-          input.value = "";
+          input.value = item.dataset.nome;
           sugestoesEl.style.display = "none";
           document.getElementById("btn-salvar-acesso").disabled = false;
         });
