@@ -4686,41 +4686,6 @@ async function confirmarAdicionarParticipanteLouvor() {
   carregarParticipantesLouvorForm();
 }
 
-async function sugerirParticipantesLouvor() {
-  const escalaId = await garantirEscalaCriada();
-  if (!escalaId) return;
-  const { data: funcoes } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("ordem");
-  const { data: jaEscalados } = await sb.from("igr_louvor_escala_participantes").select("funcao_id").eq("escala_id", escalaId);
-  const funcoesFaltando = (funcoes || []).filter(f => !(jaEscalados || []).some(p => p.funcao_id === f.id));
-  if (!funcoesFaltando.length) { alert("Todas as funções já têm alguém escalado."); return; }
-
-  const [membros, { data: historico }, { data: vinculos }] = await Promise.all([
-    membrosDoGrupoLouvor(),
-    sb.from("igr_louvor_escala_participantes").select("membro_id, funcao_id, igr_louvor_escalas!inner(data)").order("igr_louvor_escalas(data)", { ascending: false }),
-    sb.from("igr_louvor_membro_funcoes").select("membro_id, funcao_id"),
-  ]);
-
-  let adicionados = 0, semCandidato = 0;
-  for (const funcao of funcoesFaltando) {
-    // prioridade 1: quem já serviu nessa função antes, pegando quem está há mais tempo sem servir (rotacao justa)
-    const candidatosHistorico = (historico || []).filter(h => h.funcao_id === funcao.id).map(h => h.membro_id);
-    let membroId = candidatosHistorico.length ? candidatosHistorico[candidatosHistorico.length - 1] : null;
-    // prioridade 2 (cold-start, sem historico ainda): quem foi cadastrado em "Funções > 👥" como capaz de tocar essa função
-    if (!membroId) {
-      const capazes = (vinculos || []).filter(v => v.funcao_id === funcao.id).map(v => v.membro_id);
-      membroId = capazes.length ? capazes[Math.floor(Math.random() * capazes.length)] : null;
-    }
-    const membro = (membros || []).find(m => m.id === membroId);
-    if (!membro) { semCandidato++; continue; }
-    const { error } = await sb.from("igr_louvor_escala_participantes").insert({ escala_id: escalaId, membro_id: membro.id, funcao_id: funcao.id, status: "pendente" });
-    if (!error) adicionados++;
-  }
-  alert(adicionados
-    ? `Sugeri ${adicionados} pessoa(s)${semCandidato ? `, mas ${semCandidato} função(ões) ficaram sem sugestão — cadastre quem toca em "Funções > 👥"` : ""}. Ninguém foi notificado ainda — isso só acontece quando você tocar em "Salvar e notificar todos".`
-    : "Ninguém está vinculado às funções que faltam ainda. Vá em Funções > 👥 e marque quem toca cada uma, ou adicione manualmente.");
-  carregarParticipantesLouvorForm();
-}
-
 // ---------- músicas da escala ----------
 async function carregarMusicasLouvorForm() {
   const escalaId = state.louvorEscalaEditando?.id;
@@ -4774,26 +4739,6 @@ function configurarBuscaMusicaLouvor() {
   });
 }
 
-async function sugerirMusicasLouvor() {
-  const escalaId = await garantirEscalaCriada();
-  if (!escalaId) return;
-  const { data: musicas } = await sb.from("igr_louvor_musicas").select("id, titulo").eq("grupo_id", state.membro.grupoLouvorId);
-  if (!musicas || !musicas.length) { alert("O repertório está vazio."); return; }
-  const { data: usoRecente } = await sb.from("igr_louvor_escala_musicas")
-    .select("musica_id, igr_louvor_escalas!inner(data)").order("igr_louvor_escalas(data)", { ascending: false }).limit(60);
-  const usadasRecentemente = new Set((usoRecente || []).slice(0, 20).map(u => u.musica_id));
-  const naoUsadasRecentemente = musicas.filter(m => !usadasRecentemente.has(m.id));
-  const escolhidas = (naoUsadasRecentemente.length ? naoUsadasRecentemente : musicas).sort(() => Math.random() - 0.5).slice(0, 4);
-  const { count } = await sb.from("igr_louvor_escala_musicas").select("id", { count: "exact", head: true }).eq("escala_id", escalaId);
-  let ordem = count || 0;
-  for (const m of escolhidas) {
-    await sb.from("igr_louvor_escala_musicas").insert({ escala_id: escalaId, musica_id: m.id, ordem: ordem++ });
-  }
-  alert(`Sugeri ${escolhidas.length} música(s) priorizando as que não foram tocadas recentemente.`);
-  carregarMusicasLouvorForm(); sincronizarRoteiroComMusicas();
-}
-
-// ---------- roteiro da escala ----------
 async function sincronizarRoteiroComMusicas() {
   const escalaId = state.louvorEscalaEditando?.id;
   if (!escalaId) return;
@@ -4821,15 +4766,32 @@ async function carregarRoteiroLouvorForm() {
   const el = document.getElementById("lef-lista-roteiro");
   if (!escalaId) { el.innerHTML = ""; return; }
   const { data } = await sb.from("igr_louvor_escala_roteiro").select("*").eq("escala_id", escalaId).order("ordem");
-  el.innerHTML = (data || []).map((r, i) => `
+  const lista = data || [];
+  el.innerHTML = lista.map((r, i) => `
     <div class="card row-avatar" style="padding:9px 14px;">
       <span style="font-size:12px;font-weight:700;color:var(--ink-faint);flex:none;width:20px;">${i + 1}</span>
       <div class="row-info"><b>${r.tipo === "musica" ? "🎵 " : ""}${r.titulo}</b></div>
-      <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-remover-roteiro-item="${r.id}">✕</button>
+      <div style="display:flex;gap:4px;flex:none;">
+        <button class="btn btn-ghost" style="width:auto;padding:6px 8px;font-size:11px;" data-mover-roteiro="${i}:-1" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 8px;font-size:11px;" data-mover-roteiro="${i}:1" ${i === lista.length - 1 ? "disabled" : ""}>↓</button>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" data-remover-roteiro-item="${r.id}">✕</button>
+      </div>
     </div>
   `).join("") || `<p class="hint">Nada no roteiro ainda.</p>`;
   el.querySelectorAll("[data-remover-roteiro-item]").forEach(b => b.addEventListener("click", async () => {
     await sb.from("igr_louvor_escala_roteiro").delete().eq("id", b.dataset.removerRoteiroItem);
+    carregarRoteiroLouvorForm();
+  }));
+  el.querySelectorAll("[data-mover-roteiro]").forEach(b => b.addEventListener("click", async () => {
+    const [idxStr, direcaoStr] = b.dataset.moverRoteiro.split(":");
+    const idx = Number(idxStr), direcao = Number(direcaoStr);
+    const outroIdx = idx + direcao;
+    if (outroIdx < 0 || outroIdx >= lista.length) return;
+    const itemA = lista[idx], itemB = lista[outroIdx];
+    await Promise.all([
+      sb.from("igr_louvor_escala_roteiro").update({ ordem: itemB.ordem }).eq("id", itemA.id),
+      sb.from("igr_louvor_escala_roteiro").update({ ordem: itemA.ordem }).eq("id", itemB.id),
+    ]);
     carregarRoteiroLouvorForm();
   }));
 }
@@ -6945,6 +6907,7 @@ async function iniciar() {
   });
   document.getElementById("btn-led-enviar-justificativa")?.addEventListener("click", () => {
     const texto = document.getElementById("led-justificativa-texto").value.trim();
+    if (!texto) { alert("Conta rapidinho pro líder o motivo — isso é obrigatório pra ele conseguir se organizar."); return; }
     responderPresencaLouvor("recusado", texto);
   });
   document.getElementById("btn-led-editar")?.addEventListener("click", async () => {
@@ -6954,8 +6917,6 @@ async function iniciar() {
   configurarBuscaParticipanteLouvor();
   configurarBuscaMusicaLouvor();
   document.getElementById("btn-lef-confirmar-participante")?.addEventListener("click", confirmarAdicionarParticipanteLouvor);
-  document.getElementById("btn-lef-sugerir-participantes")?.addEventListener("click", sugerirParticipantesLouvor);
-  document.getElementById("btn-lef-sugerir-musicas")?.addEventListener("click", sugerirMusicasLouvor);
   document.getElementById("btn-lef-add-roteiro-item")?.addEventListener("click", adicionarItemRoteiroLouvor);
   document.getElementById("btn-lef-salvar-tudo")?.addEventListener("click", salvarTudoEscalaLouvor);
   document.getElementById("btn-lr-nova-musica")?.addEventListener("click", () => abrirFormMusicaLouvor(null));
