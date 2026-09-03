@@ -2849,21 +2849,38 @@ async function buscarPorTema(modo) {
   if (modo === "buscar") {
     resultadoEl.innerHTML = `
       <div class="section-label"><b>Versículos sobre "${tema}"</b></div>
-      ${data.versiculos.map(v => `
+      ${data.versiculos.map((v, i) => `
         <div class="card">
           <b style="font-size:14px;">${v.referencia}</b>
           <p class="hint" style="margin:4px 0 8px;">${v.relacao}</p>
-          <button class="btn btn-ghost" data-ver-versiculo="${v.referencia}" style="padding:8px 12px;font-size:12.5px;width:auto;">👁️ Ver texto</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" data-ver-versiculo="${v.referencia}" style="padding:8px 12px;font-size:12.5px;width:auto;">👁️ Ver texto</button>
+            <button class="btn btn-ghost" data-marcar-lido="${i}" style="padding:8px 12px;font-size:12.5px;width:auto;">✓ Marcar como lido</button>
+          </div>
           <div class="hint" data-texto-versiculo style="display:none;margin-top:8px;background:var(--bg);padding:10px 12px;border-radius:10px;"></div>
         </div>
       `).join("")}`;
     resultadoEl.querySelectorAll("[data-ver-versiculo]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        const alvo = btn.nextElementSibling;
+        const alvo = btn.closest(".card").querySelector("[data-texto-versiculo]");
         alvo.style.display = "block";
         alvo.innerHTML = `<span class="loading-dot"></span>`;
         const resultado = await chamarBibliaTexto(btn.dataset.verVersiculo);
         alvo.innerHTML = resultado?.ok ? resultado.texto : "Não consegui carregar o texto.";
+      });
+    });
+    resultadoEl.querySelectorAll("[data-marcar-lido]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!state.membro) { alert("Faça login pra marcar como lido e ganhar pontos."); return; }
+        const v = data.versiculos[Number(btn.dataset.marcarLido)];
+        btn.disabled = true; btn.textContent = "Salvando...";
+        const { error } = await sb.from("igr_leituras").insert({
+          igreja_id: state.igreja.id, membro_id: state.membro.id, nota: `${v.referencia} — ${v.relacao}`,
+        });
+        if (error) { btn.disabled = false; btn.textContent = "✓ Marcar como lido"; alert("Não deu pra salvar: " + error.message); return; }
+        darPontos("leitura_biblica");
+        btn.textContent = "✅ Lido!";
+        btn.style.color = "#1B8A4B";
       });
     });
   } else {
