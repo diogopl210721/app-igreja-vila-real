@@ -4303,7 +4303,7 @@ async function abrirEscalaLouvorDetalhe(escalaId) {
   document.getElementById("led-participantes").innerHTML = (participantes || []).map(p => `
     <div class="card row-avatar" style="padding:9px 14px;">
       ${p.igr_membros?.foto_url ? `<img src="${p.igr_membros.foto_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(p.igr_membros?.nome_completo || "?")}
-      <div class="row-info"><b>${p.igr_membros?.nome_completo || "?"}</b><span>${p.igr_louvor_funcoes ? p.igr_louvor_funcoes.emoji + " " + p.igr_louvor_funcoes.nome : "Sem função"}</span>${p.status === "recusado" && p.justificativa ? `<span style="color:var(--ink-faint);font-style:italic;">"${p.justificativa}"</span>` : ""}</div>
+      <div class="row-info"><b>${p.igr_membros?.nome_completo || "?"}</b><span>${p.igr_louvor_funcoes ? iconeFuncaoHtml(p.igr_louvor_funcoes.emoji, 15) + " " + p.igr_louvor_funcoes.nome : "Sem função"}</span>${p.status === "recusado" && p.justificativa ? `<span style="color:var(--ink-faint);font-style:italic;">"${p.justificativa}"</span>` : ""}</div>
       <span class="badge-inline" style="flex:none;background:${p.status === "confirmado" ? "var(--mint-soft, #DFF5E9)" : p.status === "recusado" ? "#FDECEC" : "var(--brand-soft)"};color:${p.status === "confirmado" ? "#1B8A4B" : p.status === "recusado" ? "#C0392B" : "var(--brand)"};">${p.status === "confirmado" ? "✅ Confirmado" : p.status === "recusado" ? "❌ Não vai" : "⏳ Pendente"}</span>
     </div>
   `).join("") || `<p class="hint">Ninguém escalado ainda.</p>`;
@@ -4457,7 +4457,7 @@ async function carregarParticipantesLouvorForm() {
   el.innerHTML = (data || []).map(p => `
     <div class="card row-avatar" style="padding:9px 14px;">
       ${p.igr_membros?.foto_url ? `<img src="${p.igr_membros.foto_url}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(p.igr_membros?.nome_completo || "?")}
-      <div class="row-info"><b>${p.igr_membros?.nome_completo || "?"}</b><span>${p.igr_louvor_funcoes ? p.igr_louvor_funcoes.emoji + " " + p.igr_louvor_funcoes.nome : "Sem função"}</span></div>
+      <div class="row-info"><b>${p.igr_membros?.nome_completo || "?"}</b><span>${p.igr_louvor_funcoes ? iconeFuncaoHtml(p.igr_louvor_funcoes.emoji, 15) + " " + p.igr_louvor_funcoes.nome : "Sem função"}</span></div>
       <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-remover-participante-louvor="${p.id}">✕</button>
     </div>
   `).join("") || `<p class="hint">Ninguém escalado ainda.</p>`;
@@ -4502,7 +4502,7 @@ function configurarBuscaParticipanteLouvor() {
 
     if (!combinadas.length) { sugestoesEl.style.display = "none"; return; }
     sugestoesEl.innerHTML = combinadas.map((s, i) => `
-      <div class="autocomplete-item" data-idx="${i}">${s.membro.nome_completo}${s.funcaoId ? ` <span style="color:var(--ink-faint);">— ${s.funcaoEmoji || ""} ${s.funcaoNome}</span>` : ""}</div>
+      <div class="autocomplete-item" data-idx="${i}">${s.membro.nome_completo}${s.funcaoId ? ` <span style="color:var(--ink-faint);">— ${iconeFuncaoHtml(s.funcaoEmoji, 13)} ${s.funcaoNome}</span>` : ""}</div>
     `).join("");
     sugestoesEl.style.display = "block";
     sugestoesEl.querySelectorAll("[data-idx]").forEach(item => {
@@ -4512,7 +4512,7 @@ function configurarBuscaParticipanteLouvor() {
         input.value = s.membro.nome_completo;
         state.louvorParticipanteSelecionado = { id: s.membro.id, nome: s.membro.nome_completo };
         const select = document.getElementById("lef-funcao-select");
-        select.innerHTML = `<option value="">Sem função específica</option>` + (funcoes || []).map(f => `<option value="${f.id}" ${f.id === s.funcaoId ? "selected" : ""}>${f.emoji || ""} ${f.nome}</option>`).join("");
+        select.innerHTML = `<option value="">Sem função específica</option>` + (funcoes || []).map(f => `<option value="${f.id}" ${f.id === s.funcaoId ? "selected" : ""}>${iconeFuncaoTexto(f.emoji)} ${f.nome}</option>`).join("");
         document.getElementById("lef-nome-selecionado").textContent = s.membro.nome_completo;
         document.getElementById("lef-funcao-escolha").style.display = "block";
       });
@@ -4696,12 +4696,23 @@ async function adicionarItemRoteiroLouvor() {
 }
 
 // ---------- funções (cargos) ----------
-const EMOJIS_INSTRUMENTOS_LOUVOR = ["🎤", "🎸", "🎹", "🥁", "🪘", "🎻", "🎺", "🪕", "🎚️", "🎵"];
+const MARCADOR_ICONE_BAIXO = "baixo-svg";
+function iconeFuncaoHtml(valor, px) {
+  px = px || 18;
+  if (valor === MARCADOR_ICONE_BAIXO) return `<svg class="icon" style="width:${px}px;height:${px}px;vertical-align:-4px;"><use href="#i-bass-guitar"/></svg>`;
+  return valor || "🎵";
+}
+function iconeFuncaoTexto(valor) {
+  // pra lugares que só aceitam texto puro (tag <option>, texto de título de tela)
+  return valor === MARCADOR_ICONE_BAIXO ? "🎸" : (valor || "🎵");
+}
+
+const EMOJIS_INSTRUMENTOS_LOUVOR = ["🎤", "🎸", MARCADOR_ICONE_BAIXO, "🎹", "🥁", "🪘", "🎻", "🎺", "🪕", "🎚️", "🎵"];
 
 function renderizarEmojiPickerLouvor(selecionado) {
   const el = document.getElementById("lf-emoji-opcoes");
   el.innerHTML = EMOJIS_INSTRUMENTOS_LOUVOR.map(e => `
-    <button type="button" data-emoji-op="${e}" style="width:42px;height:42px;border-radius:10px;font-size:19px;border:1.5px solid ${e === selecionado ? "var(--brand)" : "var(--line)"};background:${e === selecionado ? "var(--brand-soft)" : "var(--bg)"};cursor:pointer;">${e}</button>
+    <button type="button" data-emoji-op="${e}" style="width:42px;height:42px;border-radius:10px;font-size:19px;display:flex;align-items:center;justify-content:center;border:1.5px solid ${e === selecionado ? "var(--brand)" : "var(--line)"};background:${e === selecionado ? "var(--brand-soft)" : "var(--bg)"};cursor:pointer;">${iconeFuncaoHtml(e, 22)}</button>
   `).join("");
   el.querySelectorAll("[data-emoji-op]").forEach(b => b.addEventListener("click", () => {
     document.getElementById("lf-emoji").value = b.dataset.emojiOp;
@@ -4722,7 +4733,7 @@ async function carregarFuncoesLouvor() {
     const nomes = (vinculos || []).filter(v => v.funcao_id === f.id).map(v => v.igr_membros?.nome_completo).filter(Boolean);
     return `
     <div class="card row-avatar" style="padding:9px 14px;">
-      <span style="font-size:18px;flex:none;">${f.emoji || "🎵"}</span>
+      <span style="font-size:18px;flex:none;">${iconeFuncaoHtml(f.emoji, 17)}</span>
       <div class="row-info"><b>${f.nome}</b>${nomes.length ? `<span>${nomes.join(", ")}</span>` : `<span style="color:var(--ink-faint);">Ninguém vinculado ainda</span>`}</div>
       ${podeGerenciar ? `
       <div style="display:flex;gap:6px;flex:none;">
@@ -4846,7 +4857,7 @@ async function enviarFuncaoLouvor(ev) {
 async function abrirMembrosDaFuncaoLouvor(funcao) {
   state.louvorFuncaoMembrosAtual = funcao;
   mostrarTela("tela-louvor-funcao-membros");
-  document.getElementById("lfm-titulo-tela").textContent = `${funcao.emoji} Quem toca ${funcao.nome}`;
+  document.getElementById("lfm-titulo-tela").textContent = `${iconeFuncaoTexto(funcao.emoji)} Quem toca ${funcao.nome}`;
   const el = document.getElementById("louvor-lista-funcao-membros");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
   const [membros, { data: vinculos }] = await Promise.all([
