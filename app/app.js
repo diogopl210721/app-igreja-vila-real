@@ -2470,6 +2470,9 @@ async function irParaReferenciaBiblia() {
   const capitulo = document.getElementById("biblia-busca-capitulo").value.trim();
   const versiculo = document.getElementById("biblia-busca-versiculo").value.trim();
   if (capitulo) {
+    const livro = state.bibliaLivros?.find(l => l.id === livroId);
+    if (!livro) { alert("Não achei esse livro. Tenta escolher de novo na lista."); return; }
+    state.bibliaLivroAtual = livro;
     await abrirBibliaTexto(livroId, capitulo);
     if (versiculo) {
       const alvo = document.querySelector(`[data-versiculo-biblia="${versiculo}"]`);
@@ -2518,25 +2521,31 @@ async function abrirBibliaTexto(livroId, capitulo) {
   }
   document.getElementById("biblia-referencia").textContent = resultado.referencia;
 
-  const livro = state.bibliaLivroAtual;
-  let versiculosLidos = new Set();
-  if (state.membro) {
-    const { data: leituras } = await sb.from("igr_leituras").select("versiculo_inicio")
-      .eq("membro_id", state.membro.id).eq("livro", livro.nome).eq("capitulo", parseInt(capitulo))
-      .not("versiculo_inicio", "is", null);
-    versiculosLidos = new Set((leituras || []).map(l => l.versiculo_inicio));
+  try {
+    const livro = state.bibliaLivroAtual;
+    if (!livro) throw new Error("bibliaLivroAtual não estava definido");
+    let versiculosLidos = new Set();
+    if (state.membro) {
+      const { data: leituras } = await sb.from("igr_leituras").select("versiculo_inicio")
+        .eq("membro_id", state.membro.id).eq("livro", livro.nome).eq("capitulo", parseInt(capitulo))
+        .not("versiculo_inicio", "is", null);
+      versiculosLidos = new Set((leituras || []).map(l => l.versiculo_inicio));
+    }
+
+    document.getElementById("biblia-versiculos").innerHTML = resultado.versiculos.map(v => `
+      <span data-versiculo-biblia="${v.numero}" style="cursor:pointer;${versiculosLidos.has(parseInt(v.numero)) ? "background:var(--brand-soft);border-radius:4px;" : ""}">
+        <sup style="color:var(--brand);font-weight:700;margin-right:2px;">${v.numero}${versiculosLidos.has(parseInt(v.numero)) ? " ✅" : ""}</sup>${v.texto}
+      </span> `
+    ).join("");
+    document.getElementById("biblia-copyright").textContent = resultado.copyright || "";
+
+    document.querySelectorAll("[data-versiculo-biblia]").forEach(span => {
+      span.addEventListener("click", () => abrirMarcarVersiculo(livro.nome, capitulo, span.dataset.versiculoBiblia));
+    });
+  } catch (e) {
+    console.error("Erro ao mostrar o capítulo:", e);
+    document.getElementById("biblia-versiculos").innerHTML = `<div class="empty">Algo deu errado ao mostrar esse capítulo. Volta e tenta de novo.</div>`;
   }
-
-  document.getElementById("biblia-versiculos").innerHTML = resultado.versiculos.map(v => `
-    <span data-versiculo-biblia="${v.numero}" style="cursor:pointer;${versiculosLidos.has(parseInt(v.numero)) ? "background:var(--brand-soft);border-radius:4px;" : ""}">
-      <sup style="color:var(--brand);font-weight:700;margin-right:2px;">${v.numero}${versiculosLidos.has(parseInt(v.numero)) ? " ✅" : ""}</sup>${v.texto}
-    </span> `
-  ).join("");
-  document.getElementById("biblia-copyright").textContent = resultado.copyright || "";
-
-  document.querySelectorAll("[data-versiculo-biblia]").forEach(span => {
-    span.addEventListener("click", () => abrirMarcarVersiculo(livro.nome, capitulo, span.dataset.versiculoBiblia));
-  });
 }
 
 function abrirMarcarVersiculo(livroNome, capitulo, versiculo) {
@@ -2834,6 +2843,12 @@ async function compartilharTexto(titulo, texto) {
   }
 }
 
+function parseReferenciaBiblica(referencia) {
+  const m = (referencia || "").match(/^(.+?)\s+(\d+):(\d+)(?:-(\d+))?$/);
+  if (!m) return { livro: null, capitulo: null, versiculo_inicio: null };
+  return { livro: m[1].trim(), capitulo: parseInt(m[2]), versiculo_inicio: parseInt(m[3]) };
+}
+
 async function buscarPorTema(modo) {
   const tema = document.getElementById("tema-input").value.trim();
   const resultadoEl = document.getElementById("tema-resultado");
@@ -2874,8 +2889,10 @@ async function buscarPorTema(modo) {
         if (!state.membro) { alert("Faça login pra marcar como lido e ganhar pontos."); return; }
         const v = data.versiculos[Number(btn.dataset.marcarLido)];
         btn.disabled = true; btn.textContent = "Salvando...";
+        const { livro, capitulo, versiculo_inicio } = parseReferenciaBiblica(v.referencia);
         const { error } = await sb.from("igr_leituras").insert({
           igreja_id: state.igreja.id, membro_id: state.membro.id, nota: `${v.referencia} — ${v.relacao}`,
+          livro, capitulo, versiculo_inicio,
         });
         if (error) { btn.disabled = false; btn.textContent = "✓ Marcar como lido"; alert("Não deu pra salvar: " + error.message); return; }
         darPontos("leitura_biblica");
