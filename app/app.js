@@ -2907,6 +2907,10 @@ function mostrarToast(msg, duracaoMs, aoClicar) {
   el._timeoutId = setTimeout(() => {
     el.style.opacity = "0";
     el.style.transform = "translate(-50%,20px)";
+    // sem isso, o toast fica invisivel mas continua clicavel por cima da tela seguinte,
+    // interceptando toques que deveriam ir pro que está por baixo
+    el.style.pointerEvents = "none";
+    el.onclick = null;
   }, duracaoMs || 3000);
 }
 
