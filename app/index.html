@@ -1351,6 +1351,12 @@
           <input type="hidden" id="lf-emoji" value="🎤">
         </div>
         <div class="field" style="margin-bottom:6px;"><input id="lf-nome" placeholder="Nome da função (ex: Baixo, Vocalista)" required></div>
+        <div class="field" style="position:relative;">
+          <label>Quem toca (opcional — dá pra adicionar mais depois)</label>
+          <input id="lf-busca-pessoa" autocomplete="off" placeholder="Digite o nome de quem toca...">
+          <div id="lf-sugestoes-pessoa" class="autocomplete-lista" style="display:none;"></div>
+        </div>
+        <div id="lf-pessoas-selecionadas" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
         <button class="btn btn-primary" type="submit">Salvar função</button>
         <button class="btn btn-ghost" type="button" id="lf-cancelar-edicao" style="display:none;margin-top:8px;">Cancelar edição</button>
       </form>
@@ -2080,6 +2086,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788400797"></script>
+<script src="app.js?v=1788428656"></script>
 </body>
 </html>

@@ -4475,20 +4475,45 @@ function configurarBuscaParticipanteLouvor() {
   input.addEventListener("input", async () => {
     const termo = normalizarBusca(input.value);
     if (!termo) { sugestoesEl.style.display = "none"; return; }
-    const membros = await membrosDoGrupoLouvor();
-    const bateram = (membros || []).filter(m => normalizarBusca(m.nome_completo).includes(termo)).slice(0, 6);
-    if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
-    sugestoesEl.innerHTML = bateram.map(m => `<div class="autocomplete-item" data-participante-id="${m.id}" data-participante-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
+    const [membros, { data: funcoes }, { data: vinculos }] = await Promise.all([
+      membrosDoGrupoLouvor(),
+      sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("ordem"),
+      sb.from("igr_louvor_membro_funcoes").select("membro_id, funcao_id"),
+    ]);
+
+    // sugestoes por nome de pessoa (sem funcao pre-definida)
+    const porNome = (membros || []).filter(m => normalizarBusca(m.nome_completo).includes(termo))
+      .map(m => ({ membro: m, funcaoId: "" }));
+
+    // sugestoes por nome de instrumento/funcao (ex: digitou "baixo") - traz quem toca, ja com a funcao certa
+    const funcoesQueBatem = (funcoes || []).filter(f => normalizarBusca(f.nome).includes(termo));
+    const porFuncao = [];
+    funcoesQueBatem.forEach(f => {
+      (vinculos || []).filter(v => v.funcao_id === f.id).forEach(v => {
+        const membro = (membros || []).find(m => m.id === v.membro_id);
+        if (membro) porFuncao.push({ membro, funcaoId: f.id, funcaoNome: f.nome, funcaoEmoji: f.emoji });
+      });
+    });
+
+    // junta os dois, sem repetir a mesma pessoa+funcao
+    const combinadas = [...porFuncao, ...porNome].filter((s, i, arr) =>
+      arr.findIndex(x => x.membro.id === s.membro.id && x.funcaoId === s.funcaoId) === i
+    ).slice(0, 7);
+
+    if (!combinadas.length) { sugestoesEl.style.display = "none"; return; }
+    sugestoesEl.innerHTML = combinadas.map((s, i) => `
+      <div class="autocomplete-item" data-idx="${i}">${s.membro.nome_completo}${s.funcaoId ? ` <span style="color:var(--ink-faint);">— ${s.funcaoEmoji || ""} ${s.funcaoNome}</span>` : ""}</div>
+    `).join("");
     sugestoesEl.style.display = "block";
-    sugestoesEl.querySelectorAll("[data-participante-id]").forEach(item => {
-      item.addEventListener("click", async () => {
+    sugestoesEl.querySelectorAll("[data-idx]").forEach(item => {
+      item.addEventListener("click", () => {
+        const s = combinadas[Number(item.dataset.idx)];
         sugestoesEl.style.display = "none";
-        input.value = item.dataset.participanteNome;
-        state.louvorParticipanteSelecionado = { id: item.dataset.participanteId, nome: item.dataset.participanteNome };
-        const { data: funcoes } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("ordem");
+        input.value = s.membro.nome_completo;
+        state.louvorParticipanteSelecionado = { id: s.membro.id, nome: s.membro.nome_completo };
         const select = document.getElementById("lef-funcao-select");
-        select.innerHTML = `<option value="">Sem função específica</option>` + (funcoes || []).map(f => `<option value="${f.id}">${f.emoji || ""} ${f.nome}</option>`).join("");
-        document.getElementById("lef-nome-selecionado").textContent = item.dataset.participanteNome;
+        select.innerHTML = `<option value="">Sem função específica</option>` + (funcoes || []).map(f => `<option value="${f.id}" ${f.id === s.funcaoId ? "selected" : ""}>${f.emoji || ""} ${f.nome}</option>`).join("");
+        document.getElementById("lef-nome-selecionado").textContent = s.membro.nome_completo;
         document.getElementById("lef-funcao-escolha").style.display = "block";
       });
     });
@@ -4688,12 +4713,17 @@ async function carregarFuncoesLouvor() {
   const podeGerenciar = souLiderLouvor();
   document.getElementById("form-louvor-funcao").style.display = podeGerenciar ? "block" : "none";
   const el = document.getElementById("louvor-lista-funcoes");
-  const { data } = await sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("ordem");
+  const [{ data }, { data: vinculos }] = await Promise.all([
+    sb.from("igr_louvor_funcoes").select("*").eq("grupo_id", state.membro.grupoLouvorId).order("ordem"),
+    sb.from("igr_louvor_membro_funcoes").select("funcao_id, igr_membros(nome_completo)"),
+  ]);
   state.louvorFuncoesCache = data || [];
-  el.innerHTML = (data || []).map(f => `
+  el.innerHTML = (data || []).map(f => {
+    const nomes = (vinculos || []).filter(v => v.funcao_id === f.id).map(v => v.igr_membros?.nome_completo).filter(Boolean);
+    return `
     <div class="card row-avatar" style="padding:9px 14px;">
       <span style="font-size:18px;flex:none;">${f.emoji || "🎵"}</span>
-      <div class="row-info"><b>${f.nome}</b></div>
+      <div class="row-info"><b>${f.nome}</b>${nomes.length ? `<span>${nomes.join(", ")}</span>` : `<span style="color:var(--ink-faint);">Ninguém vinculado ainda</span>`}</div>
       ${podeGerenciar ? `
       <div style="display:flex;gap:6px;flex:none;">
         <button class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" data-membros-funcao="${f.id}">👥</button>
@@ -4701,7 +4731,8 @@ async function carregarFuncoesLouvor() {
         <button class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" data-remover-funcao="${f.id}">🗑</button>
       </div>` : ""}
     </div>
-  `).join("") || `<p class="hint">Nenhuma função cadastrada ainda.</p>`;
+  `;
+  }).join("") || `<p class="hint">Nenhuma função cadastrada ainda.</p>`;
   el.querySelectorAll("[data-remover-funcao]").forEach(b => b.addEventListener("click", async () => {
     if (!confirm("Excluir essa função?")) return;
     await sb.from("igr_louvor_funcoes").delete().eq("id", b.dataset.removerFuncao);
@@ -4717,7 +4748,49 @@ async function carregarFuncoesLouvor() {
   }));
 }
 
-function iniciarEdicaoFuncaoLouvor(funcao) {
+function renderizarChipsPessoasFuncao() {
+  const el = document.getElementById("lf-pessoas-selecionadas");
+  const pessoas = state.louvorFuncaoPessoasSelecionadas || [];
+  el.innerHTML = pessoas.map(p => `
+    <span class="badge-inline" style="display:inline-flex;align-items:center;gap:5px;padding:5px 6px 5px 10px;">${p.nome_completo}
+      <button type="button" data-remover-pessoa-funcao="${p.id}" style="border:none;background:none;cursor:pointer;font-size:13px;line-height:1;color:inherit;">✕</button>
+    </span>
+  `).join("");
+  el.querySelectorAll("[data-remover-pessoa-funcao]").forEach(b => b.addEventListener("click", () => {
+    state.louvorFuncaoPessoasSelecionadas = pessoas.filter(p => p.id !== b.dataset.removerPessoaFuncao);
+    renderizarChipsPessoasFuncao();
+  }));
+}
+
+function configurarBuscaPessoaFuncao() {
+  const input = document.getElementById("lf-busca-pessoa");
+  const sugestoesEl = document.getElementById("lf-sugestoes-pessoa");
+  if (!input || input._jaConfigurado) return;
+  input._jaConfigurado = true;
+  input.addEventListener("input", async () => {
+    const termo = normalizarBusca(input.value);
+    if (!termo) { sugestoesEl.style.display = "none"; return; }
+    const membros = await membrosDoGrupoLouvor();
+    const jaSelecionados = new Set((state.louvorFuncaoPessoasSelecionadas || []).map(p => p.id));
+    const bateram = membros.filter(m => !jaSelecionados.has(m.id) && normalizarBusca(m.nome_completo).includes(termo)).slice(0, 6);
+    if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
+    sugestoesEl.innerHTML = bateram.map(m => `<div class="autocomplete-item" data-pessoa-id="${m.id}" data-pessoa-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
+    sugestoesEl.style.display = "block";
+    sugestoesEl.querySelectorAll("[data-pessoa-id]").forEach(item => {
+      item.addEventListener("click", () => {
+        state.louvorFuncaoPessoasSelecionadas = [...(state.louvorFuncaoPessoasSelecionadas || []), { id: item.dataset.pessoaId, nome_completo: item.dataset.pessoaNome }];
+        renderizarChipsPessoasFuncao();
+        input.value = "";
+        sugestoesEl.style.display = "none";
+      });
+    });
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+
+async function iniciarEdicaoFuncaoLouvor(funcao) {
   state.louvorFuncaoEditando = funcao;
   document.getElementById("lf-titulo-tela").textContent = "Editar função";
   document.getElementById("lf-nome").value = funcao.nome;
@@ -4725,15 +4798,20 @@ function iniciarEdicaoFuncaoLouvor(funcao) {
   renderizarEmojiPickerLouvor(funcao.emoji || "🎤");
   document.getElementById("lf-cancelar-edicao").style.display = "block";
   document.querySelector("#form-louvor-funcao button[type=submit]").textContent = "Salvar alterações";
+  const { data: vinculos } = await sb.from("igr_louvor_membro_funcoes").select("membro_id, igr_membros(nome_completo)").eq("funcao_id", funcao.id);
+  state.louvorFuncaoPessoasSelecionadas = (vinculos || []).filter(v => v.igr_membros).map(v => ({ id: v.membro_id, nome_completo: v.igr_membros.nome_completo }));
+  renderizarChipsPessoasFuncao();
   document.getElementById("form-louvor-funcao").scrollIntoView({ behavior: "smooth" });
 }
 
 function cancelarEdicaoFuncaoLouvor() {
   state.louvorFuncaoEditando = null;
+  state.louvorFuncaoPessoasSelecionadas = [];
   document.getElementById("lf-titulo-tela").textContent = "Funções do grupo";
   document.getElementById("form-louvor-funcao").reset();
   document.getElementById("lf-emoji").value = "🎤";
   renderizarEmojiPickerLouvor("🎤");
+  renderizarChipsPessoasFuncao();
   document.getElementById("lf-cancelar-edicao").style.display = "none";
   document.querySelector("#form-louvor-funcao button[type=submit]").textContent = "Salvar função";
 }
@@ -4743,19 +4821,25 @@ async function enviarFuncaoLouvor(ev) {
   const emoji = document.getElementById("lf-emoji").value.trim() || "🎤";
   const nome = document.getElementById("lf-nome").value.trim();
   if (!nome) return;
+  const pessoas = state.louvorFuncaoPessoasSelecionadas || [];
   const editando = state.louvorFuncaoEditando;
+  let funcaoId = editando?.id;
   if (editando) {
     const { error } = await sb.from("igr_louvor_funcoes").update({ nome, emoji }).eq("id", editando.id);
     if (error) { alert("Não deu pra salvar: " + error.message); return; }
-    cancelarEdicaoFuncaoLouvor();
   } else {
     const { count } = await sb.from("igr_louvor_funcoes").select("id", { count: "exact", head: true }).eq("grupo_id", state.membro.grupoLouvorId);
-    const { error } = await sb.from("igr_louvor_funcoes").insert({ igreja_id: state.igreja.id, grupo_id: state.membro.grupoLouvorId, nome, emoji, ordem: count || 0 });
+    const { data: nova, error } = await sb.from("igr_louvor_funcoes")
+      .insert({ igreja_id: state.igreja.id, grupo_id: state.membro.grupoLouvorId, nome, emoji, ordem: count || 0 }).select().single();
     if (error) { alert("Não deu pra adicionar: " + error.message); return; }
-    ev.target.reset();
-    document.getElementById("lf-emoji").value = "🎤";
-    renderizarEmojiPickerLouvor("🎤");
+    funcaoId = nova.id;
   }
+  // sincroniza quem toca essa funcao com quem foi selecionado no formulario
+  await sb.from("igr_louvor_membro_funcoes").delete().eq("funcao_id", funcaoId);
+  if (pessoas.length) {
+    await sb.from("igr_louvor_membro_funcoes").insert(pessoas.map(p => ({ membro_id: p.id, funcao_id: funcaoId })));
+  }
+  cancelarEdicaoFuncaoLouvor();
   carregarFuncoesLouvor();
 }
 
@@ -6709,6 +6793,7 @@ async function iniciar() {
   document.getElementById("btn-lr-nova-musica")?.addEventListener("click", () => abrirFormMusicaLouvor(null));
   document.getElementById("lr-busca")?.addEventListener("input", (ev) => renderizarRepertorioLouvor(ev.target.value));
   document.getElementById("quicklink-louvor-funcoes")?.addEventListener("click", () => { mostrarTela("tela-louvor-funcoes"); cancelarEdicaoFuncaoLouvor(); carregarFuncoesLouvor(); });
+  configurarBuscaPessoaFuncao();
   document.getElementById("lf-cancelar-edicao")?.addEventListener("click", cancelarEdicaoFuncaoLouvor);
   document.getElementById("btn-lm-buscar-cifra")?.addEventListener("click", identificarMusicaComIA);
   document.getElementById("quicklink-louvor-visao-geral")?.addEventListener("click", () => { mostrarTela("tela-louvor-visao-geral"); carregarVisaoGeralLouvor(); });
