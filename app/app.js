@@ -612,8 +612,34 @@ async function carregarCultos() {
   });
 }
 
+async function compartilharAviso(aviso) {
+  const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
+  let texto = `📢 ${aviso.titulo}`;
+  if (aviso.texto) texto += `\n${aviso.texto}`;
+  if (aviso.data_evento) texto += `\n📅 ${formatarData(aviso.data_evento)}${aviso.horario_evento ? " às " + aviso.horario_evento : ""}`;
+  if (aviso.local_evento) texto += `\n📍 ${aviso.local_evento}`;
+  texto += `\n\nVia app da ${state.igreja?.nome || "igreja"}: ${link}`;
+  if (navigator.share) {
+    try {
+      const shareData = { text: texto };
+      if (aviso.imagem_url && navigator.canShare) {
+        try {
+          const resp = await fetch(aviso.imagem_url);
+          const blob = await resp.blob();
+          const arquivo = new File([blob], "aviso.jpg", { type: blob.type || "image/jpeg" });
+          if (navigator.canShare({ files: [arquivo] })) shareData.files = [arquivo];
+        } catch { /* segue só com texto se não der pra anexar a imagem */ }
+      }
+      await navigator.share(shareData);
+      return;
+    } catch { /* usuário cancelou */ }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+}
+
+
 async function carregarAvisos(targetId) {
-  const { data } = await sb.from("igr_avisos").select("*").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false }).limit(8);
+  const { data } = await sb.from("igr_avisos").select("*").eq("igreja_id", state.igreja.id).eq("visivel_no_mural", true).order("publicado_em", { ascending: false }).limit(8);
   const meusGrupos = state.membro?.grupoIds || (state.membro?.grupo_id ? [state.membro.grupo_id] : []);
   const visiveis = (data || []).filter(a => !a.grupo_id || meusGrupos.includes(a.grupo_id)).slice(0, 5);
   const el = document.getElementById(targetId);
@@ -638,14 +664,22 @@ async function carregarAvisos(targetId) {
           <p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p>
         </div>
       </div>
-      ${state.membro ? `
-        <div style="display:flex;gap:8px;margin-top:10px;">
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        ${state.membro ? `
           <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasReacoes[a.id] === "amei" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-reagir-aviso="${a.id}" data-reacao="amei" ${minhasReacoes[a.id] ? "disabled" : ""}>❤️ Amei</button>
           <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasReacoes[a.id] === "orando" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-reagir-aviso="${a.id}" data-reacao="orando" ${minhasReacoes[a.id] ? "disabled" : ""}>🙏 Orando</button>
-        </div>
-      ` : ""}
+        ` : ""}
+        <button type="button" class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;" data-compartilhar-aviso="${a.id}">📤 Compartilhar</button>
+      </div>
     </div>
   `).join("") || `<div class="empty">Nenhum aviso no momento.</div>`;
+
+  el.querySelectorAll("[data-compartilhar-aviso]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const aviso = visiveis.find(a => a.id === btn.dataset.compartilharAviso);
+      if (aviso) compartilharAviso(aviso);
+    });
+  });
 
   el.querySelectorAll("[data-reagir-aviso]").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -6371,6 +6405,11 @@ function iniciarEdicaoAviso(item) {
   state.editando.aviso = item;
   document.getElementById("aa-titulo").value = item.titulo || "";
   document.getElementById("aa-texto").value = item.texto || "";
+  definirValorData("aa-data", item.data_evento);
+  document.getElementById("aa-horario").value = item.horario_evento || "";
+  document.getElementById("aa-local").value = item.local_evento || "";
+  document.getElementById("aa-postar-aviso").checked = item.visivel_no_mural !== false;
+  document.getElementById("aa-postar-agenda").checked = !!item.data_evento;
   const btn = document.querySelector("#form-admin-aviso button[type=submit]");
   btn.textContent = "Salvar alterações";
   document.getElementById("aa-cancelar-edicao").style.display = "inline-block";
@@ -6379,6 +6418,8 @@ function iniciarEdicaoAviso(item) {
 function cancelarEdicaoAviso() {
   state.editando.aviso = null;
   document.getElementById("form-admin-aviso").reset();
+  document.getElementById("aa-postar-aviso").checked = true;
+  document.getElementById("aa-postar-agenda").checked = false;
   document.querySelector("#form-admin-aviso button[type=submit]").textContent = "Publicar aviso";
   document.getElementById("aa-cancelar-edicao").style.display = "none";
 }
@@ -6389,8 +6430,11 @@ async function enviarAvisoAdmin(ev) {
   const data_evento = document.getElementById("aa-data").value || null;
   const horario_evento = document.getElementById("aa-horario").value.trim() || null;
   const local_evento = document.getElementById("aa-local").value.trim() || null;
+  const postarAviso = document.getElementById("aa-postar-aviso").checked;
+  const postarAgenda = document.getElementById("aa-postar-agenda").checked;
   if (!titulo) return;
   if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
+  if (postarAgenda && !data_evento) { alert("Pra entrar na Agenda, preencha a data do evento."); return; }
   const btn = ev.target.querySelector("button[type=submit]");
   const editando = state.editando.aviso;
   btn.disabled = true; btn.textContent = "Enviando...";
@@ -6403,18 +6447,18 @@ async function enviarAvisoAdmin(ev) {
     if (editando) {
       const imagem_url = novaImagem || editando.imagem_url || null;
       const video_url = novoVideo || editando.video_url || null;
-      const { error } = await sb.from("igr_avisos").update({ titulo, texto, imagem_url, video_url, data_evento, horario_evento, local_evento }).eq("id", editando.id);
+      const { error } = await sb.from("igr_avisos").update({ titulo, texto, imagem_url, video_url, data_evento, horario_evento, local_evento, visivel_no_mural: postarAviso }).eq("id", editando.id);
       if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
       cancelarEdicaoAviso();
     } else {
-      const { data: novoAviso, error } = await sb.from("igr_avisos").insert({ igreja_id: state.igreja.id, titulo, texto, imagem_url: novaImagem, video_url: novoVideo, data_evento, horario_evento, local_evento, publicado_em: new Date().toISOString() }).select().single();
+      const { data: novoAviso, error } = await sb.from("igr_avisos").insert({ igreja_id: state.igreja.id, titulo, texto, imagem_url: novaImagem, video_url: novoVideo, data_evento, horario_evento, local_evento, publicado_em: new Date().toISOString(), visivel_no_mural: postarAviso }).select().single();
       if (error) { alert("Não deu pra publicar o aviso: " + error.message); return; }
       avisoId = novoAviso?.id;
       ev.target.reset();
-      enviarPush({ tipo: "todos" }, titulo, texto);
+      document.getElementById("aa-postar-aviso").checked = true;
+      if (postarAviso) enviarPush({ tipo: "todos" }, titulo, texto);
     }
-    // aviso pra todos com data preenchida ja entra automaticamente no Calendário da Igreja
-    if (data_evento) {
+    if (postarAgenda && data_evento) {
       await sincronizarCalendarioDeOrigem({ tipoColuna: "aviso_id", origemId: avisoId, titulo, local: local_evento, horario: horario_evento, observacoes: texto, imagem_url: novaImagem || editando?.imagem_url, data: data_evento, data_fim: data_evento });
     }
     carregarAvisosAdmin();
@@ -7303,6 +7347,9 @@ async function iniciar() {
   });
   document.querySelector("[data-voltar-ficha-membro]")?.addEventListener("click", () => abrirGrupoDeMembros(estadoMembrosAdmin.grupoId, estadoMembrosAdmin.grupoNome));
   document.getElementById("form-admin-aviso")?.addEventListener("submit", enviarAvisoAdmin);
+  document.getElementById("aa-data")?.addEventListener("change", (ev) => {
+    if (ev.target.value) document.getElementById("aa-postar-agenda").checked = true;
+  });
   document.getElementById("form-admin-pastor")?.addEventListener("submit", enviarPastorAdmin);
   document.getElementById("form-admin-modulo-estudo")?.addEventListener("submit", enviarModuloEstudoAdmin);
   document.getElementById("am-cancelar-edicao")?.addEventListener("click", cancelarEdicaoModulo);

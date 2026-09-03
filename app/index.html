@@ -568,13 +568,16 @@
           <form id="form-admin-aviso">
             <div class="field"><label>Título</label><input id="aa-titulo" required placeholder="Ex: Retiro de família"></div>
             <div class="field"><label>Texto</label><input id="aa-texto" placeholder="Detalhes do aviso"></div>
-            <div class="field"><label>Data do evento (opcional — se preencher, já entra no Calendário)</label><input id="aa-data" type="date"></div>
+            <div class="field"><label>Data do evento (opcional)</label><input id="aa-data" type="date"></div>
             <div style="display:flex;gap:10px;">
               <div class="field" style="flex:1;"><label>Horário (opcional)</label><input id="aa-horario" placeholder="Ex: 19h30"></div>
               <div class="field" style="flex:1;"><label>Local (opcional)</label><input id="aa-local" placeholder="Ex: Templo"></div>
             </div>
             <div class="field"><label>Banner (opcional)</label><input id="aa-imagem" type="file" accept="image/*"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="aa-video" type="file" accept="video/*"></div>
+            <div class="field"><label>Vídeo (opcional)</label><input id="aa-video" type="file" accept="video/*"></div>
+            <p class="hint" style="margin-bottom:6px;">Onde publicar:</p>
+            <label class="interesse-item" style="margin-bottom:8px;"><input type="checkbox" id="aa-postar-aviso" checked> 📢 No mural de Avisos</label>
+            <label class="interesse-item" style="margin-bottom:10px;"><input type="checkbox" id="aa-postar-agenda"> 🗓️ Também na Agenda (precisa de data)</label>
             <button class="btn btn-primary" type="submit">Publicar aviso</button>
             <button class="btn btn-ghost" type="button" id="aa-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoAviso()">Cancelar edição</button>
           </form>
@@ -2196,6 +2199,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788449761"></script>
+<script src="app.js?v=1788450533"></script>
 </body>
 </html>
