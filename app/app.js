@@ -448,12 +448,12 @@ function abrirModalAniversariante(pessoa) {
   conteudo.innerHTML = `
     ${foto}
     <h3 style="text-align:center;margin:0 0 4px;font-family:'Montserrat',sans-serif;">🎉 ${primeiro} faz aniversário!</h3>
-    <p class="hint" style="text-align:center;margin-bottom:18px;">Escreva um carinho — fica registrado no perfil ${pessoa.telefone ? "e já abre pra você mandar no WhatsApp também" : "dela(e)"}.</p>
+    <p class="hint" style="text-align:center;margin-bottom:18px;">Escreva um carinho — fica registrado no perfil e nas Mensagens dela(e).</p>
     <div class="field" style="margin-bottom:8px;">
       <label>Sua mensagem</label>
       <textarea id="aniv-msg-texto" rows="3" maxlength="280" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;">${mensagemPadrao}</textarea>
     </div>
-    <button class="btn btn-primary" id="aniv-msg-enviar" type="button">${pessoa.telefone ? "💬 Enviar (perfil + WhatsApp)" : "Enviar mensagem"}</button>
+    <button class="btn btn-primary" id="aniv-msg-enviar" type="button">Enviar mensagem</button>
     <p class="hint" id="aniv-msg-status" style="text-align:center;margin-top:8px;"></p>
   `;
   document.getElementById("aniv-msg-enviar").addEventListener("click", () => enviarMensagemPerfil(pessoa));
@@ -481,13 +481,10 @@ async function enviarMensagemPerfil(pessoa) {
     const meuNome = state.membro.nome_completo.split(" ")[0];
     enviarPush({ tipo: "membros", membro_ids: [pessoa.id] }, `${meuNome} te desejou feliz aniversário! 🎉`, texto);
   }
-  btn.disabled = false; btn.textContent = pessoa.telefone ? "💬 Enviar (perfil + WhatsApp)" : "Enviar mensagem";
+  btn.disabled = false; btn.textContent = "Enviar mensagem";
   const statusEl = document.getElementById("aniv-msg-status");
   if (error) { statusEl.textContent = "Não deu pra enviar agora. Tente de novo."; return; }
 
-  if (pessoa.telefone) {
-    window.open(linkWhatsapp(pessoa.telefone, texto), "_blank", "noopener");
-  }
   statusEl.textContent = "Mensagem enviada — salva no perfil e nas Mensagens dela(e)! 💛";
   setTimeout(fecharModalAniversariante, 1200);
 }
@@ -1263,7 +1260,6 @@ async function montarHomeMembro() {
 
   await carregarAvisos("home-avisos");
   await carregarPedidosOracao();
-  carregarTopLeitores();
   carregarRankingDoMes();
   atualizarBadgeMensagens().then(n => {
     if (n > 0 && !state.avisoMensagensMostrado) {
@@ -3001,7 +2997,7 @@ async function carregarListaMensagens() {
   });
 
   const ids = Object.keys(conversas);
-  if (!ids.length) { el.innerHTML = `<p class="hint">Nenhuma conversa ainda. Toque em "Conectar" em alguém na Mão Amiga ou no Top Leitores pra começar.</p>`; return; }
+  if (!ids.length) { el.innerHTML = `<p class="hint">Nenhuma conversa ainda. Toque em "Conectar" em alguém na Mão Amiga pra começar.</p>`; return; }
 
   const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url").in("id", ids);
   const membrosMapa = {};
@@ -3229,54 +3225,6 @@ async function carregarHallFama() {
       `).join("")}
     </div>
   `).join("");
-}
-
-async function carregarTopLeitores() {
-  const el = document.getElementById("top-leitores-lista");
-  if (!el || !state.igreja) return;
-  const { data: leituras } = await sb.from("igr_leituras").select("membro_id").eq("igreja_id", state.igreja.id);
-
-  const pontos = {};
-  (leituras || []).forEach(l => { pontos[l.membro_id] = (pontos[l.membro_id] || 0) + 1; });
-
-  const ids = Object.keys(pontos).filter(id => pontos[id] > 0);
-  if (!ids.length) { el.innerHTML = `<p class="hint">Ninguém pontuou ainda — seja o primeiro a ler! 📖</p>`; return; }
-
-  const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url, telefone").in("id", ids);
-  const ranking = (membros || [])
-    .map(m => ({ ...m, pontos: pontos[m.id] || 0 }))
-    .sort((a, b) => b.pontos - a.pontos)
-    .slice(0, 3);
-
-  let jaConectados = new Set();
-  if (state.membro) {
-    const { data: conexoes } = await sb.from("igr_membros_conexoes").select("conectado_id").eq("membro_id", state.membro.id);
-    jaConectados = new Set((conexoes || []).map(c => c.conectado_id));
-  }
-
-  const medalhas = ["🥇", "🥈", "🥉"];
-  el.innerHTML = ranking.map((m, i) => {
-    const souEu = state.membro?.id === m.id;
-    const msgWhats = `Oi ${m.nome_completo.split(" ")[0]}! Vi que você tá arrasando no Top Leitores do app da igreja 🎉`;
-    let acao = "";
-    if (!souEu && state.membro) {
-      acao = jaConectados.has(m.id)
-        ? `<div style="display:flex;gap:6px;flex:none;">
-             <button class="btn btn-primary" style="width:auto;padding:7px 10px;font-size:11.5px;" data-abrir-chat-direto="${m.id}" data-nome-chat="${m.nome_completo}" data-foto-chat="${m.foto_url || ""}">💬</button>
-             <a class="btn btn-ghost" style="width:auto;padding:7px 10px;font-size:11.5px;" href="${linkWhatsapp(m.telefone, msgWhats)}" target="_blank" rel="noopener">Zap</a>
-           </div>`
-        : `<button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;flex:none;" data-conectar="${m.id}" data-nome="${m.nome_completo}" data-telefone="${m.telefone || ""}" data-foto="${m.foto_url || ""}">💬 Conectar</button>`;
-    }
-    return `
-    <div class="card row-avatar" style="padding:10px 14px;">
-      <span style="font-size:16px;flex:none;width:26px;text-align:center;font-weight:700;">${medalhas[i]}</span>
-      ${m.foto_url ? `<img src="${m.foto_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : avatarIniciais(m.nome_completo)}
-      <div class="row-info"><b>${m.nome_completo.split(" ")[0]}</b><span>${m.pontos} pontos de leitura</span></div>
-      ${souEu ? `<span class="badge-inline" style="flex:none;">Você</span>` : acao}
-    </div>
-  `;
-  }).join("");
-  configurarBotoesConectar(el);
 }
 
 async function gerarBanners() {
