@@ -4225,7 +4225,7 @@ async function membrosDoGrupoLouvor() {
 
 async function carregarLouvor() {
   const podeGerenciar = souLiderLouvor();
-  document.getElementById("louvor-gerenciar-box").style.display = podeGerenciar ? "block" : "none";
+  carregarMinhasEstatisticasLouvor();
 
   const el = document.getElementById("louvor-minhas-escalas");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
@@ -4256,7 +4256,38 @@ async function carregarLouvor() {
     c.addEventListener("click", () => abrirEscalaLouvorDetalhe(c.dataset.abrirEscalaLouvor)));
 }
 
+async function carregarMinhasEstatisticasLouvor() {
+  const el = document.getElementById("louvor-minhas-estatisticas");
+  if (!el || !state.membro) return;
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+  const inicioAno = new Date(hoje.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const dataHoje = hoje.toISOString().slice(0, 10);
+
+  const { data } = await sb.from("igr_louvor_escala_participantes")
+    .select("status, igr_louvor_escalas!inner(data)")
+    .eq("membro_id", state.membro.id).eq("status", "confirmado")
+    .lte("igr_louvor_escalas.data", dataHoje).gte("igr_louvor_escalas.data", inicioAno);
+
+  const tocouNoMes = (data || []).filter(p => p.igr_louvor_escalas.data >= inicioMes).length;
+  const tocouNoAno = (data || []).length;
+
+  el.innerHTML = `
+    <div class="card" style="display:flex;gap:0;">
+      <div style="flex:1;text-align:center;border-right:1px solid var(--line);">
+        <div style="font-size:22px;font-weight:700;">${tocouNoMes}</div>
+        <p class="hint" style="margin:2px 0 0;">Você tocou esse mês</p>
+      </div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:22px;font-weight:700;">${tocouNoAno}</div>
+        <p class="hint" style="margin:2px 0 0;">Você tocou esse ano</p>
+      </div>
+    </div>
+  `;
+}
+
 async function carregarListaEscalasLouvor(tipo) {
+  document.getElementById("btn-louvor-nova-escala").style.display = souLiderLouvor() ? "block" : "none";
   document.getElementById("tab-louvor-proximas").className = tipo === "proximas" ? "btn btn-primary" : "btn btn-ghost";
   document.getElementById("tab-louvor-anteriores").className = tipo === "anteriores" ? "btn btn-primary" : "btn btn-ghost";
   state.louvorTabAtual = tipo;
