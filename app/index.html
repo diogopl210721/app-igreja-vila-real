@@ -601,26 +601,56 @@
 
       <div class="admin-painel-aba" data-admin-painel="estudos" style="display:none;">
         <div class="admin-aba-voltar" data-voltar-admin>← Voltar ao painel</div>
-        <div class="section-label" id="ae-titulo-secao"><b>Novo estudo</b></div>
-        <div class="card">
-          <form id="form-admin-esboco">
-            <div class="field"><label>Categoria</label>
-              <select id="ae-categoria">
-                <option value="escola_biblica">📘 Escola Bíblica</option>
-                <option value="esboco">🗒️ Esboço de pregação</option>
-                <option value="diversos">✨ Estudos diversos</option>
-              </select>
-            </div>
-            <div class="field"><label>Título</label><input id="ae-titulo" required placeholder="Ex: O Fruto do Espírito"></div>
-            <div class="field"><label>Tema (do que se trata)</label><textarea id="ae-tema" rows="2" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Uma breve descrição do assunto..."></textarea></div>
-            <div class="field"><label>Capa (opcional — a IA cria uma se deixar em branco)</label><input id="ae-capa" type="file" accept="image/*"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Arquivo do estudo (PDF)</label><input id="ae-arquivo" type="file" accept="application/pdf,image/*"></div>
-            <button class="btn btn-primary" type="submit">Publicar estudo</button>
-            <button class="btn btn-ghost" type="button" id="ae-cancelar-edicao" style="display:none;margin-top:8px;" onclick="cancelarEdicaoEsboco()">Cancelar edição</button>
-          </form>
+
+        <!-- nivel 1: modulos por categoria -->
+        <div id="admin-estudos-view-modulos">
+          <div class="section-label"><b>Estudos</b></div>
+          <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;">
+            <button class="btn btn-primary" id="ae-tab-escola_biblica" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">📘 Escola Bíblica</button>
+            <button class="btn btn-ghost" id="ae-tab-esboco" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">🗒️ Esboços</button>
+            <button class="btn btn-ghost" id="ae-tab-diversos" style="width:auto;flex:none;padding:8px 14px;font-size:12.5px;">✨ Diversos</button>
+          </div>
+          <div class="card">
+            <form id="form-admin-modulo-estudo">
+              <div class="field"><label>Título do módulo</label><input id="am-titulo" required placeholder="Ex: Cartas Paulinas"></div>
+              <div class="field"><label>Tema (opcional — a IA completa quando você adicionar a primeira aula em PDF)</label><textarea id="am-tema" rows="2" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;" placeholder="Uma breve descrição do módulo..."></textarea></div>
+              <div class="field" style="margin-bottom:6px;"><label>Capa (opcional — a IA cria uma se deixar em branco)</label><input id="am-capa" type="file" accept="image/*"></div>
+              <button class="btn btn-primary" type="submit">Salvar módulo</button>
+              <button class="btn btn-ghost" type="button" id="am-cancelar-edicao" style="display:none;margin-top:8px;">Cancelar edição</button>
+            </form>
+          </div>
+          <div class="section-label"><b>Módulos cadastrados</b></div>
+          <div id="admin-lista-modulos"></div>
         </div>
-        <div class="section-label"><b>Estudos publicados</b></div>
-        <div id="admin-lista-esbocos"></div>
+
+        <!-- nivel 2: aulas de um modulo -->
+        <div id="admin-estudos-view-aulas" style="display:none;">
+          <div class="admin-aba-voltar" id="btn-admin-voltar-modulos">← Voltar aos módulos</div>
+          <div class="section-label" id="admin-aulas-titulo-modulo"><b>Aulas</b></div>
+          <div class="card">
+            <form id="form-admin-aula">
+              <div class="field" style="margin-bottom:6px;"><label>Título da aula</label><input id="aa-titulo" required placeholder="Ex: Aula 1 - Romanos"></div>
+              <button class="btn btn-primary" type="submit">Adicionar aula</button>
+              <button class="btn btn-ghost" type="button" id="aa-cancelar-edicao" style="display:none;margin-top:8px;">Cancelar edição</button>
+            </form>
+          </div>
+          <div id="admin-lista-aulas"></div>
+        </div>
+
+        <!-- nivel 3: materiais de uma aula -->
+        <div id="admin-estudos-view-materiais" style="display:none;">
+          <div class="admin-aba-voltar" id="btn-admin-voltar-aulas">← Voltar às aulas</div>
+          <div class="section-label" id="admin-materiais-titulo-aula"><b>Materiais</b></div>
+          <div class="card">
+            <form id="form-admin-material">
+              <div class="field"><label>Nome do material (opcional)</label><input id="amt-titulo" placeholder="Ex: Slide da aula, Texto de apoio..."></div>
+              <div class="field" style="margin-bottom:6px;"><label>Arquivo (PDF ou foto)</label><input id="amt-arquivo" type="file" accept="application/pdf,image/*" required></div>
+              <p class="hint" id="amt-status-ia" style="display:none;margin:-4px 0 10px;">✨ Lendo o PDF pra escrever o tema da aula...</p>
+              <button class="btn btn-primary" type="submit">Adicionar material</button>
+            </form>
+          </div>
+          <div id="admin-lista-materiais"></div>
+        </div>
       </div>
 
       <div class="admin-painel-aba" data-admin-painel="livros" style="display:none;">
@@ -1215,9 +1245,30 @@
     <div class="scroll no-nav">
       <div class="voltar-btn" data-nav="tela-membro-estudos"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;" id="estudos-titulo-tela">Estudos</span>
-      <p class="hint" style="margin-bottom:12px;">Toque num estudo pra ler ou baixar.</p>
+      <p class="hint" style="margin-bottom:12px;">Toque num módulo pra ver as aulas.</p>
       <div class="field"><input id="estudos-busca" placeholder="Buscar por título ou tema..."></div>
       <div id="estudos-lista" style="display:flex;flex-direction:column;gap:12px;margin-top:14px;"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <!-- ============ AULAS DE UM MODULO ============ -->
+  <div class="screen" id="tela-modulo-aulas">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" data-nav="tela-estudos-lista"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;" id="modulo-titulo-tela">Módulo</span>
+      <p class="hint" style="margin-bottom:14px;" id="modulo-tema-tela"></p>
+      <div id="modulo-lista-aulas" style="display:flex;flex-direction:column;gap:10px;"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
+  <!-- ============ MATERIAIS DE UMA AULA ============ -->
+  <div class="screen" id="tela-aula-materiais">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" id="aula-voltar-btn"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;" id="aula-titulo-tela">Aula</span>
+      <p class="hint" style="margin-bottom:14px;" id="aula-tema-tela"></p>
+      <div id="aula-lista-materiais" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"><p class="hint"><span class="loading-dot"></span></p></div>
+      <button class="btn btn-primary" id="btn-aula-concluida">✓ Marcar aula como concluída</button>
     </div>
   </div>
 
@@ -2124,6 +2175,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788446211"></script>
+<script src="app.js?v=1788446836"></script>
 </body>
 </html>

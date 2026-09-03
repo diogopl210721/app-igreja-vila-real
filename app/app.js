@@ -1530,15 +1530,25 @@ function abrirCategoriaEstudo(categoria) {
 async function carregarListaEstudos(categoria) {
   const el = document.getElementById("estudos-lista");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
-  const { data } = await sb.from("igr_estudos").select("*").eq("igreja_id", state.igreja.id).eq("categoria", categoria).order("created_at", { ascending: false });
-  state.estudosCache = data || [];
+  const { data: modulos } = await sb.from("igr_estudos_modulos").select("*").eq("igreja_id", state.igreja.id).eq("categoria", categoria).order("created_at", { ascending: false });
+  state.modulosCache = modulos || [];
 
-  let progressoMapa = {};
-  if (state.membro) {
-    const { data: progresso } = await sb.from("igr_estudos_progresso").select("*").eq("membro_id", state.membro.id);
-    (progresso || []).forEach(p => { progressoMapa[p.estudo_id] = p; });
+  const idsModulos = state.modulosCache.map(m => m.id);
+  let aulasPorModulo = {};
+  let concluidasMapa = new Set();
+  if (idsModulos.length) {
+    const { data: aulas } = await sb.from("igr_estudos_aulas").select("id, modulo_id").in("modulo_id", idsModulos);
+    (aulas || []).forEach(a => { (aulasPorModulo[a.modulo_id] = aulasPorModulo[a.modulo_id] || []).push(a.id); });
+    if (state.membro) {
+      const idsAulas = (aulas || []).map(a => a.id);
+      if (idsAulas.length) {
+        const { data: prog } = await sb.from("igr_estudos_aula_progresso").select("aula_id").eq("membro_id", state.membro.id).eq("concluida", true).in("aula_id", idsAulas);
+        (prog || []).forEach(p => concluidasMapa.add(p.aula_id));
+      }
+    }
   }
-  state.estudosProgressoMapa = progressoMapa;
+  state.aulasPorModuloCache = aulasPorModulo;
+  state.aulasConcluidasCache = concluidasMapa;
 
   renderizarListaEstudos(document.getElementById("estudos-busca").value);
 }
@@ -1546,55 +1556,107 @@ async function carregarListaEstudos(categoria) {
 function renderizarListaEstudos(termoBusca) {
   const el = document.getElementById("estudos-lista");
   const termo = normalizarBusca(termoBusca);
-  const estudos = (state.estudosCache || []).filter(e => !termo || normalizarBusca(e.titulo + " " + (e.tema || "")).includes(termo));
+  const modulos = (state.modulosCache || []).filter(m => !termo || normalizarBusca(m.titulo + " " + (m.tema || "")).includes(termo));
 
-  el.innerHTML = estudos.map(e => {
-    const prog = state.estudosProgressoMapa?.[e.id];
-    const pct = prog && prog.total_paginas ? Math.round((prog.pagina_atual / prog.total_paginas) * 100) : 0;
-    const tema = e.tema || "";
+  el.innerHTML = modulos.map(m => {
+    const idsAulas = state.aulasPorModuloCache[m.id] || [];
+    const concluidas = idsAulas.filter(id => state.aulasConcluidasCache.has(id)).length;
+    const tema = m.tema || "";
     const temaCurto = tema.length > 100 ? tema.slice(0, 100) + "…" : tema;
     return `
-      <div class="card" data-abrir-estudo="${e.id}" style="display:flex;gap:12px;cursor:pointer;">
-        ${e.capa_url
-          ? `<img src="${e.capa_url}" alt="${e.titulo}" style="width:60px;height:90px;object-fit:cover;border-radius:8px;flex:none;box-shadow:var(--shadow);">`
-          : `<div style="width:60px;height:90px;border-radius:8px;background:var(--bg);flex:none;display:flex;align-items:center;justify-content:center;font-size:22px;">📄</div>`}
+      <div class="card" data-abrir-modulo="${m.id}" style="display:flex;gap:12px;cursor:pointer;">
+        ${m.capa_url
+          ? `<img src="${m.capa_url}" alt="${m.titulo}" style="width:60px;height:90px;object-fit:cover;border-radius:8px;flex:none;box-shadow:var(--shadow);">`
+          : `<div style="width:60px;height:90px;border-radius:8px;background:var(--bg);flex:none;display:flex;align-items:center;justify-content:center;font-size:22px;">📘</div>`}
         <div style="flex:1;min-width:0;">
-          <b style="font-size:14px;display:block;line-height:1.25;">${e.titulo}</b>
+          <b style="font-size:14px;display:block;line-height:1.25;">${m.titulo}</b>
           ${tema ? `<p style="font-size:12px;color:var(--ink-soft);margin:5px 0 0;line-height:1.4;">${temaCurto}</p>` : ""}
-          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-            ${prog?.baixou
-              ? `<span class="badge-inline" style="font-size:10px;">✓ Baixado</span>`
-              : ""}
-            ${e.arquivo_url ? `
-            <div style="flex:1;background:var(--line);border-radius:999px;height:5px;overflow:hidden;"><div style="height:100%;background:${pct >= 100 ? "var(--mint)" : "var(--brand)"};border-radius:999px;width:${pct}%;"></div></div>
-            <span style="font-size:10.5px;font-weight:700;color:${pct > 0 ? "var(--brand)" : "var(--ink-faint)"};flex:none;">${pct}%</span>
-            <button type="button" class="btn btn-ghost" style="width:auto;flex:none;padding:5px 10px;font-size:11px;" data-baixar-estudo="${e.id}">📥</button>
-            ` : `<span class="hint" style="margin:0;">Sem arquivo ainda</span>`}
-          </div>
+          <p class="hint" style="margin-top:8px;">${idsAulas.length ? `${concluidas}/${idsAulas.length} aula(s) concluída(s)` : "Nenhuma aula ainda"}</p>
         </div>
       </div>
     `;
-  }).join("") || `<p class="hint">${termoBusca ? "Nenhum estudo encontrado com essa busca." : "Nenhum estudo publicado ainda nessa categoria."}</p>`;
+  }).join("") || `<p class="hint">${termoBusca ? "Nenhum módulo encontrado com essa busca." : "Nenhum módulo publicado ainda nessa categoria."}</p>`;
 
-  el.querySelectorAll("[data-abrir-estudo]").forEach(card => {
-    card.addEventListener("click", () => abrirLeituraEstudo(card.dataset.abrirEstudo));
+  el.querySelectorAll("[data-abrir-modulo]").forEach(card => {
+    card.addEventListener("click", () => abrirModuloAulas(card.dataset.abrirModulo));
   });
-  el.querySelectorAll("[data-baixar-estudo]").forEach(btn => {
-    btn.addEventListener("click", async (ev) => {
-      ev.stopPropagation();
-      const estudo = state.estudosCache.find(e => e.id === btn.dataset.baixarEstudo);
-      if (!estudo?.arquivo_url) return;
-      window.open(estudo.arquivo_url, "_blank", "noopener");
-      if (state.membro) {
-        await sb.from("igr_estudos_progresso").upsert(
-          { membro_id: state.membro.id, estudo_id: estudo.id, baixou: true },
-          { onConflict: "estudo_id,membro_id" }
-        );
-        darPontos("estudo_sessao");
-        carregarListaEstudos(state.estudosCategoriaAtual);
-      }
-    });
+}
+
+async function abrirModuloAulas(moduloId) {
+  const modulo = (state.modulosCache || []).find(m => m.id === moduloId);
+  if (!modulo) return;
+  state.moduloAtual = modulo;
+  mostrarTela("tela-modulo-aulas");
+  document.getElementById("modulo-titulo-tela").textContent = modulo.titulo;
+  document.getElementById("modulo-tema-tela").textContent = modulo.tema || "";
+  const el = document.getElementById("modulo-lista-aulas");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+
+  const { data: aulas } = await sb.from("igr_estudos_aulas").select("*").eq("modulo_id", moduloId).order("ordem");
+  state.aulasCache = aulas || [];
+
+  let concluidas = new Set();
+  if (state.membro && aulas?.length) {
+    const { data: prog } = await sb.from("igr_estudos_aula_progresso").select("aula_id").eq("membro_id", state.membro.id).eq("concluida", true).in("aula_id", aulas.map(a => a.id));
+    (prog || []).forEach(p => concluidas.add(p.aula_id));
+  }
+
+  el.innerHTML = (aulas || []).map((a, i) => `
+    <div class="card row-avatar" data-abrir-aula="${a.id}" style="cursor:pointer;">
+      <span style="font-size:12px;font-weight:700;color:var(--ink-faint);flex:none;width:20px;">${i + 1}</span>
+      <div class="row-info"><b>${a.titulo}</b>${a.tema ? `<span>${a.tema.length > 70 ? a.tema.slice(0, 70) + "…" : a.tema}</span>` : ""}</div>
+      ${concluidas.has(a.id) ? `<span class="badge-inline" style="flex:none;">✓ Concluída</span>` : ""}
+    </div>
+  `).join("") || `<p class="hint">Nenhuma aula publicada ainda nesse módulo.</p>`;
+  el.querySelectorAll("[data-abrir-aula]").forEach(card => {
+    card.addEventListener("click", () => abrirAulaMateriais(card.dataset.abrirAula));
   });
+}
+
+async function abrirAulaMateriais(aulaId) {
+  const aula = (state.aulasCache || []).find(a => a.id === aulaId);
+  if (!aula) return;
+  state.aulaAtual = aula;
+  mostrarTela("tela-aula-materiais");
+  document.getElementById("aula-titulo-tela").textContent = aula.titulo;
+  document.getElementById("aula-tema-tela").textContent = aula.tema || "";
+  document.getElementById("aula-voltar-btn").onclick = () => mostrarTela("tela-modulo-aulas");
+  const el = document.getElementById("aula-lista-materiais");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+
+  const { data: materiais } = await sb.from("igr_estudos_materiais").select("*").eq("aula_id", aulaId).order("ordem");
+  el.innerHTML = (materiais || []).map(mat => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      <span style="font-size:18px;flex:none;">${mat.tipo === "imagem" ? "🖼️" : "📄"}</span>
+      <div class="row-info"><b>${mat.titulo || (mat.tipo === "imagem" ? "Foto" : "PDF")}</b></div>
+      <a class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" href="${mat.arquivo_url}" target="_blank" rel="noopener" data-baixar-material="${mat.id}">Ver/Baixar</a>
+    </div>
+  `).join("") || `<p class="hint">Nenhum material adicionado ainda nessa aula.</p>`;
+  el.querySelectorAll("[data-baixar-material]").forEach(a => a.addEventListener("click", () => darPontos("estudo_sessao")));
+
+  let concluida = false;
+  if (state.membro) {
+    const { data: prog } = await sb.from("igr_estudos_aula_progresso").select("concluida").eq("membro_id", state.membro.id).eq("aula_id", aulaId).maybeSingle();
+    concluida = prog?.concluida || false;
+  }
+  const btnConcluir = document.getElementById("btn-aula-concluida");
+  btnConcluir.textContent = concluida ? "✓ Aula concluída" : "✓ Marcar aula como concluída";
+  btnConcluir.className = concluida ? "btn btn-ghost" : "btn btn-primary";
+  btnConcluir.disabled = concluida;
+}
+
+async function marcarAulaConcluida() {
+  if (!state.membro || !state.aulaAtual) return;
+  const btn = document.getElementById("btn-aula-concluida");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const { error } = await sb.from("igr_estudos_aula_progresso").upsert(
+    { membro_id: state.membro.id, aula_id: state.aulaAtual.id, concluida: true, concluida_em: new Date().toISOString() },
+    { onConflict: "aula_id,membro_id" }
+  );
+  if (error) { alert("Não deu pra salvar: " + error.message); btn.disabled = false; btn.textContent = "✓ Marcar aula como concluída"; return; }
+  darPontos("estudo_sessao");
+  btn.textContent = "✓ Aula concluída";
+  btn.className = "btn btn-ghost";
 }
 
 async function carregarMensagensPastor() {
@@ -2920,40 +2982,6 @@ async function abrirLeituraLivro(livroId) {
       state.leituraAtual.progressoId = novo?.id;
     } else if (progresso.total_paginas !== pdf.numPages) {
       await sb.from("igr_livros_progresso").update({ total_paginas: pdf.numPages }).eq("id", progresso.id);
-    }
-  }
-
-  await renderizarPaginaLivro();
-}
-
-async function abrirLeituraEstudo(estudoId) {
-  const estudo = state.estudosCache?.find(e => e.id === estudoId);
-  if (!estudo || !estudo.arquivo_url) return;
-
-  mostrarTela("tela-leitura-livro");
-  document.getElementById("leitura-titulo-livro").textContent = estudo.titulo;
-  document.getElementById("leitura-progresso-texto").textContent = "Carregando...";
-
-  let progresso = null;
-  if (state.membro) {
-    const { data } = await sb.from("igr_estudos_progresso").select("*").eq("membro_id", state.membro.id).eq("estudo_id", estudoId).maybeSingle();
-    progresso = data;
-  }
-
-  const pdf = await pdfjsLib.getDocument(estudo.arquivo_url).promise;
-  state.leituraAtual = {
-    tipo: "estudo", item: estudo, tabelaProgresso: "igr_estudos_progresso", colunaItem: "estudo_id",
-    pdf, paginaAtual: progresso?.pagina_atual || 1, paginaInicial: progresso?.pagina_atual || 1, totalPaginas: pdf.numPages, progressoId: progresso?.id, zoom: 1,
-  };
-
-  if (state.membro) {
-    if (!progresso) {
-      const { data: novo } = await sb.from("igr_estudos_progresso")
-        .insert({ membro_id: state.membro.id, estudo_id: estudoId, pagina_atual: 1, total_paginas: pdf.numPages })
-        .select().single();
-      state.leituraAtual.progressoId = novo?.id;
-    } else if (progresso.total_paginas !== pdf.numPages) {
-      await sb.from("igr_estudos_progresso").update({ total_paginas: pdf.numPages }).eq("id", progresso.id);
     }
   }
 
@@ -6367,46 +6395,6 @@ async function enviarLivroAdmin(ev) {
   }
 }
 
-async function carregarEsbocosAdmin() {
-  const el = document.getElementById("admin-lista-esbocos");
-  const { data } = await sb.from("igr_estudos").select("*").eq("igreja_id", state.igreja.id).order("created_at", { ascending: false });
-  el.innerHTML = (data || []).map(e => `
-    <div class="card">
-      ${e.capa_url ? `<img class="capa-thumb" src="${e.capa_url}" alt="">` : ""}
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-        <div><span class="badge-inline" style="margin-bottom:4px;">${NOMES_CATEGORIA_ESTUDO[e.categoria] || e.categoria}</span><br><b style="font-size:13.5px;">${e.titulo}</b></div>
-        <div style="display:flex;gap:6px;flex:none;">
-          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${e.id}">Editar</button>
-          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${e.id}">Excluir</button>
-        </div>
-      </div>
-    </div>
-  `).join("") || `<div class="empty">Nenhum estudo cadastrado.</div>`;
-  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_estudos", b.dataset.del, carregarEsbocosAdmin)));
-  el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
-    const item = (data || []).find(x => x.id === b.dataset.edit);
-    if (item) iniciarEdicaoEsboco(item);
-  }));
-}
-function iniciarEdicaoEsboco(item) {
-  state.editando.esboco = item;
-  document.getElementById("ae-titulo-secao").innerHTML = "<b>Editar estudo</b>";
-  document.getElementById("ae-categoria").value = item.categoria || "diversos";
-  document.getElementById("ae-titulo").value = item.titulo || "";
-  document.getElementById("ae-tema").value = item.tema || "";
-  const btn = document.querySelector("#form-admin-esboco button[type=submit]");
-  btn.textContent = "Salvar alterações";
-  document.getElementById("ae-cancelar-edicao").style.display = "inline-block";
-  document.getElementById("form-admin-esboco").scrollIntoView({ behavior: "smooth", block: "start" });
-}
-function cancelarEdicaoEsboco() {
-  state.editando.esboco = null;
-  document.getElementById("ae-titulo-secao").innerHTML = "<b>Novo estudo</b>";
-  document.getElementById("form-admin-esboco").reset();
-  document.querySelector("#form-admin-esboco button[type=submit]").textContent = "Publicar estudo";
-  document.getElementById("ae-cancelar-edicao").style.display = "none";
-}
-
 function base64ParaArquivo(base64, mimeType, nomeArquivo) {
   const bytes = atob(base64);
   const arr = new Uint8Array(bytes.length);
@@ -6414,23 +6402,85 @@ function base64ParaArquivo(base64, mimeType, nomeArquivo) {
   return new File([arr], nomeArquivo, { type: mimeType });
 }
 
-async function enviarEsbocoAdmin(ev) {
+function mostrarNivelEstudosAdmin(nivel) {
+  document.getElementById("admin-estudos-view-modulos").style.display = nivel === "modulos" ? "block" : "none";
+  document.getElementById("admin-estudos-view-aulas").style.display = nivel === "aulas" ? "block" : "none";
+  document.getElementById("admin-estudos-view-materiais").style.display = nivel === "materiais" ? "block" : "none";
+}
+
+// ---------- nivel 1: modulos ----------
+async function carregarEsbocosAdmin() {
+  mostrarNivelEstudosAdmin("modulos");
+  carregarModulosAdmin(state.estudosAdminCategoria || "escola_biblica");
+}
+
+function trocarCategoriaEstudosAdmin(categoria) {
+  state.estudosAdminCategoria = categoria;
+  ["escola_biblica", "esboco", "diversos"].forEach(c =>
+    document.getElementById(`ae-tab-${c}`).className = c === categoria ? "btn btn-primary" : "btn btn-ghost");
+  cancelarEdicaoModulo();
+  carregarModulosAdmin(categoria);
+}
+
+async function carregarModulosAdmin(categoria) {
+  const el = document.getElementById("admin-lista-modulos");
+  const { data } = await sb.from("igr_estudos_modulos").select("*").eq("igreja_id", state.igreja.id).eq("categoria", categoria).order("created_at", { ascending: false });
+  state.modulosAdminCache = data || [];
+  el.innerHTML = (data || []).map(m => `
+    <div class="card">
+      ${m.capa_url ? `<img class="capa-thumb" src="${m.capa_url}" alt="">` : ""}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <b style="font-size:13.5px;">${m.titulo}</b>
+        <div style="display:flex;gap:6px;flex:none;">
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-gerenciar="${m.id}">Aulas</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${m.id}">Editar</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${m.id}">Excluir</button>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">Nenhum módulo cadastrado nessa categoria.</div>`;
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => excluirRegistro("igr_estudos_modulos", b.dataset.del, () => carregarModulosAdmin(categoria))));
+  el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const m = state.modulosAdminCache.find(x => x.id === b.dataset.edit);
+    if (m) iniciarEdicaoModulo(m);
+  }));
+  el.querySelectorAll("[data-gerenciar]").forEach(b => b.addEventListener("click", () => {
+    const m = state.modulosAdminCache.find(x => x.id === b.dataset.gerenciar);
+    if (m) abrirAulasDoModuloAdmin(m);
+  }));
+}
+
+function iniciarEdicaoModulo(modulo) {
+  state.editando.modulo = modulo;
+  document.getElementById("am-titulo").value = modulo.titulo || "";
+  document.getElementById("am-tema").value = modulo.tema || "";
+  document.querySelector("#form-admin-modulo-estudo button[type=submit]").textContent = "Salvar alterações";
+  document.getElementById("am-cancelar-edicao").style.display = "inline-block";
+  document.getElementById("form-admin-modulo-estudo").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function cancelarEdicaoModulo() {
+  state.editando.modulo = null;
+  document.getElementById("form-admin-modulo-estudo").reset();
+  document.querySelector("#form-admin-modulo-estudo button[type=submit]").textContent = "Salvar módulo";
+  document.getElementById("am-cancelar-edicao").style.display = "none";
+}
+
+async function enviarModuloEstudoAdmin(ev) {
   ev.preventDefault();
-  const categoria = document.getElementById("ae-categoria").value;
-  const titulo = document.getElementById("ae-titulo").value.trim();
-  const tema = document.getElementById("ae-tema").value.trim();
+  const categoria = state.estudosAdminCategoria || "escola_biblica";
+  const titulo = document.getElementById("am-titulo").value.trim();
+  const tema = document.getElementById("am-tema").value.trim();
   if (!titulo) return;
   if (!state.igreja) { alert("Ainda carregando os dados da igreja. Aguarde um instante e tente de novo."); return; }
   const btn = ev.target.querySelector("button[type=submit]");
-  const editando = state.editando.esboco;
+  const editando = state.editando.modulo;
   btn.disabled = true; btn.textContent = "Enviando...";
   try {
-    const arquivoCapaEscolhido = document.getElementById("ae-capa").files[0];
+    const arquivoCapaEscolhido = document.getElementById("am-capa").files[0];
     let novaCapa = null;
     if (arquivoCapaEscolhido) {
       novaCapa = await uploadArquivo(arquivoCapaEscolhido, "estudos");
     } else if (!editando || !editando.capa_url) {
-      // ninguem enviou capa - deixa a IA criar uma
       btn.textContent = "✨ Gerando capa...";
       try {
         const { data: gerada, error: erroGeracao } = await sb.functions.invoke("igr-gerar-capa-estudo", { body: { titulo, tema, categoria } });
@@ -6441,27 +6491,171 @@ async function enviarEsbocoAdmin(ev) {
       } catch (e) { console.error("Não deu pra gerar a capa com IA:", e); }
       btn.textContent = "Enviando...";
     }
-    const novoArquivo = await uploadArquivo(document.getElementById("ae-arquivo").files[0], "estudos");
 
     if (editando) {
-      const capa_url = novaCapa || editando.capa_url || null;
-      const arquivo_url = novoArquivo || editando.arquivo_url || null;
-      const { error } = await sb.from("igr_estudos").update({ categoria, titulo, tema: tema || null, capa_url, arquivo_url }).eq("id", editando.id);
+      const { error } = await sb.from("igr_estudos_modulos").update({ titulo, tema: tema || null, capa_url: novaCapa || editando.capa_url || null }).eq("id", editando.id);
       if (error) { alert("Não deu pra salvar as alterações: " + error.message); return; }
-      cancelarEdicaoEsboco();
+      cancelarEdicaoModulo();
     } else {
-      const { error } = await sb.from("igr_estudos").insert({ igreja_id: state.igreja.id, categoria, titulo, tema: tema || null, capa_url: novaCapa, arquivo_url: novoArquivo });
-      if (error) { alert("Não deu pra publicar o estudo: " + error.message); return; }
+      const { error } = await sb.from("igr_estudos_modulos").insert({ igreja_id: state.igreja.id, categoria, titulo, tema: tema || null, capa_url: novaCapa });
+      if (error) { alert("Não deu pra criar o módulo: " + error.message); return; }
       ev.target.reset();
-      enviarPush({ tipo: "todos" }, "Novo estudo disponível 📖", titulo);
+      enviarPush({ tipo: "todos" }, "Novo módulo de estudo 📘", titulo);
     }
-    carregarEsbocosAdmin();
+    carregarModulosAdmin(categoria);
   } catch (e) {
-    console.error("Erro ao publicar estudo:", e);
+    console.error("Erro ao publicar módulo:", e);
     alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
   } finally {
     btn.disabled = false;
-    if (!state.editando.esboco) btn.textContent = "Publicar estudo";
+    if (!state.editando.modulo) btn.textContent = "Salvar módulo";
+  }
+}
+
+// ---------- nivel 2: aulas ----------
+function abrirAulasDoModuloAdmin(modulo) {
+  state.moduloAdminAtual = modulo;
+  mostrarNivelEstudosAdmin("aulas");
+  document.getElementById("admin-aulas-titulo-modulo").innerHTML = `<b>Aulas de "${modulo.titulo}"</b>`;
+  cancelarEdicaoAula();
+  carregarAulasAdmin(modulo.id);
+}
+
+async function carregarAulasAdmin(moduloId) {
+  const el = document.getElementById("admin-lista-aulas");
+  const { data } = await sb.from("igr_estudos_aulas").select("*").eq("modulo_id", moduloId).order("ordem");
+  state.aulasAdminCache = data || [];
+  el.innerHTML = (data || []).map((a, i) => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      <span style="font-size:12px;font-weight:700;color:var(--ink-faint);flex:none;width:20px;">${i + 1}</span>
+      <div class="row-info"><b>${a.titulo}</b>${a.tema ? `<span>${a.tema.length > 60 ? a.tema.slice(0, 60) + "…" : a.tema}</span>` : ""}</div>
+      <div style="display:flex;gap:6px;flex:none;">
+        <button class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" data-gerenciar="${a.id}">Materiais</button>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" data-edit="${a.id}">✏️</button>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" data-del="${a.id}">🗑</button>
+      </div>
+    </div>
+  `).join("") || `<p class="hint">Nenhuma aula cadastrada ainda nesse módulo.</p>`;
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm("Excluir essa aula e todos os materiais dela?")) return;
+    await sb.from("igr_estudos_aulas").delete().eq("id", b.dataset.del);
+    carregarAulasAdmin(moduloId);
+  }));
+  el.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const a = state.aulasAdminCache.find(x => x.id === b.dataset.edit);
+    if (a) iniciarEdicaoAula(a);
+  }));
+  el.querySelectorAll("[data-gerenciar]").forEach(b => b.addEventListener("click", () => {
+    const a = state.aulasAdminCache.find(x => x.id === b.dataset.gerenciar);
+    if (a) abrirMateriaisDaAulaAdmin(a);
+  }));
+}
+
+function iniciarEdicaoAula(aula) {
+  state.editando.aula = aula;
+  document.getElementById("aa-titulo").value = aula.titulo || "";
+  document.querySelector("#form-admin-aula button[type=submit]").textContent = "Salvar alterações";
+  document.getElementById("aa-cancelar-edicao").style.display = "inline-block";
+}
+function cancelarEdicaoAula() {
+  state.editando.aula = null;
+  document.getElementById("form-admin-aula")?.reset();
+  const btn = document.querySelector("#form-admin-aula button[type=submit]");
+  if (btn) btn.textContent = "Adicionar aula";
+  const cancelBtn = document.getElementById("aa-cancelar-edicao");
+  if (cancelBtn) cancelBtn.style.display = "none";
+}
+
+async function enviarAulaAdmin(ev) {
+  ev.preventDefault();
+  const titulo = document.getElementById("aa-titulo").value.trim();
+  if (!titulo || !state.moduloAdminAtual) return;
+  const btn = ev.target.querySelector("button[type=submit]");
+  const editando = state.editando.aula;
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    if (editando) {
+      const { error } = await sb.from("igr_estudos_aulas").update({ titulo }).eq("id", editando.id);
+      if (error) { alert("Não deu pra salvar: " + error.message); return; }
+      cancelarEdicaoAula();
+    } else {
+      const { count } = await sb.from("igr_estudos_aulas").select("id", { count: "exact", head: true }).eq("modulo_id", state.moduloAdminAtual.id);
+      const { error } = await sb.from("igr_estudos_aulas").insert({ modulo_id: state.moduloAdminAtual.id, titulo, ordem: count || 0 });
+      if (error) { alert("Não deu pra adicionar a aula: " + error.message); return; }
+      ev.target.reset();
+    }
+    carregarAulasAdmin(state.moduloAdminAtual.id);
+  } finally {
+    btn.disabled = false;
+    if (!state.editando.aula) btn.textContent = "Adicionar aula";
+  }
+}
+
+// ---------- nivel 3: materiais ----------
+function abrirMateriaisDaAulaAdmin(aula) {
+  state.aulaAdminAtual = aula;
+  mostrarNivelEstudosAdmin("materiais");
+  document.getElementById("admin-materiais-titulo-aula").innerHTML = `<b>Materiais de "${aula.titulo}"</b>`;
+  carregarMateriaisAdmin(aula.id);
+}
+
+async function carregarMateriaisAdmin(aulaId) {
+  const el = document.getElementById("admin-lista-materiais");
+  const { data } = await sb.from("igr_estudos_materiais").select("*").eq("aula_id", aulaId).order("ordem");
+  el.innerHTML = (data || []).map(mat => `
+    <div class="card row-avatar" style="padding:9px 14px;">
+      <span style="font-size:18px;flex:none;">${mat.tipo === "imagem" ? "🖼️" : "📄"}</span>
+      <div class="row-info"><b>${mat.titulo || (mat.tipo === "imagem" ? "Foto" : "PDF")}</b></div>
+      <a class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" href="${mat.arquivo_url}" target="_blank" rel="noopener">Ver</a>
+      <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-del="${mat.id}">🗑</button>
+    </div>
+  `).join("") || `<p class="hint">Nenhum material adicionado ainda.</p>`;
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
+    await sb.from("igr_estudos_materiais").delete().eq("id", b.dataset.del);
+    carregarMateriaisAdmin(aulaId);
+  }));
+}
+
+async function enviarMaterialAdmin(ev) {
+  ev.preventDefault();
+  const arquivo = document.getElementById("amt-arquivo").files[0];
+  const tituloMaterial = document.getElementById("amt-titulo").value.trim();
+  if (!arquivo || !state.aulaAdminAtual) return;
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const arquivo_url = await uploadArquivo(arquivo, "estudos");
+    if (!arquivo_url) { alert("Não deu pra enviar o arquivo. Tenta de novo."); return; }
+    const tipo = arquivo.type.startsWith("image/") ? "imagem" : "pdf";
+    const { count } = await sb.from("igr_estudos_materiais").select("id", { count: "exact", head: true }).eq("aula_id", state.aulaAdminAtual.id);
+    const { error } = await sb.from("igr_estudos_materiais").insert({
+      aula_id: state.aulaAdminAtual.id, titulo: tituloMaterial || null, tipo, arquivo_url, ordem: count || 0,
+    });
+    if (error) { alert("Não deu pra adicionar o material: " + error.message); return; }
+    ev.target.reset();
+
+    // se for PDF e a aula ainda nao tem tema, deixa a IA ler o PDF e escrever
+    if (tipo === "pdf" && !state.aulaAdminAtual.tema) {
+      document.getElementById("amt-status-ia").style.display = "block";
+      try {
+        const { data: gerado, error: erroIA } = await sb.functions.invoke("igr-descrever-material", {
+          body: { arquivo_url, titulo: state.aulaAdminAtual.titulo },
+        });
+        if (!erroIA && gerado?.ok && gerado.tema) {
+          await sb.from("igr_estudos_aulas").update({ tema: gerado.tema }).eq("id", state.aulaAdminAtual.id);
+          state.aulaAdminAtual.tema = gerado.tema;
+          document.getElementById("admin-materiais-titulo-aula").innerHTML = `<b>Materiais de "${state.aulaAdminAtual.titulo}"</b>`;
+        }
+      } catch (e) { console.error("Não deu pra gerar o tema com IA:", e); }
+      document.getElementById("amt-status-ia").style.display = "none";
+    }
+
+    carregarMateriaisAdmin(state.aulaAdminAtual.id);
+  } catch (e) {
+    console.error("Erro ao enviar material:", e);
+    alert("Não deu pra enviar agora. Verifique sua conexão e tente de novo.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Adicionar material";
   }
 }
 
@@ -6861,7 +7055,17 @@ async function iniciar() {
   document.querySelector("[data-voltar-ficha-membro]")?.addEventListener("click", () => abrirGrupoDeMembros(estadoMembrosAdmin.grupoId, estadoMembrosAdmin.grupoNome));
   document.getElementById("form-admin-aviso")?.addEventListener("submit", enviarAvisoAdmin);
   document.getElementById("form-admin-pastor")?.addEventListener("submit", enviarPastorAdmin);
-  document.getElementById("form-admin-esboco")?.addEventListener("submit", enviarEsbocoAdmin);
+  document.getElementById("form-admin-modulo-estudo")?.addEventListener("submit", enviarModuloEstudoAdmin);
+  document.getElementById("am-cancelar-edicao")?.addEventListener("click", cancelarEdicaoModulo);
+  document.getElementById("form-admin-aula")?.addEventListener("submit", enviarAulaAdmin);
+  document.getElementById("aa-cancelar-edicao")?.addEventListener("click", cancelarEdicaoAula);
+  document.getElementById("form-admin-material")?.addEventListener("submit", enviarMaterialAdmin);
+  document.getElementById("ae-tab-escola_biblica")?.addEventListener("click", () => trocarCategoriaEstudosAdmin("escola_biblica"));
+  document.getElementById("ae-tab-esboco")?.addEventListener("click", () => trocarCategoriaEstudosAdmin("esboco"));
+  document.getElementById("ae-tab-diversos")?.addEventListener("click", () => trocarCategoriaEstudosAdmin("diversos"));
+  document.getElementById("btn-admin-voltar-modulos")?.addEventListener("click", () => mostrarNivelEstudosAdmin("modulos"));
+  document.getElementById("btn-admin-voltar-aulas")?.addEventListener("click", () => mostrarNivelEstudosAdmin("aulas"));
+  document.getElementById("btn-aula-concluida")?.addEventListener("click", marcarAulaConcluida);
   document.getElementById("form-admin-livro")?.addEventListener("submit", enviarLivroAdmin);
   document.getElementById("al-capa")?.addEventListener("change", (ev) => {
     const arquivo = ev.target.files[0];
