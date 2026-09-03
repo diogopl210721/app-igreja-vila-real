@@ -6554,22 +6554,22 @@ async function carregarAulasAdmin(moduloId) {
 
 function iniciarEdicaoAula(aula) {
   state.editando.aula = aula;
-  document.getElementById("aa-titulo").value = aula.titulo || "";
+  document.getElementById("estaula-titulo").value = aula.titulo || "";
   document.querySelector("#form-admin-aula button[type=submit]").textContent = "Salvar alterações";
-  document.getElementById("aa-cancelar-edicao").style.display = "inline-block";
+  document.getElementById("estaula-cancelar-edicao").style.display = "inline-block";
 }
 function cancelarEdicaoAula() {
   state.editando.aula = null;
   document.getElementById("form-admin-aula")?.reset();
   const btn = document.querySelector("#form-admin-aula button[type=submit]");
   if (btn) btn.textContent = "Adicionar aula";
-  const cancelBtn = document.getElementById("aa-cancelar-edicao");
+  const cancelBtn = document.getElementById("estaula-cancelar-edicao");
   if (cancelBtn) cancelBtn.style.display = "none";
 }
 
 async function enviarAulaAdmin(ev) {
   ev.preventDefault();
-  const titulo = document.getElementById("aa-titulo").value.trim();
+  const titulo = document.getElementById("estaula-titulo").value.trim();
   if (!titulo || !state.moduloAdminAtual) return;
   const btn = ev.target.querySelector("button[type=submit]");
   const editando = state.editando.aula;
@@ -6581,8 +6581,28 @@ async function enviarAulaAdmin(ev) {
       cancelarEdicaoAula();
     } else {
       const { count } = await sb.from("igr_estudos_aulas").select("id", { count: "exact", head: true }).eq("modulo_id", state.moduloAdminAtual.id);
-      const { error } = await sb.from("igr_estudos_aulas").insert({ modulo_id: state.moduloAdminAtual.id, titulo, ordem: count || 0 });
+      const { data: novaAula, error } = await sb.from("igr_estudos_aulas")
+        .insert({ modulo_id: state.moduloAdminAtual.id, titulo, ordem: count || 0 }).select().single();
       if (error) { alert("Não deu pra adicionar a aula: " + error.message); return; }
+
+      const arquivos = Array.from(document.getElementById("estaula-materiais").files || []);
+      let temaGerado = null;
+      for (const arquivo of arquivos) {
+        const arquivo_url = await uploadArquivo(arquivo, "estudos");
+        if (!arquivo_url) continue;
+        const tipo = arquivo.type.startsWith("image/") ? "imagem" : "pdf";
+        await sb.from("igr_estudos_materiais").insert({ aula_id: novaAula.id, tipo, arquivo_url, ordem: 0 });
+        if (!temaGerado && tipo === "pdf") {
+          document.getElementById("estaula-status-ia").style.display = "block";
+          try {
+            const { data: gerado, error: erroIA } = await sb.functions.invoke("igr-descrever-material", { body: { arquivo_url, titulo } });
+            if (!erroIA && gerado?.ok && gerado.tema) temaGerado = gerado.tema;
+          } catch (e) { console.error("Não deu pra gerar o tema com IA:", e); }
+          document.getElementById("estaula-status-ia").style.display = "none";
+        }
+      }
+      if (temaGerado) await sb.from("igr_estudos_aulas").update({ tema: temaGerado }).eq("id", novaAula.id);
+
       ev.target.reset();
     }
     carregarAulasAdmin(state.moduloAdminAtual.id);
@@ -7059,7 +7079,7 @@ async function iniciar() {
   document.getElementById("form-admin-modulo-estudo")?.addEventListener("submit", enviarModuloEstudoAdmin);
   document.getElementById("am-cancelar-edicao")?.addEventListener("click", cancelarEdicaoModulo);
   document.getElementById("form-admin-aula")?.addEventListener("submit", enviarAulaAdmin);
-  document.getElementById("aa-cancelar-edicao")?.addEventListener("click", cancelarEdicaoAula);
+  document.getElementById("estaula-cancelar-edicao")?.addEventListener("click", cancelarEdicaoAula);
   document.getElementById("form-admin-material")?.addEventListener("submit", enviarMaterialAdmin);
   document.getElementById("ae-tab-escola_biblica")?.addEventListener("click", () => trocarCategoriaEstudosAdmin("escola_biblica"));
   document.getElementById("ae-tab-esboco")?.addEventListener("click", () => trocarCategoriaEstudosAdmin("esboco"));

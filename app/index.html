@@ -629,9 +629,11 @@
           <div class="section-label" id="admin-aulas-titulo-modulo"><b>Aulas</b></div>
           <div class="card">
             <form id="form-admin-aula">
-              <div class="field" style="margin-bottom:6px;"><label>Título da aula</label><input id="aa-titulo" required placeholder="Ex: Aula 1 - Romanos"></div>
+              <div class="field"><label>Título da aula</label><input id="estaula-titulo" required placeholder="Ex: Aula 1 - Romanos"></div>
+              <div class="field" style="margin-bottom:6px;"><label>Materiais (opcional — PDFs e/ou fotos, pode escolher vários)</label><input id="estaula-materiais" type="file" accept="application/pdf,image/*" multiple></div>
+              <p class="hint" id="estaula-status-ia" style="display:none;margin:-4px 0 10px;">✨ Lendo o PDF pra escrever o tema da aula...</p>
               <button class="btn btn-primary" type="submit">Adicionar aula</button>
-              <button class="btn btn-ghost" type="button" id="aa-cancelar-edicao" style="display:none;margin-top:8px;">Cancelar edição</button>
+              <button class="btn btn-ghost" type="button" id="estaula-cancelar-edicao" style="display:none;margin-top:8px;">Cancelar edição</button>
             </form>
           </div>
           <div id="admin-lista-aulas"></div>
@@ -2176,6 +2178,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788447128"></script>
+<script src="app.js?v=1788447505"></script>
 </body>
 </html>
