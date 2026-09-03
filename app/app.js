@@ -1820,6 +1820,55 @@ async function carregarGruposLista() {
   });
 }
 
+// ---------- admin acessando grupos/louvor sem precisar logar como membro ----------
+function entrarModoAdminComoLider(grupo) {
+  if (!state.modoAdminGrupo) state.membroAdminBackup = state.membro; // guarda a sessão real de membro (se houver) pra restaurar depois
+  const ehLouvor = /louvor/i.test(grupo.nome || "");
+  state.membro = {
+    id: null, nome_completo: state.adminNome || "Administrador", eh_lider: true,
+    grupo_id: grupo.id, grupoIds: [grupo.id], grupoLouvorId: ehLouvor ? grupo.id : null,
+    permissoes: ["editar_grupo", "postar_avisos", "gerenciar_oracao", "gerenciar_louvor"],
+  };
+  state.modoAdminGrupo = true;
+  document.getElementById("grupo-detalhe-banner-admin").style.display = "flex";
+  document.getElementById("grupo-detalhe-voltar").dataset.nav = "tela-admin-escolher-grupo";
+  document.getElementById("louvor-banner-admin").style.display = "flex";
+  document.getElementById("louvor-hub-voltar").dataset.nav = "tela-admin-escolher-grupo";
+  abrirGrupoDetalhe(grupo.id);
+}
+
+function entrarModoAdminLouvor() {
+  const grupoLouvor = (state.grupos || []).find(g => /louvor/i.test(g.nome || ""));
+  if (!grupoLouvor) { alert("Não encontrei nenhum grupo chamado \"Louvor\" cadastrado ainda."); return; }
+  entrarModoAdminComoLider(grupoLouvor);
+  document.getElementById("louvor-hub-voltar").dataset.nav = "tela-admin-painel";
+}
+
+function sairModoAdminGrupo() {
+  state.membro = state.membroAdminBackup || null;
+  state.membroAdminBackup = null;
+  state.modoAdminGrupo = false;
+  document.getElementById("grupo-detalhe-banner-admin").style.display = "none";
+  document.getElementById("louvor-banner-admin").style.display = "none";
+  mostrarTela("tela-admin-painel");
+}
+
+async function carregarListaEscolherGrupoAdmin() {
+  const el = document.getElementById("admin-escolher-grupo-lista");
+  el.innerHTML = (state.grupos || []).map(g => `
+    <div class="card row-avatar" data-escolher-grupo="${g.id}" style="cursor:pointer;">
+      ${g.capa_url ? `<img src="${g.capa_url}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex:none;">` : `<svg class="icon"><use href="#i-user"/></svg>`}
+      <div class="row-info"><b>${g.nome}</b></div>
+    </div>
+  `).join("") || `<p class="hint">Nenhum grupo cadastrado ainda.</p>`;
+  el.querySelectorAll("[data-escolher-grupo]").forEach(card => {
+    card.addEventListener("click", () => {
+      const grupo = state.grupos.find(g => g.id === card.dataset.escolherGrupo);
+      if (grupo) entrarModoAdminComoLider(grupo);
+    });
+  });
+}
+
 function abrirGrupoDetalhe(grupoId) {
   const grupo = (state.gruposListaCache || state.grupos || []).find(g => g.id === grupoId);
   if (!grupo) return;
@@ -7609,6 +7658,10 @@ async function iniciar() {
   document.getElementById("btn-admin-novo-evento")?.addEventListener("click", () => abrirFormEvento(null));
   document.getElementById("form-evento")?.addEventListener("submit", enviarFormEvento);
   document.getElementById("btn-ev-ler-banner")?.addEventListener("click", lerBannerComIA);
+  document.getElementById("admin-card-grupos-como-lider")?.addEventListener("click", () => { mostrarTela("tela-admin-escolher-grupo"); carregarListaEscolherGrupoAdmin(); });
+  document.getElementById("admin-card-louvor")?.addEventListener("click", entrarModoAdminLouvor);
+  document.getElementById("btn-sair-modo-admin-grupo")?.addEventListener("click", sairModoAdminGrupo);
+  document.getElementById("btn-sair-modo-admin-louvor")?.addEventListener("click", sairModoAdminGrupo);
   configurarBuscaOrganizadorEvento();
   document.getElementById("ev-gratuito")?.addEventListener("change", (ev) => {
     document.getElementById("ev-pagamento-detalhes").style.display = ev.target.value === "nao" ? "block" : "none";
