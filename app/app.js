@@ -876,7 +876,30 @@ function abrirEditarPerfil() {
   document.getElementById("ep-erro").classList.remove("show");
   document.getElementById("ep-senha-erro").classList.remove("show");
   document.getElementById("form-trocar-senha").style.display = "none";
+  carregarMinhaPontuacaoPerfil();
   mostrarTela("tela-editar-perfil");
+}
+
+async function carregarMinhaPontuacaoPerfil() {
+  const box = document.getElementById("ep-minha-pontuacao");
+  const texto = document.getElementById("ep-pontos-texto");
+  if (!state.membro || !state.igreja) { box.style.display = "none"; return; }
+  const inicioMes = primeiroDiaDoMes(0);
+  const { data } = await sb.from("igr_pontos_eventos").select("membro_id, pontos")
+    .eq("igreja_id", state.igreja.id).gte("created_at", inicioMes.toISOString());
+
+  const totais = {};
+  (data || []).forEach(p => { totais[p.membro_id] = (totais[p.membro_id] || 0) + p.pontos; });
+  const meusPontos = totais[state.membro.id] || 0;
+
+  if (!meusPontos) {
+    box.style.display = "block";
+    texto.textContent = "Você ainda não pontuou esse mês — participe do app pra entrar no Ranking do Mês! 🎮";
+    return;
+  }
+  const colocacao = Object.values(totais).filter(p => p > meusPontos).length + 1;
+  box.style.display = "block";
+  texto.textContent = `${meusPontos} pontos — ${colocacao}º lugar no Ranking do Mês`;
 }
 
 async function carregarParentesExistentes(membroId) {
