@@ -4810,6 +4810,25 @@ async function carregarListaEscalasLouvor(tipo) {
     c.addEventListener("click", () => abrirEscalaLouvorDetalhe(c.dataset.abrirEscalaLouvor)));
 }
 
+async function excluirEscalaLouvor() {
+  const escalaId = state.louvorEscalaDetalheId;
+  if (!escalaId) return;
+  const { data: escala } = await sb.from("igr_louvor_escalas").select("titulo, data").eq("id", escalaId).single();
+  if (!confirm(`Excluir a escala "${escala?.titulo || ""}"? Isso remove participantes, músicas e roteiro dela também. Não dá pra desfazer.`)) return;
+
+  const { data: participantes } = await sb.from("igr_louvor_escala_participantes").select("membro_id").eq("escala_id", escalaId);
+  const idsParticipantes = [...new Set((participantes || []).map(p => p.membro_id))];
+
+  const { error } = await sb.from("igr_louvor_escalas").delete().eq("id", escalaId);
+  if (error) { alert("Não deu pra excluir: " + error.message); return; }
+
+  if (idsParticipantes.length) {
+    enviarPush({ tipo: "membros", membro_ids: idsParticipantes }, "Escala cancelada", `"${escala?.titulo || "Uma escala"}" foi removida — você não está mais escalado(a) nela.`);
+  }
+  mostrarTela("tela-louvor-escalas");
+  carregarListaEscalasLouvor(state.louvorTabAtual || "proximas");
+}
+
 async function abrirEscalaLouvorDetalhe(escalaId) {
   mostrarTela("tela-louvor-escala-detalhe");
   state.louvorEscalaDetalheId = escalaId;
@@ -7497,6 +7516,7 @@ async function iniciar() {
     const { data } = await sb.from("igr_louvor_escalas").select("*").eq("id", state.louvorEscalaDetalheId).single();
     if (data) abrirFormEscalaLouvor(data);
   });
+  document.getElementById("btn-led-excluir")?.addEventListener("click", excluirEscalaLouvor);
   configurarBuscaParticipanteLouvor();
   configurarBuscaMusicaLouvor();
   document.getElementById("btn-lef-confirmar-participante")?.addEventListener("click", confirmarAdicionarParticipanteLouvor);
