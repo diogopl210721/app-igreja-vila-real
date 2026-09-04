@@ -251,6 +251,7 @@
         <button class="admin-grid-card" data-secao="eventos"><svg class="icon"><use href="#i-plus"/></svg>Eventos</button>
         <button class="admin-grid-card" data-secao="calendario"><svg class="icon"><use href="#i-calendar"/></svg>Calendário</button>
         <button class="admin-grid-card" data-secao="livros"><svg class="icon"><use href="#i-book"/></svg>Livros</button>
+        <button class="admin-grid-card" id="admin-card-louvor"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
       </div>
 
       <div class="admin-painel-aba" data-admin-painel="calendario" style="display:none;">
@@ -1299,8 +1300,14 @@
   <!-- ============ MINISTÉRIO DE LOUVOR ============ -->
   <div class="screen" id="tela-membro-louvor">
     <div class="scroll">
-      <div class="voltar-btn" data-nav="tela-membro-home">
+      <div class="voltar-btn" id="louvor-hub-voltar" data-nav="tela-membro-home">
         <svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar
+      </div>
+      <div class="card" id="louvor-banner-admin" style="display:none;border:1.5px dashed var(--brand);margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <span style="font-size:12.5px;font-weight:600;">🔧 Você está gerenciando como admin</span>
+          <button class="btn btn-ghost" id="btn-sair-louvor-admin" style="width:auto;padding:6px 12px;font-size:11.5px;flex:none;">Sair</button>
+        </div>
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin:6px 0 4px;">Ministério de Louvor</span>
       <p class="hint" style="margin-bottom:16px;">Escalas, repertório e confirmações do ministério.</p>
@@ -2200,6 +2207,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788543070"></script>
+<script src="app.js?v=1788543713"></script>
 </body>
 </html>
