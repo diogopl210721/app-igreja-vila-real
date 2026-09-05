@@ -631,10 +631,12 @@ async function compartilharAviso(aviso) {
         } catch { /* segue só com texto se não der pra anexar a imagem */ }
       }
       await navigator.share(shareData);
+      darPontos("compartilhar_conteudo", aviso.id);
       return;
     } catch { /* usuário cancelou */ }
   }
   window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+  darPontos("compartilhar_conteudo", aviso.id);
 }
 
 
@@ -718,6 +720,33 @@ function classificarVisitante(dataNasc, genero, estadoCivil) {
   return { idade, grupo };
 }
 
+function configurarBuscaIndicadorVisitante() {
+  const input = document.getElementById("visitante-busca-indicador");
+  const sugestoesEl = document.getElementById("visitante-sugestoes-indicador");
+  if (!input || input._jaConfigurado) return;
+  input._jaConfigurado = true;
+  input.addEventListener("input", async () => {
+    document.getElementById("visitante-indicador-id").value = "";
+    const termo = normalizarBusca(input.value);
+    if (!termo || !state.igreja) { sugestoesEl.style.display = "none"; return; }
+    const { data: membros } = await sb.from("igr_membros").select("id, nome_completo").eq("igreja_id", state.igreja.id);
+    const bateram = (membros || []).filter(m => normalizarBusca(m.nome_completo).includes(termo)).slice(0, 6);
+    if (!bateram.length) { sugestoesEl.style.display = "none"; return; }
+    sugestoesEl.innerHTML = bateram.map(m => `<div class="autocomplete-item" data-indicador-id="${m.id}" data-indicador-nome="${m.nome_completo}">${m.nome_completo}</div>`).join("");
+    sugestoesEl.style.display = "block";
+    sugestoesEl.querySelectorAll("[data-indicador-id]").forEach(item => {
+      item.addEventListener("click", () => {
+        document.getElementById("visitante-indicador-id").value = item.dataset.indicadorId;
+        input.value = item.dataset.indicadorNome;
+        sugestoesEl.style.display = "none";
+      });
+    });
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+
 async function enviarContatoVisitante(ev) {
   ev.preventDefault();
   const nome = document.getElementById("visitante-nome").value.trim();
@@ -731,11 +760,13 @@ async function enviarContatoVisitante(ev) {
   btn.disabled = true; btn.textContent = "Enviando...";
   try {
     const { grupo } = classificarVisitante(data_nascimento, genero, estado_civil);
+    const indicado_por_membro_id = document.getElementById("visitante-indicador-id").value || null;
     const { error } = await sb.from("igr_visitantes").insert({
       igreja_id: state.igreja.id, nome, telefone, data_nascimento, genero, estado_civil,
-      grupo_id: grupo?.id || null,
+      grupo_id: grupo?.id || null, indicado_por_membro_id,
     });
     if (error) { alert("Não deu pra enviar agora. Tente de novo em instantes."); return; }
+    if (indicado_por_membro_id) darPontosParaMembro(indicado_por_membro_id, state.igreja.id, "trazer_visitante");
     const msgGrupo = grupo ? ` Já te encaminhamos pro <b>${grupo.nome}</b> — em breve alguém de lá te chama no WhatsApp!` : " Alguém da nossa equipe vai entrar em contato.";
     document.getElementById("form-visitante").innerHTML = `<div class="empty">Obrigado, ${nome.split(" ")[0]}! 💛${msgGrupo}</div>`;
   } catch (e) {
@@ -991,6 +1022,7 @@ async function enviarEditarPerfil(ev) {
   const btn = ev.target.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Salvando...";
   try {
+    const jaEstavaCompleto = state.membro.perfil_completo;
     const arquivoFoto = state.fotoPerfilRecortada || document.getElementById("ep-foto").files[0];
     const novaFoto = await uploadArquivo(arquivoFoto, "membros");
     const foto_url = novaFoto || state.membro.foto_url || null;
@@ -1013,6 +1045,7 @@ async function enviarEditarPerfil(ev) {
 
     Object.assign(state.membro, { nome_completo, telefone, email, data_nascimento, endereco, numero, interesses, profissao, foto_url, batizado, data_batismo, pastor_batismo, perfil_completo: true });
     localStorage.setItem("igr_membro", JSON.stringify(state.membro));
+    if (!jaEstavaCompleto) darPontos("perfil_completo");
     document.getElementById("perfil-lembrete-box").style.display = "none";
     alert("Perfil atualizado com sucesso 💛");
     mostrarTela("tela-membro-home");
@@ -3103,15 +3136,19 @@ async function abrirLeituraLivro(livroId) {
 // ---------- sistema de pontos (gamificacao) ----------
 const PONTOS = {
   checkin_humor: 10,
-  leitura_biblica: 30,
+  leitura_biblica: 8,
   livro_sessao: 15,
   estudo_sessao: 15,
-  aula_escola_biblica: 2,
-  devocional_aberto: 40,
-  aviso_reacao: 20,
+  aula_escola_biblica: 8,
+  devocional_aberto: 15,
+  aviso_reacao: 5,
   evento_inscricao: 25,
   conexao_mao_amiga: 15,
   pedido_oracao: 10,
+  louvor_confirmar_presenca: 15,
+  compartilhar_conteudo: 10,
+  trazer_visitante: 40,
+  perfil_completo: 20,
 };
 
 function periodoDoDia() {
@@ -3125,6 +3162,16 @@ async function darPontos(tipo, referencia_id) {
   if (!pontos) return;
   await sb.from("igr_pontos_eventos").insert({
     igreja_id: state.igreja.id, membro_id: state.membro.id, tipo, pontos, referencia_id: referencia_id || null,
+  });
+}
+
+// pra dar ponto a OUTRA pessoa que nao a logada agora (ex: quem indicou um visitante)
+async function darPontosParaMembro(membroId, igrejaId, tipo, referencia_id) {
+  if (!membroId || !igrejaId) return;
+  const pontos = PONTOS[tipo];
+  if (!pontos) return;
+  await sb.from("igr_pontos_eventos").insert({
+    igreja_id: igrejaId, membro_id: membroId, tipo, pontos, referencia_id: referencia_id || null,
   });
 }
 
@@ -3761,10 +3808,12 @@ async function compartilharEventoCalendario(ev) {
         } catch { /* segue só com texto se não der pra anexar a imagem */ }
       }
       await navigator.share(shareData);
+      darPontos("compartilhar_conteudo", ev.id);
       return;
     } catch { /* usuário cancelou */ }
   }
   window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+  darPontos("compartilhar_conteudo", ev.id);
 }
 
 async function enviarCalendario(ev) {
@@ -4089,9 +4138,10 @@ async function compartilharEvento(evento) {
   const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
   const texto = `📅 ${evento.titulo}\n${formatarPeriodo(evento.data, evento.data_fim)}${evento.horario ? " às " + evento.horario : ""}${evento.local ? "\n📍 " + evento.local : ""}\n\nVem participar comigo! Inscrições no app da ${state.igreja?.nome || "igreja"}: ${link}`;
   if (navigator.share) {
-    try { await navigator.share({ text: texto }); return; } catch { /* usuário cancelou */ }
+    try { await navigator.share({ text: texto }); darPontos("compartilhar_conteudo", evento.id); return; } catch { /* usuário cancelou */ }
   }
   window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+  darPontos("compartilhar_conteudo", evento.id);
 }
 
 async function inscreverMembroEvento() {
@@ -4904,9 +4954,14 @@ async function abrirEscalaLouvorDetalhe(escalaId) {
 async function responderPresencaLouvor(novoStatus, justificativa) {
   const escalaId = state.louvorEscalaDetalheId;
   if (!escalaId || !state.membro) return;
+  const { data: participanteAtual } = await sb.from("igr_louvor_escala_participantes")
+    .select("status").eq("escala_id", escalaId).eq("membro_id", state.membro.id).maybeSingle();
   await sb.from("igr_louvor_escala_participantes")
     .update({ status: novoStatus, respondido_em: new Date().toISOString(), justificativa: justificativa || null })
     .eq("escala_id", escalaId).eq("membro_id", state.membro.id);
+  if (novoStatus === "confirmado" && participanteAtual?.status !== "confirmado") {
+    darPontos("louvor_confirmar_presenca", escalaId);
+  }
   if (novoStatus === "recusado") {
     const { data: escala } = await sb.from("igr_louvor_escalas").select("titulo, criado_por_membro_id").eq("id", escalaId).single();
     if (escala?.criado_por_membro_id) {
@@ -7700,6 +7755,7 @@ async function iniciar() {
   document.getElementById("admin-card-louvor")?.addEventListener("click", entrarLouvorComoAdmin);
   document.getElementById("btn-sair-louvor-admin")?.addEventListener("click", sairLouvorAdmin);
   configurarBuscaOrganizadorEvento();
+  configurarBuscaIndicadorVisitante();
   document.getElementById("ev-gratuito")?.addEventListener("change", (ev) => {
     document.getElementById("ev-pagamento-detalhes").style.display = ev.target.value === "nao" ? "block" : "none";
   });

@@ -204,6 +204,11 @@
               <option value="casado">Casado(a)</option>
             </select>
           </div>
+          <div class="field" style="position:relative;"><label>Quem te convidou? (opcional)</label>
+            <input id="visitante-busca-indicador" autocomplete="off" placeholder="Digite o nome de quem te chamou...">
+            <div id="visitante-sugestoes-indicador" class="autocomplete-lista" style="display:none;"></div>
+          </div>
+          <input type="hidden" id="visitante-indicador-id">
           <p class="hint" style="margin:2px 0 14px;">É só pra te encaminhar pro ministério certo (crianças, jovens, etc.) — ninguém mais vê esses dados.</p>
           <button class="btn btn-primary" id="btn-enviar-visitante" type="submit">Enviar</button>
         </form>
@@ -999,14 +1004,18 @@
         <button class="btn btn-ghost" id="btn-toggle-como-pontuar" type="button" style="margin-top:8px;">❓ Como faço pra pontuar?</button>
         <div class="card" id="bloco-como-pontuar" style="display:none;margin-top:8px;font-size:13px;line-height:1.9;">
           🙂 Registrar o humor do dia — <b>10 pts</b><br>
-          📖 Ler e marcar um versículo (Bíblia ou Diário) — <b>30 pts</b> (quantas vezes quiser)<br>
+          📖 Ler e marcar um versículo (Bíblia ou Diário) — <b>8 pts</b> (quantas vezes quiser)<br>
           📚 Ler um trecho de um livro ou estudo — <b>15 pts</b><br>
-          📘 Concluir uma aula da Escola Bíblica — <b>2 pts</b><br>
-          ☀️ Abrir o devocional — <b>40 pts</b> (até 3x por dia — manhã, tarde e noite)<br>
-          ❤️ Reagir a um aviso (Amei/Orando) — <b>20 pts</b><br>
+          📘 Concluir uma aula da Escola Bíblica — <b>8 pts</b><br>
+          ☀️ Abrir o devocional — <b>15 pts</b> (até 3x por dia — manhã, tarde e noite)<br>
+          ❤️ Reagir a um aviso (Amei/Orando) — <b>5 pts</b><br>
           🎟️ Se inscrever num evento — <b>25 pts</b><br>
           🤝 Conectar com alguém na Mão Amiga — <b>15 pts</b><br>
-          🙏 Pedir oração — <b>10 pts</b> (1x por dia)
+          🙏 Pedir oração — <b>10 pts</b> (1x por dia)<br>
+          🎤 Confirmar presença numa escala do Louvor — <b>15 pts</b><br>
+          📤 Compartilhar um aviso ou evento — <b>10 pts</b><br>
+          🙋 Trazer um visitante (que preencha "quem te convidou") — <b>40 pts</b><br>
+          🖼️ Completar seu perfil — <b>20 pts</b> (uma vez)
         </div>
         <button class="btn btn-ghost" data-nav="tela-hall-fama" style="margin-top:8px;">🏅 Hall da Fama — campeões dos meses anteriores</button>
       </div>
@@ -2207,6 +2216,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788566264"></script>
+<script src="app.js?v=1788584060"></script>
 </body>
 </html>
