@@ -4921,6 +4921,7 @@ async function abrirEscalaLouvorDetalhe(escalaId) {
     <div class="card">
       <b style="font-size:13.5px;">${m.titulo}</b><br><span class="hint" style="margin:0;">${m.artista || ""}${em.tom_escolhido || m.tom ? " · Tom: " + (em.tom_escolhido || m.tom) : ""}</span>
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" data-abrir-mapa="${m.id}">🗺️ Mapa</button>
         ${m.link_cifra ? `<a class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" href="${m.link_cifra}" target="_blank" rel="noopener">Cifra</a>` : ""}
         ${m.link_letra ? `<a class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" href="${m.link_letra}" target="_blank" rel="noopener">Letra</a>` : ""}
         ${m.link_video ? `<a class="btn btn-ghost" style="width:auto;padding:6px 10px;font-size:11px;" href="${m.link_video}" target="_blank" rel="noopener">▶ Vídeo</a>` : ""}
@@ -4928,6 +4929,7 @@ async function abrirEscalaLouvorDetalhe(escalaId) {
       </div>
     </div>`;
   }).join("") || `<p class="hint">Nenhuma música selecionada ainda.</p>`;
+  document.querySelectorAll("[data-abrir-mapa]").forEach(b => b.addEventListener("click", () => abrirMapaMusical(b.dataset.abrirMapa)));
 
   document.getElementById("led-roteiro").innerHTML = (roteiro || []).map((r, i) => `
     <div class="card row-avatar" style="padding:9px 14px;">
@@ -5561,6 +5563,233 @@ async function excluirMusicaLouvor() {
   mostrarTela("tela-louvor-repertorio");
   carregarRepertorioLouvor();
 }
+
+// ---------- mapa musical (rascunho de ensaio) ----------
+function escaparHtml(s) { return (s || "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+const RM_TYPE_COLORS = {
+  intro: { bg: "#FFD9E8", a: "#C93B7B" },
+  verso: { bg: "#FFF3AD", a: "#B8860B" },
+  prerefrao: { bg: "#FFE0B8", a: "#C96A1D" },
+  refrao: { bg: "#C9F2B8", a: "#2F7A34" },
+  ponte: { bg: "#FFD2A6", a: "#C9631A" },
+  instrumental: { bg: "#BFE3FF", a: "#1F6FB8" },
+  final: { bg: "#E3CFFF", a: "#6A3FB8" },
+  outro: { bg: "#E9E4DA", a: "#6B6255" },
+};
+const RM_DYN_FONT = "15px 'Comic Neue', 'Comic Sans MS', cursive";
+let rmMeasureCtx = null;
+function rmMeasureWidth(text) {
+  if (!rmMeasureCtx) rmMeasureCtx = document.createElement("canvas").getContext("2d");
+  rmMeasureCtx.font = RM_DYN_FONT;
+  return rmMeasureCtx.measureText(text).width;
+}
+
+async function abrirMapaMusical(musicaId) {
+  state.mapaMusicaId = musicaId;
+  state.mapaEditando = false;
+  mostrarTela("tela-louvor-mapa-musical");
+  await carregarMapaMusical();
+}
+
+async function carregarMapaMusical() {
+  const el = document.getElementById("rm-conteudo");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+  const { data: musica } = await sb.from("igr_louvor_musicas").select("*").eq("id", state.mapaMusicaId).single();
+  if (!musica) { el.innerHTML = `<p class="hint">Música não encontrada.</p>`; return; }
+  state.mapaMusicaDados = musica;
+  document.getElementById("rm-titulo-tela").textContent = musica.titulo;
+
+  if (!musica.mapa_json) {
+    renderMapaFormCifra(musica);
+    return;
+  }
+  renderMapaTela(musica.mapa_json);
+}
+
+function renderMapaFormCifra(musica) {
+  const el = document.getElementById("rm-conteudo");
+  const podeGerar = souLiderLouvor();
+  el.innerHTML = `
+    <p class="hint" style="margin-bottom:10px;">Ainda não tem mapa pra essa música. ${podeGerar ? "Cole a cifra (acordes + letra) abaixo — a IA pesquisa e monta a dinâmica sozinha, você só edita se quiser." : "Peça pro líder colar a cifra pra gerar o mapa."}</p>
+    ${podeGerar ? `
+      <div class="field"><textarea id="rm-cifra-input" rows="10" placeholder="Cole aqui a cifra: título na 1ª linha, acordes numa linha e a letra embaixo, separando as partes (Intro/Verso/Refrão/Ponte) por linha em branco."></textarea></div>
+      <button class="btn btn-primary" id="rm-btn-gerar">✨ Gerar mapa com IA</button>
+      <p class="hint" id="rm-status-gerando" style="display:none;margin-top:10px;">✨ Analisando a estrutura e pesquisando a dinâmica...</p>
+    ` : ""}
+  `;
+  if (podeGerar) {
+    document.getElementById("rm-btn-gerar").addEventListener("click", gerarMapaComIA);
+  }
+}
+
+async function gerarMapaComIA() {
+  const cifraTexto = document.getElementById("rm-cifra-input").value.trim();
+  if (!cifraTexto) { alert("Cola a cifra primeiro."); return; }
+  const btn = document.getElementById("rm-btn-gerar");
+  const status = document.getElementById("rm-status-gerando");
+  btn.disabled = true; status.style.display = "block";
+  try {
+    const { data, error } = await sb.functions.invoke("igr-gerar-mapa-musical", { body: { musicaId: state.mapaMusicaId, cifraTexto } });
+    if (error || !data?.ok) throw new Error(data?.mensagem || data?.error || error?.message || "erro desconhecido");
+    await carregarMapaMusical();
+  } catch (e) {
+    console.error("Erro ao gerar mapa:", e);
+    alert("Não consegui gerar o mapa agora. Tenta de novo em instantes.");
+    btn.disabled = false; status.style.display = "none";
+  }
+}
+
+function renderMapaTela(mapa) {
+  const el = document.getElementById("rm-conteudo");
+  const podeEditar = souLiderLouvor();
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      ${podeEditar ? `<button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="rm-btn-toggle-edit">${state.mapaEditando ? "✓ Concluir edição" : "✏️ Editar"}</button>` : ""}
+      ${podeEditar ? `<button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="rm-btn-recolar">🔄 Recolar cifra</button>` : ""}
+    </div>
+    <div class="rm-wrap">
+      <div class="rm-blocks" id="rm-blocks"></div>
+      <div class="rm-dyn-caption">Linha de dinâmica</div>
+      ${state.mapaEditando ? `<p class="rm-dyn-hint">Arraste uma bolinha pra mudar a intensidade · Toque pra anotar</p>` : ""}
+      <div id="rm-dyn-holder"></div>
+    </div>
+  `;
+  renderMapaBlocos(mapa);
+  renderMapaDinamica(mapa);
+
+  if (podeEditar) {
+    document.getElementById("rm-btn-toggle-edit").addEventListener("click", () => {
+      state.mapaEditando = !state.mapaEditando;
+      renderMapaTela(state.mapaMusicaDados.mapa_json);
+    });
+    document.getElementById("rm-btn-recolar").addEventListener("click", () => {
+      if (!confirm("Colar uma cifra nova substitui o mapa atual. Continuar?")) return;
+      renderMapaFormCifra(state.mapaMusicaDados);
+    });
+  }
+}
+
+function rmChordRegex() { return /^[A-G](#|b)?((maj7|m7b5|dim7|sus4|sus2|add9|dim|aug|m)?\d{0,2}[Mm]?)?(\/[A-G](#|b)?)?$/; }
+
+function renderMapaLinePair(p) {
+  const CHORD_RE = rmChordRegex();
+  const tokens = [];
+  let col = 0;
+  for (const seg of (p.chordSegments || [])) {
+    if (!seg.isSpace && CHORD_RE.test(seg.text)) tokens.push({ text: seg.text, col });
+    col += seg.text.length;
+  }
+  if (!p.lyric || !p.lyric.trim()) {
+    if (!tokens.length) return "";
+    return `<div class="rm-chord-only">${tokens.map(t => `<span>${escaparHtml(t.text)}</span>`).join("")}</div>`;
+  }
+  if (!tokens.length) return `<div class="rm-line-pair"><div class="rm-lyric-line">${escaparHtml(p.lyric)}</div></div>`;
+  const lyricLen = p.lyric.length;
+  const chordSpans = tokens.map((t, i) => {
+    const x = rmMeasureWidth(p.lyric.slice(0, Math.min(t.col, lyricLen)));
+    const rot = i % 2 === 0 ? -3 : 2;
+    return `<span class="rm-chord-tag" style="left:${x.toFixed(1)}px; transform:rotate(${rot}deg);">${escaparHtml(t.text)}</span>`;
+  }).join("");
+  return `<div class="rm-line-pair rm-has-chords">${chordSpans}<div class="rm-lyric-line">${escaparHtml(p.lyric)}</div></div>`;
+}
+
+function renderMapaBlocos(mapa) {
+  const holder = document.getElementById("rm-blocks");
+  holder.innerHTML = (mapa.blocks || []).map((b, idx) => {
+    const cores = RM_TYPE_COLORS[b.type] || RM_TYPE_COLORS.outro;
+    return `
+    <div class="rm-block" style="background:${cores.bg};">
+      <div class="rm-block-num">${idx + 1}</div>
+      <div class="rm-block-label" style="color:${cores.a};">${escaparHtml(b.label)}</div>
+      ${(b.pairs || []).map(renderMapaLinePair).join("")}
+      ${b.note ? `<div class="rm-note-tag">${escaparHtml(b.note)}${b.dyn >= 4 ? "!" : ""}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+function rmDynGeometry(n) {
+  const w = Math.max(320, n * 70);
+  const h = 140;
+  const padX = 34, padTop = 22, padBottom = 30;
+  const usableH = h - padTop - padBottom;
+  const step = (w - padX * 2) / Math.max(1, n - 1);
+  return { w, h, padX, padTop, padBottom, usableH, step };
+}
+function rmDynToY(dyn, g) { return g.padTop + g.usableH * (1 - dyn / 5); }
+
+function renderMapaDinamica(mapa) {
+  const blocks = mapa.blocks || [];
+  const n = blocks.length;
+  const g = rmDynGeometry(n);
+  const pts = blocks.map((b, i) => ({ x: g.padX + g.step * i, y: rmDynToY(b.dyn, g), b }));
+  const pathD = pts.map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
+  const dots = pts.map((p, i) => {
+    const cores = RM_TYPE_COLORS[p.b.type] || RM_TYPE_COLORS.outro;
+    return `<circle class="rm-dyn-dot" data-idx="${i}" cx="${p.x}" cy="${p.y}" r="8" fill="${cores.a}" stroke="#241f1a" stroke-width="1.5"/>`;
+  }).join("");
+  const labels = pts.map((p, i) => `<text x="${p.x}" y="${g.h - 8}" text-anchor="middle" font-family="Kalam" font-weight="700" font-size="12">${i + 1}</text>`).join("");
+  const notes = pts.map((p) => p.b.note ? `<text x="${p.x}" y="${p.y - 12}" text-anchor="middle" font-family="Caveat" font-weight="700" font-size="14" fill="#241f1a">${escaparHtml(p.b.note)}</text>` : "").join("");
+
+  document.getElementById("rm-dyn-holder").innerHTML = `
+    <svg id="rm-dyn-svg" viewBox="0 0 ${g.w} ${g.h}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block;">
+      <path d="${pathD}" fill="none" stroke="#6c4fe0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      ${notes}${dots}${labels}
+    </svg>`;
+
+  if (state.mapaEditando) attachMapaDynDrag(g);
+}
+
+function attachMapaDynDrag(g) {
+  const svg = document.getElementById("rm-dyn-svg");
+  const path = svg.querySelector("path");
+  const blocks = state.mapaMusicaDados.mapa_json.blocks;
+
+  function livePositions() {
+    const pts = blocks.map((b, i) => ({ x: g.padX + g.step * i, y: rmDynToY(b.dyn, g) }));
+    path.setAttribute("d", pts.map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" "));
+    svg.querySelectorAll(".rm-dyn-dot").forEach(dot => dot.setAttribute("cy", pts[+dot.dataset.idx].y.toFixed(1)));
+  }
+
+  svg.querySelectorAll(".rm-dyn-dot").forEach(dot => {
+    const idx = +dot.dataset.idx;
+    let startY = 0, startDyn = 0, moved = false;
+    dot.addEventListener("pointerdown", e => {
+      dot.setPointerCapture(e.pointerId);
+      startY = e.clientY; startDyn = blocks[idx].dyn; moved = false;
+      function onMove(ev) {
+        const rect = svg.getBoundingClientRect();
+        const scale = g.h / rect.height;
+        const deltaYpx = (startY - ev.clientY) * scale;
+        if (Math.abs(deltaYpx) > 3) moved = true;
+        const novoDyn = Math.max(0, Math.min(5, Math.round(startDyn + deltaYpx / (g.usableH / 5))));
+        if (novoDyn !== blocks[idx].dyn) { blocks[idx].dyn = novoDyn; livePositions(); }
+      }
+      function onUp() {
+        dot.removeEventListener("pointermove", onMove);
+        dot.removeEventListener("pointerup", onUp);
+        if (moved) { blocks[idx].aiSuggested = false; salvarMapaAtual(); renderMapaTela(state.mapaMusicaDados.mapa_json); }
+        else {
+          const novaAnotacao = prompt("Anotação desse trecho (ex: CRESCE, TODOS, STOP):", blocks[idx].note || "");
+          if (novaAnotacao !== null) {
+            blocks[idx].note = novaAnotacao.trim();
+            blocks[idx].aiSuggested = false;
+            salvarMapaAtual();
+            renderMapaTela(state.mapaMusicaDados.mapa_json);
+          }
+        }
+      }
+      dot.addEventListener("pointermove", onMove);
+      dot.addEventListener("pointerup", onUp);
+    });
+  });
+}
+
+async function salvarMapaAtual() {
+  const musicaId = state.mapaMusicaId;
+  const mapa = state.mapaMusicaDados.mapa_json;
+  await sb.from("igr_louvor_musicas").update({ mapa_json: mapa }).eq("id", musicaId);
+}
+
 
 // ---------- visão geral ----------
 async function carregarVisaoGeralLouvor() {
