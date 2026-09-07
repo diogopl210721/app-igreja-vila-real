@@ -5785,10 +5785,11 @@ function renderMapaBlocos(mapa) {
   holder.innerHTML = (mapa.blocks || []).map((b, idx) => {
     const cores = RM_TYPE_COLORS[b.type] || RM_TYPE_COLORS.outro;
     return `
-    <div class="rm-block" style="background:${cores.bg};">
+    <div class="rm-block${b.isRepeat ? " rm-block-repeat" : ""}" style="background:${cores.bg};">
       <div class="rm-block-num">${idx + 1}</div>
       <div class="rm-block-content">
         <div class="rm-block-label" style="color:${cores.a};">${escaparHtml(b.label)}</div>
+        ${b.isRepeat ? `<p class="rm-repeat-msg">🔁 repete a letra de cima</p>` : ""}
         ${b.chordsAI ? `<p style="font-size:10.5px;color:var(--ink-faint);font-style:italic;margin:0 0 4px;">🔎 acordes sugeridos pela IA — confira o tom</p>` : ""}
         ${(b.pairs || []).map(renderMapaLinePair).join("")}
         ${b.note ? `<div class="rm-note-tag${podeEditar ? " rm-editable" : ""}" ${podeEditar ? `data-idx-anotacao="${idx}"` : ""}>${escaparHtml(b.note)}${b.dyn >= 4 ? "!" : ""}</div>` : ""}
