@@ -5584,9 +5584,33 @@ function rmMeasureWidth(text) {
   return rmMeasureCtx.measureText(text).width;
 }
 
+const RM_NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const RM_FLAT_MAP = { Db: "C#", Eb: "D#", Gb: "F#", Ab: "G#", Bb: "A#" };
+function rmTransposeNote(nota, semitons) {
+  let n = RM_FLAT_MAP[nota] || nota;
+  const idx = RM_NOTES.indexOf(n);
+  if (idx === -1) return nota;
+  return RM_NOTES[((idx + semitons) % 12 + 12) % 12];
+}
+function rmTransposeChord(token, semitons) {
+  if (!semitons) return token;
+  const [principal, baixo] = token.split("/");
+  const m = principal.match(/^([A-G])(#|b)?/);
+  if (!m) return token;
+  const raiz = m[1] + (m[2] || "");
+  const resto = principal.slice(raiz.length);
+  let resultado = rmTransposeNote(raiz, semitons) + resto;
+  if (baixo) {
+    const bm = baixo.match(/^([A-G])(#|b)?$/);
+    resultado += "/" + (bm ? rmTransposeNote(bm[1] + (bm[2] || ""), semitons) : baixo);
+  }
+  return resultado;
+}
+
 async function abrirMapaMusical(musicaId) {
   state.mapaMusicaId = musicaId;
   state.mapaEditando = false;
+  state.mapaSemitons = 0;
   mostrarTela("tela-louvor-mapa-musical");
   await carregarMapaMusical();
 }
@@ -5644,8 +5668,15 @@ async function gerarMapaComIA() {
 function renderMapaTela(mapa) {
   const el = document.getElementById("rm-conteudo");
   const podeEditar = souLiderLouvor();
+  const tomBase = state.mapaMusicaDados.tom || mapa.key || null;
   el.innerHTML = `
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+      <span style="font-family:'Kalam',cursive;font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;">
+        Tom:
+        <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;flex:none;font-size:14px;" id="rm-btn-tom-menos">–</button>
+        <span id="rm-tom-atual" style="min-width:26px;text-align:center;color:var(--brand);">${tomBase ? rmTransposeNote(tomBase.replace(/b$/, ""), state.mapaSemitons || 0) : "?"}</span>
+        <button class="btn btn-ghost" style="width:30px;height:30px;padding:0;flex:none;font-size:14px;" id="rm-btn-tom-mais">+</button>
+      </span>
       ${podeEditar ? `<button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="rm-btn-toggle-edit">${state.mapaEditando ? "✓ Concluir edição" : "✏️ Editar"}</button>` : ""}
       ${podeEditar ? `<button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="rm-btn-recolar">🔄 Recolar cifra</button>` : ""}
     </div>
@@ -5658,6 +5689,9 @@ function renderMapaTela(mapa) {
   `;
   renderMapaBlocos(mapa);
   renderMapaDinamica(mapa);
+
+  document.getElementById("rm-btn-tom-menos").addEventListener("click", () => { state.mapaSemitons = (state.mapaSemitons || 0) - 1; renderMapaTela(mapa); });
+  document.getElementById("rm-btn-tom-mais").addEventListener("click", () => { state.mapaSemitons = (state.mapaSemitons || 0) + 1; renderMapaTela(mapa); });
 
   if (podeEditar) {
     document.getElementById("rm-btn-toggle-edit").addEventListener("click", () => {
@@ -5675,10 +5709,11 @@ function rmChordRegex() { return /^[A-G](#|b)?((maj7|m7b5|dim7|sus4|sus2|add9|di
 
 function renderMapaLinePair(p) {
   const CHORD_RE = rmChordRegex();
+  const semitons = state.mapaSemitons || 0;
   const tokens = [];
   let col = 0;
   for (const seg of (p.chordSegments || [])) {
-    if (!seg.isSpace && CHORD_RE.test(seg.text)) tokens.push({ text: seg.text, col });
+    if (!seg.isSpace && CHORD_RE.test(seg.text)) tokens.push({ text: rmTransposeChord(seg.text, semitons), col });
     col += seg.text.length;
   }
   if (!p.lyric || !p.lyric.trim()) {
