@@ -5679,8 +5679,9 @@ function renderMapaTela(mapa) {
       </span>
       ${podeEditar ? `<button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="rm-btn-toggle-edit">${state.mapaEditando ? "✓ Concluir edição" : "✏️ Editar"}</button>` : ""}
       ${podeEditar ? `<button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="rm-btn-recolar">🔄 Recolar cifra</button>` : ""}
+      <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="rm-btn-pdf">📄 PDF</button>
     </div>
-    <div class="rm-wrap">
+    <div class="rm-wrap" id="rm-wrap-captura">
       <div class="rm-blocks" id="rm-blocks"></div>
       <div class="rm-dyn-caption">Linha de dinâmica</div>
       ${state.mapaEditando ? `<p class="rm-dyn-hint">Arraste uma bolinha pra mudar a intensidade · Toque pra anotar</p>` : ""}
@@ -5692,6 +5693,7 @@ function renderMapaTela(mapa) {
 
   document.getElementById("rm-btn-tom-menos").addEventListener("click", () => { state.mapaSemitons = (state.mapaSemitons || 0) - 1; renderMapaTela(mapa); });
   document.getElementById("rm-btn-tom-mais").addEventListener("click", () => { state.mapaSemitons = (state.mapaSemitons || 0) + 1; renderMapaTela(mapa); });
+  document.getElementById("rm-btn-pdf").addEventListener("click", exportarMapaPdf);
 
   if (podeEditar) {
     document.getElementById("rm-btn-toggle-edit").addEventListener("click", () => {
@@ -5836,6 +5838,44 @@ async function salvarMapaAtual() {
   const musicaId = state.mapaMusicaId;
   const mapa = state.mapaMusicaDados.mapa_json;
   await sb.from("igr_louvor_musicas").update({ mapa_json: mapa }).eq("id", musicaId);
+}
+
+async function exportarMapaPdf() {
+  const btn = document.getElementById("rm-btn-pdf");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Gerando...";
+  try {
+    const alvo = document.getElementById("rm-wrap-captura");
+    const canvas = await html2canvas(alvo, { backgroundColor: "#fffdf8", scale: 2 });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const margem = 8;
+    const pageW = pdf.internal.pageSize.getWidth() - margem * 2;
+    const pageH = pdf.internal.pageSize.getHeight() - margem * 2;
+    const escala = pageW / canvas.width; // mm por pixel do canvas
+    const pageHpx = pageH / escala; // altura de uma página, em pixels do canvas
+
+    let offsetY = 0;
+    let primeira = true;
+    while (offsetY < canvas.height) {
+      const alturaFatia = Math.min(pageHpx, canvas.height - offsetY);
+      const fatia = document.createElement("canvas");
+      fatia.width = canvas.width;
+      fatia.height = alturaFatia;
+      fatia.getContext("2d").drawImage(canvas, 0, offsetY, canvas.width, alturaFatia, 0, 0, canvas.width, alturaFatia);
+      if (!primeira) pdf.addPage();
+      pdf.addImage(fatia.toDataURL("image/png"), "PNG", margem, margem, pageW, alturaFatia * escala);
+      offsetY += alturaFatia;
+      primeira = false;
+    }
+
+    pdf.save((state.mapaMusicaDados.titulo || "mapa-musical").replace(/\s+/g, "_") + ".pdf");
+  } catch (e) {
+    console.error("Erro ao gerar PDF:", e);
+    alert("Não consegui gerar o PDF agora.");
+  } finally {
+    btn.disabled = false; btn.textContent = textoOriginal;
+  }
 }
 
 
