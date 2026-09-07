@@ -5697,20 +5697,35 @@ function renderMapaLinePair(p) {
 
 function renderMapaBlocos(mapa) {
   const holder = document.getElementById("rm-blocks");
+  const podeEditar = state.mapaEditando;
   holder.innerHTML = (mapa.blocks || []).map((b, idx) => {
     const cores = RM_TYPE_COLORS[b.type] || RM_TYPE_COLORS.outro;
-    const filtroId = "rm-rough" + (idx % 4);
     return `
-    <div class="rm-block">
-      <div class="rm-block-bg"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="5" fill="${cores.bg}" filter="url(#${filtroId})"/></svg></div>
+    <div class="rm-block" style="background:${cores.bg};">
       <div class="rm-block-num">${idx + 1}</div>
       <div class="rm-block-content">
         <div class="rm-block-label" style="color:${cores.a};">${escaparHtml(b.label)}</div>
+        ${b.chordsAI ? `<p style="font-size:10.5px;color:var(--ink-faint);font-style:italic;margin:0 0 4px;">🔎 acordes sugeridos pela IA — confira o tom</p>` : ""}
         ${(b.pairs || []).map(renderMapaLinePair).join("")}
-        ${b.note ? `<div class="rm-note-tag">${escaparHtml(b.note)}${b.dyn >= 4 ? "!" : ""}</div>` : ""}
+        ${b.note ? `<div class="rm-note-tag${podeEditar ? " rm-editable" : ""}" ${podeEditar ? `data-idx-anotacao="${idx}"` : ""}>${escaparHtml(b.note)}${b.dyn >= 4 ? "!" : ""}</div>` : ""}
+        ${!b.note && podeEditar ? `<div class="rm-note-tag rm-editable" data-idx-anotacao="${idx}" style="opacity:.55;">+ anotar</div>` : ""}
       </div>
     </div>`;
   }).join("");
+  if (podeEditar) {
+    holder.querySelectorAll("[data-idx-anotacao]").forEach(el =>
+      el.addEventListener("click", () => editarAnotacaoMapa(+el.dataset.idxAnotacao)));
+  }
+}
+
+function editarAnotacaoMapa(idx) {
+  const blocos = state.mapaMusicaDados.mapa_json.blocks;
+  const novaAnotacao = prompt("Anotação desse trecho (ex: CRESCE, TODOS, STOP):", blocos[idx].note || "");
+  if (novaAnotacao === null) return;
+  blocos[idx].note = novaAnotacao.trim();
+  blocos[idx].aiSuggested = false;
+  salvarMapaAtual();
+  renderMapaTela(state.mapaMusicaDados.mapa_json);
 }
 
 function rmDynGeometry(n) {
@@ -5774,15 +5789,7 @@ function attachMapaDynDrag(g) {
         dot.removeEventListener("pointermove", onMove);
         dot.removeEventListener("pointerup", onUp);
         if (moved) { blocks[idx].aiSuggested = false; salvarMapaAtual(); renderMapaTela(state.mapaMusicaDados.mapa_json); }
-        else {
-          const novaAnotacao = prompt("Anotação desse trecho (ex: CRESCE, TODOS, STOP):", blocks[idx].note || "");
-          if (novaAnotacao !== null) {
-            blocks[idx].note = novaAnotacao.trim();
-            blocks[idx].aiSuggested = false;
-            salvarMapaAtual();
-            renderMapaTela(state.mapaMusicaDados.mapa_json);
-          }
-        }
+        else editarAnotacaoMapa(idx);
       }
       dot.addEventListener("pointermove", onMove);
       dot.addEventListener("pointerup", onUp);
