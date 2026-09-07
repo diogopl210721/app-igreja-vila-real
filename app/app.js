@@ -5609,9 +5609,11 @@ async function carregarMapaMusical() {
 function renderMapaFormCifra(musica) {
   const el = document.getElementById("rm-conteudo");
   const podeGerar = souLiderLouvor();
+  const linkParaAbrir = musica.link_cifra || musica.link_letra;
   el.innerHTML = `
     <p class="hint" style="margin-bottom:10px;">Ainda não tem mapa pra essa música. ${podeGerar ? "Cole a cifra (acordes + letra) abaixo — a IA pesquisa e monta a dinâmica sozinha, você só edita se quiser." : "Peça pro líder colar a cifra pra gerar o mapa."}</p>
     ${podeGerar ? `
+      ${linkParaAbrir ? `<a class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-bottom:10px;" href="${linkParaAbrir}" target="_blank" rel="noopener">🔗 Abrir ${musica.link_cifra ? "cifra" : "letra"} pra copiar</a>` : ""}
       <div class="field"><textarea id="rm-cifra-input" rows="10" placeholder="Cole aqui a cifra: título na 1ª linha, acordes numa linha e a letra embaixo, separando as partes (Intro/Verso/Refrão/Ponte) por linha em branco."></textarea></div>
       <button class="btn btn-primary" id="rm-btn-gerar">✨ Gerar mapa com IA</button>
       <p class="hint" id="rm-status-gerando" style="display:none;margin-top:10px;">✨ Analisando a estrutura e pesquisando a dinâmica...</p>
@@ -5697,12 +5699,16 @@ function renderMapaBlocos(mapa) {
   const holder = document.getElementById("rm-blocks");
   holder.innerHTML = (mapa.blocks || []).map((b, idx) => {
     const cores = RM_TYPE_COLORS[b.type] || RM_TYPE_COLORS.outro;
+    const filtroId = "rm-rough" + (idx % 4);
     return `
-    <div class="rm-block" style="background:${cores.bg};">
+    <div class="rm-block">
+      <div class="rm-block-bg"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="5" fill="${cores.bg}" filter="url(#${filtroId})"/></svg></div>
       <div class="rm-block-num">${idx + 1}</div>
-      <div class="rm-block-label" style="color:${cores.a};">${escaparHtml(b.label)}</div>
-      ${(b.pairs || []).map(renderMapaLinePair).join("")}
-      ${b.note ? `<div class="rm-note-tag">${escaparHtml(b.note)}${b.dyn >= 4 ? "!" : ""}</div>` : ""}
+      <div class="rm-block-content">
+        <div class="rm-block-label" style="color:${cores.a};">${escaparHtml(b.label)}</div>
+        ${(b.pairs || []).map(renderMapaLinePair).join("")}
+        ${b.note ? `<div class="rm-note-tag">${escaparHtml(b.note)}${b.dyn >= 4 ? "!" : ""}</div>` : ""}
+      </div>
     </div>`;
   }).join("");
 }

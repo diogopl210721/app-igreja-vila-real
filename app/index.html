@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1788784926">
+<link rel="stylesheet" href="style.css?v=1788786788">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -66,6 +66,22 @@
       <line x1="23.1" y1="9" x2="23.1" y2="41" stroke="#EDEDED" stroke-width="0.35"/>
       <line x1="23.7" y1="9" x2="23.7" y2="41" stroke="#EDEDED" stroke-width="0.35"/>
     </symbol>
+    <filter id="rm-rough0" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.045 0.09" numOctaves="2" seed="2" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="7"/>
+    </filter>
+    <filter id="rm-rough1" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05 0.1" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="8"/>
+    </filter>
+    <filter id="rm-rough2" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04 0.08" numOctaves="2" seed="14" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="9"/>
+    </filter>
+    <filter id="rm-rough3" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.055 0.095" numOctaves="2" seed="21" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/>
+    </filter>
   </defs>
 </svg>
 
@@ -2225,6 +2241,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788784926"></script>
+<script src="app.js?v=1788786788"></script>
 </body>
 </html>
