@@ -5577,6 +5577,15 @@ const RM_TYPE_COLORS = {
   outro: { bg: "#E9E4DA", a: "#6B6255" },
 };
 const RM_DYN_FONT = "15px 'Comic Neue', 'Comic Sans MS', cursive";
+// máscaras de pincel/marca-texto com borda irregular (geometria fixa, sem filtro SVG —
+// isso evita o bug de cor sumindo em blocos altos, já que mask-size 100% 100% só distorce
+// a proporção da borda, nunca "empurra" a cor pra fora do elemento).
+const RM_MASK_VARIANTS = [
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMTQwIj48cGF0aCBkPSJNIDEwLjAsNi45IEwgMjIuOSwxMC41IEwgMzUuNyw4LjQgTCA0OC42LDExLjIgTCA2MS40LDExLjUgTCA3NC4zLDQuOCBMIDg3LjEsNC4yIEwgMTAwLjAsMTQuMCBMIDExMi45LDcuMSBMIDEyNS43LDYuOCBMIDEzOC42LDE1LjkgTCAxNTEuNCw5LjYgTCAxNjQuMywxNC4wIEwgMTc3LjEsOS43IEwgMTkwLjAsMTEuNyBMIDE4NS44LDI1LjAgTCAxOTEuNiw0MC4wIEwgMTk0LjQsNTUuMCBMIDE5MC4zLDcwLjAgTCAxOTIuOSw4NS4wIEwgMTkyLjEsMTAwLjAgTCAxODQuOCwxMTUuMCBMIDE5My4xLDEzMC4wIEwgMTc3LjEsMTMxLjEgTCAxNjQuMywxMjcuNiBMIDE1MS40LDEyNC40IEwgMTM4LjYsMTM0LjQgTCAxMjUuNywxMjkuNyBMIDExMi45LDEzMi42IEwgMTAwLjAsMTM0LjUgTCA4Ny4xLDEzMi42IEwgNzQuMywxMzUuMSBMIDYxLjQsMTI4LjcgTCA0OC42LDEzMy42IEwgMzUuNywxMjkuMyBMIDIyLjksMTM1LjIgTCAxMC4wLDEzNC41IEwgNS4yLDExNS4wIEwgNS42LDEwMC4wIEwgNi42LDg1LjAgTCAxNS42LDcwLjAgTCA5LjIsNTUuMCBMIDExLjUsNDAuMCBMIDcuNiwyNS4wIEwgMTAuMSwxMC4wIFoiIGZpbGw9IiNmZmYiLz48L3N2Zz4=",
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMTQwIj48cGF0aCBkPSJNIDEwLjAsMTAuOSBMIDIyLjksOS4xIEwgMzUuNywxMC45IEwgNDguNiw2LjUgTCA2MS40LDEzLjggTCA3NC4zLDEzLjkgTCA4Ny4xLDExLjggTCAxMDAuMCw1LjkgTCAxMTIuOSwxMC4yIEwgMTI1LjcsNy45IEwgMTM4LjYsNy4wIEwgMTUxLjQsMTUuNCBMIDE2NC4zLDE2LjAgTCAxNzcuMSw0LjUgTCAxOTAuMCwxNC4zIEwgMTkxLjIsMjUuMCBMIDE4OC42LDQwLjAgTCAxODcuNCw1NS4wIEwgMTkyLjEsNzAuMCBMIDE4OS41LDg1LjAgTCAxOTIuMiwxMDAuMCBMIDE5MS45LDExNS4wIEwgMTg1LjYsMTMwLjAgTCAxNzcuMSwxMzMuMiBMIDE2NC4zLDEzNS44IEwgMTUxLjQsMTM1LjYgTCAxMzguNiwxMzEuNCBMIDEyNS43LDEyNC41IEwgMTEyLjksMTI0LjAgTCAxMDAuMCwxMjUuNiBMIDg3LjEsMTM1LjMgTCA3NC4zLDEyNy42IEwgNjEuNCwxMjguNCBMIDQ4LjYsMTM0LjggTCAzNS43LDEyNy44IEwgMjIuOSwxMzAuNiBMIDEwLjAsMTI5LjIgTCA0LjgsMTE1LjAgTCAxMS4wLDEwMC4wIEwgMTQuMSw4NS4wIEwgNS45LDcwLjAgTCA2LjcsNTUuMCBMIDkuMCw0MC4wIEwgNC40LDI1LjAgTCAxMC4wLDEwLjAgWiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==",
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMTQwIj48cGF0aCBkPSJNIDEwLjAsMTAuMyBMIDIyLjksMTMuNyBMIDM1LjcsMTUuNSBMIDQ4LjYsNy41IEwgNjEuNCwxMy4yIEwgNzQuMywxMi41IEwgODcuMSwxMS45IEwgMTAwLjAsNS4zIEwgMTEyLjksNC4zIEwgMTI1LjcsOC42IEwgMTM4LjYsMTMuMCBMIDE1MS40LDcuMCBMIDE2NC4zLDEwLjAgTCAxNzcuMSw3LjggTCAxOTAuMCwxNC4yIEwgMTk1LjMsMjUuMCBMIDE4OC44LDQwLjAgTCAxOTYuMCw1NS4wIEwgMTg0LjcsNzAuMCBMIDE5My44LDg1LjAgTCAxOTQuNSwxMDAuMCBMIDE4NS44LDExNS4wIEwgMTkyLjUsMTMwLjAgTCAxNzcuMSwxMzAuNyBMIDE2NC4zLDEzNS41IEwgMTUxLjQsMTI2LjUgTCAxMzguNiwxMzAuNSBMIDEyNS43LDEzNC42IEwgMTEyLjksMTMxLjcgTCAxMDAuMCwxMjcuNyBMIDg3LjEsMTI1LjAgTCA3NC4zLDEzNS4zIEwgNjEuNCwxMjkuNyBMIDQ4LjYsMTM2LjAgTCAzNS43LDEyNS43IEwgMjIuOSwxMzMuNyBMIDEwLjAsMTMzLjggTCAxNS4wLDExNS4wIEwgNC4yLDEwMC4wIEwgOC41LDg1LjAgTCA0LjYsNzAuMCBMIDEzLjAsNTUuMCBMIDguMyw0MC4wIEwgMTUuNSwyNS4wIEwgOC41LDEwLjAgWiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==",
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMTQwIj48cGF0aCBkPSJNIDEwLjAsMTIuNSBMIDIyLjksMTQuMSBMIDM1LjcsNi4yIEwgNDguNiwxNi4wIEwgNjEuNCw2LjMgTCA3NC4zLDEyLjEgTCA4Ny4xLDUuMSBMIDEwMC4wLDEzLjEgTCAxMTIuOSw1LjggTCAxMjUuNywxMi41IEwgMTM4LjYsMTIuNyBMIDE1MS40LDEzLjIgTCAxNjQuMyw5LjMgTCAxNzcuMSwxNC40IEwgMTkwLjAsMTUuOSBMIDE4NS40LDI1LjAgTCAxOTAuMiw0MC4wIEwgMTk1LjUsNTUuMCBMIDE5Mi45LDcwLjAgTCAxODkuMyw4NS4wIEwgMTg3LjcsMTAwLjAgTCAxOTUuNCwxMTUuMCBMIDE4NS4wLDEzMC4wIEwgMTc3LjEsMTMzLjEgTCAxNjQuMywxMzQuMSBMIDE1MS40LDEyNS45IEwgMTM4LjYsMTI3LjkgTCAxMjUuNywxMjcuNyBMIDExMi45LDEzMC41IEwgMTAwLjAsMTI4LjQgTCA4Ny4xLDEzNC43IEwgNzQuMywxMzUuMSBMIDYxLjQsMTI3LjggTCA0OC42LDEzNC43IEwgMzUuNywxMjQuOCBMIDIyLjksMTI1LjIgTCAxMC4wLDEzMi4wIEwgMTMuNiwxMTUuMCBMIDEzLjgsMTAwLjAgTCAxNS45LDg1LjAgTCAxNC4zLDcwLjAgTCA3LjIsNTUuMCBMIDEyLjksNDAuMCBMIDE1LjEsMjUuMCBMIDUuMSwxMC4wIFoiIGZpbGw9IiNmZmYiLz48L3N2Zz4=",
+];
 let rmMeasureCtx = null;
 function rmMeasureWidth(text) {
   if (!rmMeasureCtx) rmMeasureCtx = document.createElement("canvas").getContext("2d");
@@ -5784,8 +5793,10 @@ function renderMapaBlocos(mapa) {
   const podeEditar = state.mapaEditando;
   holder.innerHTML = (mapa.blocks || []).map((b, idx) => {
     const cores = RM_TYPE_COLORS[b.type] || RM_TYPE_COLORS.outro;
+    const mascara = RM_MASK_VARIANTS[idx % RM_MASK_VARIANTS.length];
+    const estiloPincel = `background-color:${cores.bg}; -webkit-mask-image:url('${mascara}'); mask-image:url('${mascara}'); -webkit-mask-size:100% 100%; mask-size:100% 100%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center;`;
     return `
-    <div class="rm-block${b.isRepeat ? " rm-block-repeat" : ""}" style="background:${cores.bg};">
+    <div class="rm-block${b.isRepeat ? " rm-block-repeat" : ""}" style="${estiloPincel}">
       <div class="rm-block-num">${idx + 1}</div>
       <div class="rm-block-content">
         <div class="rm-block-label" style="color:${cores.a};">${escaparHtml(b.label)}</div>

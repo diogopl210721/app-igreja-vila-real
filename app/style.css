@@ -504,9 +504,9 @@ video.capa-thumb{ height:200px; cursor:default; background:#000; }
 }
 .rm-dyn-caption{ font-family:'Kalam',cursive; font-weight:700; font-size:16px; margin:14px 0 4px; color:var(--ink); }
 .rm-dyn-hint{ font-size:11.5px; color:var(--ink-faint); margin:0 0 6px; }
-.rm-blocks{ display:flex; flex-direction:column; gap:12px; }
-.rm-block{ position:relative; margin-bottom:2px; border-radius:22px 30px 24px 34px/30px 22px 36px 24px; padding:14px 16px 12px; }
-.rm-block-repeat{ padding-bottom:8px; }
+.rm-blocks{ display:flex; flex-direction:column; gap:10px; }
+.rm-block{ position:relative; margin-bottom:2px; padding:20px 22px 18px; }
+.rm-block-repeat{ padding-bottom:14px; }
 .rm-repeat-msg{ font-family:'Caveat',cursive; font-weight:700; font-size:16px; color:var(--ink); margin:0 0 4px; }
 .rm-block:nth-child(3n+1){ transform:rotate(-0.5deg); }
 .rm-block:nth-child(3n+2){ transform:rotate(0.4deg); }
