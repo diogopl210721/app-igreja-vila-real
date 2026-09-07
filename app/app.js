@@ -5635,9 +5635,14 @@ function renderMapaFormCifra(musica) {
   const podeGerar = souLiderLouvor();
   const linkParaAbrir = musica.link_cifra || musica.link_letra;
   el.innerHTML = `
-    <p class="hint" style="margin-bottom:10px;">Ainda não tem mapa pra essa música. ${podeGerar ? "Cole a cifra (acordes + letra) abaixo — a IA pesquisa e monta a dinâmica sozinha, você só edita se quiser." : "Peça pro líder colar a cifra pra gerar o mapa."}</p>
+    <p class="hint" style="margin-bottom:10px;">Ainda não tem mapa pra essa música. ${podeGerar ? "Cole a cifra (acordes + letra) abaixo, ou importe um PDF — a IA pesquisa e monta a dinâmica sozinha, você só edita se quiser." : "Peça pro líder colar a cifra pra gerar o mapa."}</p>
     ${podeGerar ? `
-      ${linkParaAbrir ? `<a class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-bottom:10px;" href="${linkParaAbrir}" target="_blank" rel="noopener">🔗 Abrir ${musica.link_cifra ? "cifra" : "letra"} pra copiar</a>` : ""}
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        ${linkParaAbrir ? `<a class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" href="${linkParaAbrir}" target="_blank" rel="noopener">🔗 Abrir ${musica.link_cifra ? "cifra" : "letra"} pra copiar</a>` : ""}
+        <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" id="rm-btn-importar-pdf">📄 Importar PDF</button>
+        <input type="file" id="rm-pdf-input" accept="application/pdf" style="display:none;">
+      </div>
+      <p class="hint" id="rm-status-pdf" style="display:none;margin:-4px 0 10px;">📄 Lendo o PDF...</p>
       <div class="field"><textarea id="rm-cifra-input" rows="10" placeholder="Cole aqui a cifra: título na 1ª linha, acordes numa linha e a letra embaixo, separando as partes (Intro/Verso/Refrão/Ponte) por linha em branco."></textarea></div>
       <button class="btn btn-primary" id="rm-btn-gerar">✨ Gerar mapa com IA</button>
       <p class="hint" id="rm-status-gerando" style="display:none;margin-top:10px;">✨ Analisando a estrutura e pesquisando a dinâmica...</p>
@@ -5645,6 +5650,48 @@ function renderMapaFormCifra(musica) {
   `;
   if (podeGerar) {
     document.getElementById("rm-btn-gerar").addEventListener("click", gerarMapaComIA);
+    document.getElementById("rm-btn-importar-pdf").addEventListener("click", () => document.getElementById("rm-pdf-input").click());
+    document.getElementById("rm-pdf-input").addEventListener("change", importarPdfCifra);
+  }
+}
+
+async function importarPdfCifra(e) {
+  const arquivo = e.target.files[0];
+  if (!arquivo) return;
+  const status = document.getElementById("rm-status-pdf");
+  status.style.display = "block";
+  try {
+    const buffer = await arquivo.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const linhasTotais = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const conteudo = await page.getTextContent();
+      const linhasPorY = {};
+      conteudo.items.forEach(item => {
+        const y = Math.round(item.transform[5] / 2) * 2;
+        (linhasPorY[y] = linhasPorY[y] || []).push(item);
+      });
+      Object.keys(linhasPorY).map(Number).sort((a, b) => b - a).forEach(y => {
+        const itens = linhasPorY[y].sort((a, b) => a.transform[4] - b.transform[4]);
+        let linha = "", fimAnterior = null;
+        itens.forEach(it => {
+          const x = it.transform[4];
+          if (fimAnterior !== null) linha += " ".repeat(Math.max(1, Math.round((x - fimAnterior) / 5)));
+          linha += it.str;
+          fimAnterior = x + (it.width || it.str.length * 5);
+        });
+        linhasTotais.push(linha);
+      });
+      linhasTotais.push("");
+    }
+    document.getElementById("rm-cifra-input").value = linhasTotais.join("\n").trim();
+  } catch (err) {
+    console.error("Erro ao ler PDF:", err);
+    alert("Não consegui ler esse PDF. Tenta colar o texto manualmente.");
+  } finally {
+    status.style.display = "none";
+    e.target.value = "";
   }
 }
 
