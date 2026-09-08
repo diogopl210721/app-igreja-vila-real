@@ -579,6 +579,30 @@ async function carregarIgreja() {
   document.querySelectorAll(".termo-grupo").forEach(el => el.textContent = data.termo_grupo || "Grupo");
 }
 
+async function compartilharCulto(culto) {
+  const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
+  const quando = culto.data ? formatarData(culto.data) : (DIA_SEMANA_NOMES_LOUVOR[culto.dia_semana] || culto.dia_semana || "");
+  let texto = `📖 ${culto.titulo}\n${quando}${culto.horario ? " às " + culto.horario : ""}`;
+  if (culto.local) texto += `\n📍 ${culto.local}`;
+  texto += `\n\nVem com a gente! App da ${state.igreja?.nome || "igreja"}: ${link}`;
+  if (navigator.share) {
+    try {
+      const shareData = { text: texto };
+      if (culto.imagem_url && navigator.canShare) {
+        try {
+          const resp = await fetch(culto.imagem_url);
+          const blob = await resp.blob();
+          const arquivo = new File([blob], "culto.jpg", { type: blob.type || "image/jpeg" });
+          if (navigator.canShare({ files: [arquivo] })) shareData.files = [arquivo];
+        } catch { /* segue só com texto se não der pra anexar a imagem */ }
+      }
+      await navigator.share(shareData);
+      return;
+    } catch { /* usuário cancelou */ }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+}
+
 async function carregarCultos() {
   const { data } = await sb.from("igr_cultos").select("*").eq("igreja_id", state.igreja.id).order("ordem");
   const hojeISO = new Date().toISOString().slice(0, 10);
@@ -598,10 +622,19 @@ async function carregarCultos() {
       <h3>${c.titulo}</h3>
       <p>${c.data ? formatarData(c.data) + " (especial)" : (DIA_SEMANA_NOMES_LOUVOR[c.dia_semana] || c.dia_semana || "")} · ${c.horario || ""} · ${c.local || ""}</p>
       ${periodo ? `<p class="hint" style="margin:2px 0 0;">📅 ${periodo}</p>` : ""}
-      <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-top:8px;" data-add-agenda-culto="${c.id}">📅 Adicionar à agenda</button>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" data-add-agenda-culto="${c.id}">📅 Adicionar à agenda</button>
+        <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" data-compartilhar-culto="${c.id}">📤 Compartilhar</button>
+      </div>
     </div>
   `;
   }).join("") || `<div class="empty">Nenhum culto cadastrado ainda.</div>`;
+  el.querySelectorAll("[data-compartilhar-culto]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const culto = visiveis.find(c => c.id === btn.dataset.compartilharCulto);
+      if (culto) compartilharCulto(culto);
+    });
+  });
   el.querySelectorAll("[data-add-agenda-culto]").forEach(btn => {
     const c = visiveis.find(x => x.id === btn.dataset.addAgendaCulto);
     if (!c) return;
@@ -1097,6 +1130,7 @@ async function carregarProximoCultoHome() {
     mostrarTela("tela-sobre-igreja");
     await carregarSobreIgreja();
   });
+  document.querySelector("#home-proximo-culto [data-compartilhar-culto-proximo]")?.addEventListener("click", () => compartilharCulto(proximo.culto));
 }
 
 async function carregarParentesExistentes(membroId) {
@@ -2497,6 +2531,7 @@ async function carregarSobreIgreja() {
   if (proximo) {
     proximoBox.style.display = "block";
     proximoBox.innerHTML = renderizarCardProximoCulto(proximo);
+    proximoBox.querySelector("[data-compartilhar-culto-proximo]")?.addEventListener("click", () => compartilharCulto(proximo.culto));
   } else {
     proximoBox.style.display = "none";
   }
@@ -2512,8 +2547,15 @@ async function carregarSobreIgreja() {
       ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
       <h3>${c.titulo}</h3>
       <p>${c.data ? formatarData(c.data) + " (especial)" : (DIA_SEMANA_NOMES_LOUVOR[c.dia_semana] || c.dia_semana || "")} · ${c.horario || ""} · ${c.local || ""}</p>
+      <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-top:8px;" data-compartilhar-culto-sobre="${c.id}">📤 Compartilhar</button>
     </div>
   `).join("") || `<p class="hint">Nenhum culto cadastrado ainda.</p>`;
+  document.querySelectorAll("[data-compartilhar-culto-sobre]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const culto = visiveis.find(c => c.id === btn.dataset.compartilharCultoSobre);
+      if (culto) compartilharCulto(culto);
+    });
+  });
 }
 
 const DIAS_SEMANA_ORDEM = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
@@ -2564,7 +2606,8 @@ function renderizarCardProximoCulto(resultado) {
       <div style="padding:14px 16px;">
         <span class="badge-inline" style="margin-bottom:6px;">Próximo culto</span>
         <h3 style="margin:0 0 2px;font-size:15px;">${c.titulo}</h3>
-        <p style="margin:0;font-size:13px;color:var(--ink-soft);">${quandoTexto} · ${c.horario || ""}${c.local ? " · " + c.local : ""}</p>
+        <p style="margin:0 0 8px;font-size:13px;color:var(--ink-soft);">${quandoTexto} · ${c.horario || ""}${c.local ? " · " + c.local : ""}</p>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;" data-compartilhar-culto-proximo="${c.id}">📤 Compartilhar</button>
       </div>
     </div>
   `;
@@ -3892,9 +3935,10 @@ function renderGradeCalendario() {
   document.getElementById("cal-dias-semana").innerHTML = ["D","S","T","Q","Q","S","S"].map(d => `<span>${d}</span>`).join("");
 
   const eventosPorDia = {};
+  const fimDoMesVisivel = new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 0);
   (state.calendarioEventos || []).forEach(ev => {
     const inicio = new Date(ev.data + "T00:00:00");
-    const fim = ev.data_fim ? new Date(ev.data_fim + "T00:00:00") : inicio;
+    const fim = ev.data_fim ? new Date(ev.data_fim + "T00:00:00") : (ev.dia_semana ? fimDoMesVisivel : inicio);
     for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
       const iso = d.toISOString().slice(0, 10);
       if (!diaBateComSemana(iso, ev.dia_semana)) continue; // pula dias que nao sao o dia da semana escolhido
@@ -3932,9 +3976,10 @@ function renderGradeCalendario() {
   const mesStr = `${mesRef.getFullYear()}-${String(mesRef.getMonth() + 1).padStart(2, "0")}`;
   const itensLegenda = (state.calendarioEventos || [])
     .filter(ev => {
+      const semLimiteSuperior = !ev.data_fim && ev.dia_semana;
       const fim = ev.data_fim || ev.data;
       // aparece na legenda do mes se o periodo do evento cruza esse mes
-      return ev.data.slice(0, 7) <= mesStr && fim.slice(0, 7) >= mesStr;
+      return ev.data.slice(0, 7) <= mesStr && (semLimiteSuperior || fim.slice(0, 7) >= mesStr);
     })
     .sort((a, b) => a.data.localeCompare(b.data));
   const legendaEl = document.getElementById("cal-legenda-mes");
@@ -3957,8 +4002,9 @@ function abrirDiaCalendario(dataISO) {
   document.getElementById("cal-dia-titulo").textContent = formatarData(dataISO);
 
   const eventosDoDia = (state.calendarioEventos || []).filter(ev => {
+    const semLimiteSuperior = !ev.data_fim && ev.dia_semana; // recorrente sem data de encerramento definida = vale pra sempre
     const fim = ev.data_fim || ev.data;
-    return dataISO >= ev.data && dataISO <= fim && diaBateComSemana(dataISO, ev.dia_semana);
+    return dataISO >= ev.data && (semLimiteSuperior || dataISO <= fim) && diaBateComSemana(dataISO, ev.dia_semana);
   });
   const el = document.getElementById("calendario-lista");
   el.innerHTML = eventosDoDia.map(ev => `
@@ -7122,11 +7168,13 @@ async function enviarCultoAdmin(ev) {
       cultoId = novoCulto?.id;
       ev.target.reset();
     }
-    // sincroniza automaticamente com o Calendário da Igreja (só quando tem uma data concreta pra mostrar)
+    // sincroniza automaticamente com o Calendário da Igreja
     if (data_especifica) {
       await sincronizarCalendarioDeOrigem({ tipoColuna: "culto_id", origemId: cultoId, titulo, local, horario, imagem_url: novaImagem || editando?.imagem_url, data: data_especifica, data_fim: data_especifica });
-    } else if (data_inicio && data_fim) {
-      await sincronizarCalendarioDeOrigem({ tipoColuna: "culto_id", origemId: cultoId, titulo, local, horario, imagem_url: novaImagem || editando?.imagem_url, data: data_inicio, data_fim, dia_semana });
+    } else if (dia_semana) {
+      // recorrente semanal - usa a data de inicio se tiver, senao hoje; sem data de termino = vale pra sempre
+      const anchor = data_inicio || new Date().toISOString().slice(0, 10);
+      await sincronizarCalendarioDeOrigem({ tipoColuna: "culto_id", origemId: cultoId, titulo, local, horario, imagem_url: novaImagem || editando?.imagem_url, data: anchor, data_fim, dia_semana });
     }
     carregarCultosAdmin();
   } catch (e) {
