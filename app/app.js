@@ -648,10 +648,14 @@ async function carregarAvisos(targetId) {
   if (!el) return;
 
   let minhasReacoes = {};
+  let minhasPresencas = {};
   if (state.membro && visiveis.length) {
-    const { data: reacoes } = await sb.from("igr_avisos_reacoes").select("aviso_id, reacao")
-      .eq("membro_id", state.membro.id).in("aviso_id", visiveis.map(a => a.id));
+    const [{ data: reacoes }, { data: presencas }] = await Promise.all([
+      sb.from("igr_avisos_reacoes").select("aviso_id, reacao").eq("membro_id", state.membro.id).in("aviso_id", visiveis.map(a => a.id)),
+      sb.from("igr_avisos_confirmacoes").select("aviso_id, status").eq("membro_id", state.membro.id).in("aviso_id", visiveis.map(a => a.id)),
+    ]);
     (reacoes || []).forEach(r => { minhasReacoes[r.aviso_id] = r.reacao; });
+    (presencas || []).forEach(p => { minhasPresencas[p.aviso_id] = p.status; });
   }
 
   el.innerHTML = visiveis.map(a => `
@@ -673,6 +677,12 @@ async function carregarAvisos(targetId) {
         ` : ""}
         <button type="button" class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;" data-compartilhar-aviso="${a.id}">📤 Compartilhar</button>
       </div>
+      ${state.membro ? `
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasPresencas[a.id] === "vou" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-presenca-aviso="${a.id}" data-status="vou">✅ Vou</button>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasPresencas[a.id] === "nao_vou" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-presenca-aviso="${a.id}" data-status="nao_vou">❌ Não vou</button>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasPresencas[a.id] === "talvez" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-presenca-aviso="${a.id}" data-status="talvez">🤔 Talvez</button>
+      </div>` : ""}
     </div>
   `).join("") || `<div class="empty">Nenhum aviso no momento.</div>`;
 
@@ -692,6 +702,23 @@ async function carregarAvisos(targetId) {
       const { error } = await sb.from("igr_avisos_reacoes").insert({ aviso_id: avisoId, membro_id: state.membro.id, reacao });
       if (!error) darPontos("aviso_reacao", avisoId);
       else if (irmao) { btn.disabled = false; irmao.disabled = false; btn.style.background = ""; btn.style.color = ""; }
+    });
+  });
+
+  el.querySelectorAll("[data-presenca-aviso]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const avisoId = btn.dataset.presencaAviso, status = btn.dataset.status;
+      const jaEraStatus = minhasPresencas[avisoId];
+      if (jaEraStatus === status) return; // ja estava assim, nada a fazer
+      const irmaos = el.querySelectorAll(`[data-presenca-aviso="${avisoId}"]`);
+      irmaos.forEach(b => { b.style.background = ""; b.style.color = ""; });
+      btn.style.background = "var(--brand-soft)"; btn.style.color = "var(--brand)";
+      const { error } = await sb.from("igr_avisos_confirmacoes")
+        .upsert({ aviso_id: avisoId, membro_id: state.membro.id, status, respondido_em: new Date().toISOString() }, { onConflict: "aviso_id,membro_id" });
+      if (!error) {
+        minhasPresencas[avisoId] = status;
+        if (status === "vou" && jaEraStatus !== "vou") darPontos("aviso_confirmar_presenca", avisoId);
+      }
     });
   });
 }
@@ -3229,6 +3256,7 @@ const PONTOS = {
   compartilhar_conteudo: 10,
   trazer_visitante: 40,
   perfil_completo: 20,
+  aviso_confirmar_presenca: 15,
 };
 
 function periodoDoDia() {
