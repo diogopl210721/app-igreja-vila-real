@@ -981,6 +981,22 @@ async function carregarMinhaPontuacaoHome() {
   document.getElementById("btn-home-minha-pontuacao").addEventListener("click", abrirEditarPerfil);
 }
 
+async function carregarProximoCultoHome() {
+  const el = document.getElementById("home-proximo-culto");
+  if (!el || !state.igreja) return;
+  const { data: cultos } = await sb.from("igr_cultos").select("*").eq("igreja_id", state.igreja.id);
+  const proximo = calcularProximoCulto(cultos);
+  if (!proximo) { el.innerHTML = ""; return; }
+  el.innerHTML = `
+    ${renderizarCardProximoCulto(proximo)}
+    <button type="button" class="btn btn-ghost" id="btn-home-ver-todos-cultos" style="margin-top:8px;">Ver todos os cultos →</button>
+  `;
+  document.getElementById("btn-home-ver-todos-cultos").addEventListener("click", async () => {
+    mostrarTela("tela-sobre-igreja");
+    await carregarSobreIgreja();
+  });
+}
+
 async function carregarParentesExistentes(membroId) {
   const { data } = await sb.from("igr_membros_parentes").select("parente_id, parentesco, igr_membros!igr_membros_parentes_parente_id_fkey(nome_completo)").eq("membro_id", membroId);
   state.parentesOriginaisPerfil = (data || []).map(r => r.parente_id);
@@ -1366,6 +1382,7 @@ async function montarHomeMembro() {
   await carregarPedidosOracao();
   carregarRankingDoMes();
   carregarMinhaPontuacaoHome();
+  carregarProximoCultoHome();
   atualizarBadgeMensagens().then(n => {
     if (n > 0 && !state.avisoMensagensMostrado) {
       state.avisoMensagensMostrado = true;
@@ -2357,18 +2374,81 @@ async function carregarSobreIgreja() {
     </div>
   `).join("") || `<p class="hint">Liderança ainda não cadastrada.</p>`;
 
-  const { data: cultos } = await sb.from("igr_cultos").select("*").eq("igreja_id", ig.id).order("ordem").limit(1);
+  const { data: cultos } = await sb.from("igr_cultos").select("*").eq("igreja_id", ig.id).order("ordem");
   const proximoBox = document.getElementById("sobre-proximo-culto");
-  if (cultos && cultos[0]) {
-    const c = cultos[0];
+  const proximo = calcularProximoCulto(cultos);
+  if (proximo) {
     proximoBox.style.display = "block";
-    proximoBox.innerHTML = `<span class="badge-inline">Próximo culto</span><h3 style="margin:6px 0 2px;">${c.titulo}</h3><p style="margin:0;font-size:13px;color:var(--ink-soft);">${c.data ? formatarData(c.data) : c.dia_semana} · ${c.horario}${c.local ? " · " + c.local : ""}</p>`;
+    proximoBox.innerHTML = renderizarCardProximoCulto(proximo);
   } else {
     proximoBox.style.display = "none";
   }
+
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const visiveis = (cultos || []).filter(c => {
+    if (c.data_inicio && hojeISO < c.data_inicio) return false;
+    if (c.data_fim && hojeISO > c.data_fim) return false;
+    return true;
+  });
+  document.getElementById("sobre-lista-cultos").innerHTML = visiveis.map(c => `
+    <div class="card">
+      ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
+      <h3>${c.titulo}</h3>
+      <p>${c.data ? formatarData(c.data) + " (especial)" : (DIA_SEMANA_NOMES_LOUVOR[c.dia_semana] || c.dia_semana || "")} · ${c.horario || ""} · ${c.local || ""}</p>
+    </div>
+  `).join("") || `<p class="hint">Nenhum culto cadastrado ainda.</p>`;
 }
 
-// ---------- eventos ----------
+const DIAS_SEMANA_ORDEM = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+
+function proximaOcorrenciaCulto(culto) {
+  const hoje = new Date();
+  const hojeISO = hoje.toISOString().slice(0, 10);
+  if (culto.data) {
+    if (culto.data < hojeISO) return null; // data especial que já passou
+    return culto.data;
+  }
+  if (culto.data_inicio && hojeISO < culto.data_inicio) return null; // ainda não começou a valer
+  if (culto.data_fim && hojeISO > culto.data_fim) return null; // já encerrou
+  if (!culto.dia_semana) return null;
+  const alvo = DIAS_SEMANA_ORDEM.indexOf(culto.dia_semana);
+  if (alvo === -1) return null;
+  const diaAtual = hoje.getDay(); // 0=domingo
+  let diasAte = (alvo - diaAtual + 7) % 7;
+  const data = new Date(hoje);
+  data.setDate(hoje.getDate() + diasAte);
+  return data.toISOString().slice(0, 10);
+}
+
+function calcularProximoCulto(cultos) {
+  let melhor = null, melhorData = null;
+  (cultos || []).forEach(c => {
+    const ocorrencia = proximaOcorrenciaCulto(c);
+    if (!ocorrencia) return;
+    if (!melhorData || ocorrencia < melhorData) { melhorData = ocorrencia; melhor = c; }
+  });
+  return melhor ? { culto: melhor, data: melhorData } : null;
+}
+
+function renderizarCardProximoCulto(resultado) {
+  if (!resultado) return "";
+  const { culto: c, data } = resultado;
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const amanhaISO = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const quandoTexto = data === hojeISO ? "Hoje" : data === amanhaISO ? "Amanhã" : formatarData(data);
+  return `
+    <div class="card" style="padding:0;overflow:hidden;">
+      ${c.imagem_url ? `<img src="${c.imagem_url}" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;">` : ""}
+      <div style="padding:14px 16px;">
+        <span class="badge-inline" style="margin-bottom:6px;">Próximo culto</span>
+        <h3 style="margin:0 0 2px;font-size:15px;">${c.titulo}</h3>
+        <p style="margin:0;font-size:13px;color:var(--ink-soft);">${quandoTexto} · ${c.horario || ""}${c.local ? " · " + c.local : ""}</p>
+      </div>
+    </div>
+  `;
+}
+
+
 function podeGerenciarEventos() {
   return !!(state.adminNome || (state.membro && state.membro.eh_lider));
 }
