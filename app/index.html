@@ -567,7 +567,18 @@
         <div class="card">
           <form id="form-admin-culto">
             <div class="field"><label>Título</label><input id="ac-titulo" required placeholder="Ex: Culto de Celebração"></div>
-            <div class="field"><label>Dia da semana</label><input id="ac-dia" placeholder="Ex: Domingo"></div>
+            <div class="field"><label>Dia da semana</label>
+              <select id="ac-dia">
+                <option value="">Selecione (ou use "Data específica" abaixo)</option>
+                <option value="domingo">Domingo</option>
+                <option value="segunda">Segunda-feira</option>
+                <option value="terca">Terça-feira</option>
+                <option value="quarta">Quarta-feira</option>
+                <option value="quinta">Quinta-feira</option>
+                <option value="sexta">Sexta-feira</option>
+                <option value="sabado">Sábado</option>
+              </select>
+            </div>
             <div class="field"><label>Horário</label><input id="ac-horario" required placeholder="Ex: 18:00"></div>
             <div class="field"><label>Data específica (opcional — só pra culto especial, não recorrente)</label><input id="ac-data" type="date"></div>
             <p class="hint" style="margin:-4px 0 12px;">Deixe em branco se for um culto normal, que se repete toda semana nesse dia.</p>
@@ -1854,9 +1865,15 @@
       <div class="card">
         <form id="form-lider-aviso">
           <div class="field"><label>Título</label><input id="lider-aviso-titulo" required placeholder="Ex: Convocação, reunião, ensaio..."></div>
-          <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="lider-aviso-texto" placeholder="Data, horário, local..."></div>
+          <div class="field"><label>Detalhes (opcional)</label><input id="lider-aviso-texto" placeholder="Mais informações..."></div>
+          <div class="field"><label>Data (opcional)</label><input id="lider-aviso-data" type="date"></div>
+          <div style="display:flex;gap:10px;">
+            <div class="field" style="flex:1;"><label>Horário (opcional)</label><input id="lider-aviso-horario" placeholder="Ex: 19h30"></div>
+            <div class="field" style="flex:1;"><label>Local (opcional)</label><input id="lider-aviso-local" placeholder="Ex: Templo"></div>
+          </div>
           <div class="field"><label>Imagem (opcional)</label><input id="lider-aviso-imagem" type="file" accept="image/*"></div>
-          <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="lider-aviso-video" type="file" accept="video/*"></div>
+          <div class="field"><label>Vídeo (opcional)</label><input id="lider-aviso-video" type="file" accept="video/*"></div>
+          <label class="interesse-item" style="margin-bottom:10px;"><input type="checkbox" id="lider-aviso-agenda"> 🗓️ Também colocar na Agenda da Igreja (precisa de data)</label>
           <button class="btn btn-primary" id="btn-lider-postar" type="submit">Publicar para o grupo</button>
         </form>
       </div>
@@ -2089,6 +2106,14 @@
   </div>
 
   <!-- ============ GRUPO: DETALHE ============ -->
+  <!-- ============ AVISO: DETALHE (aberto a partir do calendário, por ex) ============ -->
+  <div class="screen" id="tela-aviso-detalhe">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" id="aviso-detalhe-voltar"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <div id="aviso-detalhe-conteudo"><p class="hint"><span class="loading-dot"></span></p></div>
+    </div>
+  </div>
+
   <div class="screen" id="tela-grupo-detalhe">
     <div class="scroll no-nav">
       <div class="voltar-btn" data-nav="tela-grupos-lista">
@@ -2247,6 +2272,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788886594"></script>
+<script src="app.js?v=1788888372"></script>
 </body>
 </html>

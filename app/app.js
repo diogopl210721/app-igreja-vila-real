@@ -596,7 +596,7 @@ async function carregarCultos() {
     <div class="card">
       ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
       <h3>${c.titulo}</h3>
-      <p>${c.data ? formatarData(c.data) + " (especial)" : (c.dia_semana || "")} · ${c.horario || ""} · ${c.local || ""}</p>
+      <p>${c.data ? formatarData(c.data) + " (especial)" : (DIA_SEMANA_NOMES_LOUVOR[c.dia_semana] || c.dia_semana || "")} · ${c.horario || ""} · ${c.local || ""}</p>
       ${periodo ? `<p class="hint" style="margin:2px 0 0;">📅 ${periodo}</p>` : ""}
       <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;margin-top:8px;" data-add-agenda-culto="${c.id}">📅 Adicionar à agenda</button>
     </div>
@@ -723,7 +723,82 @@ async function carregarAvisos(targetId) {
   });
 }
 
-// ---------- visitante ----------
+async function abrirAvisoDetalhe(avisoId, voltarPara) {
+  mostrarTela("tela-aviso-detalhe");
+  document.getElementById("aviso-detalhe-voltar").dataset.nav = voltarPara || (state.membro ? "tela-membro-home" : "tela-visitante");
+  const el = document.getElementById("aviso-detalhe-conteudo");
+  el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
+
+  const { data: a } = await sb.from("igr_avisos").select("*").eq("id", avisoId).maybeSingle();
+  if (!a) { el.innerHTML = `<div class="empty">Esse aviso não existe mais.</div>`; return; }
+
+  let minhaReacao = null, minhaPresenca = null;
+  if (state.membro) {
+    const [{ data: r }, { data: p }] = await Promise.all([
+      sb.from("igr_avisos_reacoes").select("reacao").eq("membro_id", state.membro.id).eq("aviso_id", avisoId).maybeSingle(),
+      sb.from("igr_avisos_confirmacoes").select("status").eq("membro_id", state.membro.id).eq("aviso_id", avisoId).maybeSingle(),
+    ]);
+    minhaReacao = r?.reacao || null;
+    minhaPresenca = p?.status || null;
+  }
+
+  el.innerHTML = `
+    <div class="card">
+      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
+      <div class="row-avatar" style="align-items:flex-start;">
+        ${seloData(a.publicado_em)}
+        <div class="row-info">
+          <b>${a.titulo}</b>
+          <span class="badge-inline">${a.grupo_id ? "Aviso do grupo" : "Aviso"}</span>
+          <p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p>
+          ${a.data_evento ? `<p class="hint" style="margin:6px 0 0;">📅 ${formatarData(a.data_evento)}${a.horario_evento ? " às " + a.horario_evento : ""}${a.local_evento ? " · " + a.local_evento : ""}</p>` : ""}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        ${state.membro ? `
+          <button class="btn btn-ghost" id="ad-amei" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhaReacao === "amei" ? "background:var(--brand-soft);color:var(--brand);" : ""}" ${minhaReacao ? "disabled" : ""}>❤️ Amei</button>
+          <button class="btn btn-ghost" id="ad-orando" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhaReacao === "orando" ? "background:var(--brand-soft);color:var(--brand);" : ""}" ${minhaReacao ? "disabled" : ""}>🙏 Orando</button>
+        ` : ""}
+        <button type="button" class="btn btn-ghost" id="ad-compartilhar" style="width:auto;padding:6px 12px;font-size:12px;flex:none;">📤 Compartilhar</button>
+      </div>
+      ${state.membro ? `
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="ad-vou" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhaPresenca === "vou" ? "background:var(--brand-soft);color:var(--brand);" : ""}">✅ Vou</button>
+        <button class="btn btn-ghost" id="ad-nao-vou" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhaPresenca === "nao_vou" ? "background:var(--brand-soft);color:var(--brand);" : ""}">❌ Não vou</button>
+        <button class="btn btn-ghost" id="ad-talvez" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhaPresenca === "talvez" ? "background:var(--brand-soft);color:var(--brand);" : ""}">🤔 Talvez</button>
+      </div>` : ""}
+    </div>
+  `;
+
+  document.getElementById("ad-compartilhar").addEventListener("click", () => compartilharAviso(a));
+
+  if (state.membro) {
+    ["ad-amei", "ad-orando"].forEach(idBtn => {
+      document.getElementById(idBtn).addEventListener("click", async () => {
+        if (minhaReacao) return;
+        const reacao = idBtn === "ad-amei" ? "amei" : "orando";
+        const { error } = await sb.from("igr_avisos_reacoes").insert({ aviso_id: avisoId, membro_id: state.membro.id, reacao });
+        if (!error) { darPontos("aviso_reacao", avisoId); minhaReacao = reacao; abrirAvisoDetalhe(avisoId, voltarPara); }
+      });
+    });
+    [["ad-vou", "vou"], ["ad-nao-vou", "nao_vou"], ["ad-talvez", "talvez"]].forEach(([idBtn, status]) => {
+      document.getElementById(idBtn).addEventListener("click", async () => {
+        if (minhaPresenca === status) return;
+        const jaEraStatus = minhaPresenca;
+        const { error } = await sb.from("igr_avisos_confirmacoes")
+          .upsert({ aviso_id: avisoId, membro_id: state.membro.id, status, respondido_em: new Date().toISOString() }, { onConflict: "aviso_id,membro_id" });
+        if (!error) {
+          if (status === "vou" && jaEraStatus !== "vou") darPontos("aviso_confirmar_presenca", avisoId);
+          minhaPresenca = status;
+          abrirAvisoDetalhe(avisoId, voltarPara);
+        }
+      });
+    });
+  }
+}
+
+
 function calcularIdade(dataNascStr) {
   const nasc = new Date(dataNascStr + "T00:00:00");
   const hoje = new Date();
@@ -1464,7 +1539,12 @@ async function enviarAvisoLider(ev) {
   ev.preventDefault();
   const titulo = document.getElementById("lider-aviso-titulo").value.trim();
   const texto = document.getElementById("lider-aviso-texto").value.trim();
+  const data_evento = document.getElementById("lider-aviso-data").value || null;
+  const horario_evento = document.getElementById("lider-aviso-horario").value.trim() || null;
+  const local_evento = document.getElementById("lider-aviso-local").value.trim() || null;
+  const postarAgenda = document.getElementById("lider-aviso-agenda").checked;
   if (!titulo) return;
+  if (postarAgenda && !data_evento) { alert("Pra entrar na Agenda, preencha a data."); return; }
   const btn = document.getElementById("btn-lider-postar");
   btn.disabled = true; btn.textContent = "Publicando...";
   try {
@@ -1472,15 +1552,25 @@ async function enviarAvisoLider(ev) {
     const arquivoVideo = document.getElementById("lider-aviso-video").files[0];
     const imagem_url = await uploadArquivo(arquivo, "avisos");
     const video_url = await uploadArquivo(arquivoVideo, "avisos");
-    const { error } = await sb.from("igr_avisos").insert({
-      igreja_id: state.igreja.id, titulo, texto, imagem_url, video_url,
+    const { data: novoAviso, error } = await sb.from("igr_avisos").insert({
+      igreja_id: state.igreja.id, titulo, texto, imagem_url, video_url, data_evento, horario_evento, local_evento,
       grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id,
-    });
+    }).select().single();
     if (error) { alert("Não deu pra publicar agora. Tente de novo."); return; }
+    if (postarAgenda && data_evento) {
+      await sincronizarCalendarioDeOrigem({
+        tipoColuna: "aviso_id", origemId: novoAviso.id, titulo, local: local_evento, horario: horario_evento,
+        observacoes: texto, imagem_url, data: data_evento, data_fim: data_evento,
+      });
+    }
     document.getElementById("lider-aviso-titulo").value = "";
     document.getElementById("lider-aviso-texto").value = "";
+    document.getElementById("lider-aviso-data").value = "";
+    document.getElementById("lider-aviso-horario").value = "";
+    document.getElementById("lider-aviso-local").value = "";
     document.getElementById("lider-aviso-imagem").value = "";
     document.getElementById("lider-aviso-video").value = "";
+    document.getElementById("lider-aviso-agenda").checked = false;
     await carregarAvisos("home-avisos");
     enviarPush({ tipo: "grupo", grupo_id: state.membro.grupo_id }, titulo, texto);
   } catch (e) {
@@ -2428,6 +2518,11 @@ async function carregarSobreIgreja() {
 
 const DIAS_SEMANA_ORDEM = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
 
+function indiceDiaSemana(texto) {
+  const normalizado = normalizarBusca(texto);
+  return DIAS_SEMANA_ORDEM.findIndex(dia => normalizado.includes(dia));
+}
+
 function proximaOcorrenciaCulto(culto) {
   const hoje = new Date();
   const hojeISO = hoje.toISOString().slice(0, 10);
@@ -2438,7 +2533,7 @@ function proximaOcorrenciaCulto(culto) {
   if (culto.data_inicio && hojeISO < culto.data_inicio) return null; // ainda não começou a valer
   if (culto.data_fim && hojeISO > culto.data_fim) return null; // já encerrou
   if (!culto.dia_semana) return null;
-  const alvo = DIAS_SEMANA_ORDEM.indexOf(culto.dia_semana);
+  const alvo = indiceDiaSemana(culto.dia_semana);
   if (alvo === -1) return null;
   const diaAtual = hoje.getDay(); // 0=domingo
   let diasAte = (alvo - diaAtual + 7) % 7;
@@ -3875,11 +3970,16 @@ function abrirDiaCalendario(dataISO) {
       ${ev.igr_grupos?.nome ? `<span class="badge-inline" style="margin-top:6px;">${ev.igr_grupos.nome}</span>` : `<span class="badge-inline" style="margin-top:6px;">Igreja toda</span>`}
       ${ev.observacoes ? `<p style="margin:6px 0 0;font-size:12.5px;">${ev.observacoes}</p>` : ""}
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        ${ev.aviso_id ? `<button class="btn btn-primary" data-abrir-aviso-calendario="${ev.aviso_id}" style="width:auto;padding:7px 14px;font-size:12px;">Ver aviso completo →</button>` : ""}
         <button class="btn btn-ghost" data-add-agenda-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;">📲 Adicionar na minha agenda</button>
         <button class="btn btn-ghost" data-compartilhar-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;">📤 Compartilhar</button>
       </div>
     </div>
   `).join("") || `<div class="empty">Nada marcado pra esse dia.</div>`;
+
+  el.querySelectorAll("[data-abrir-aviso-calendario]").forEach(node => {
+    node.addEventListener("click", () => abrirAvisoDetalhe(node.dataset.abrirAvisoCalendario, "tela-calendario"));
+  });
 
   el.querySelectorAll("[data-add-agenda-calendario]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -6945,7 +7045,7 @@ async function carregarCultosAdmin() {
     <div class="card">
       ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-        <div><b style="font-size:13.5px;">${c.titulo}</b><br><span class="hint" style="margin:0;">${c.data ? formatarData(c.data) + " (especial)" : c.dia_semana} · ${c.horario}${c.local ? " · " + c.local : ""}</span></div>
+        <div><b style="font-size:13.5px;">${c.titulo}</b><br><span class="hint" style="margin:0;">${c.data ? formatarData(c.data) + " (especial)" : (DIA_SEMANA_NOMES_LOUVOR[c.dia_semana] || c.dia_semana)} · ${c.horario}${c.local ? " · " + c.local : ""}</span></div>
         <div style="display:flex;gap:6px;flex:none;">
           <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${c.id}">Editar</button>
           <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${c.id}">Excluir</button>
