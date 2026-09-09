@@ -1576,6 +1576,7 @@ async function enviarAvisoLider(ev) {
   const data_evento = document.getElementById("lider-aviso-data").value || null;
   const horario_evento = document.getElementById("lider-aviso-horario").value.trim() || null;
   const local_evento = document.getElementById("lider-aviso-local").value.trim() || null;
+  const postarMural = document.getElementById("lider-aviso-mural").checked;
   const postarAgenda = document.getElementById("lider-aviso-agenda").checked;
   if (!titulo) return;
   if (postarAgenda && !data_evento) { alert("Pra entrar na Agenda, preencha a data."); return; }
@@ -1588,7 +1589,7 @@ async function enviarAvisoLider(ev) {
     const video_url = await uploadArquivo(arquivoVideo, "avisos");
     const { data: novoAviso, error } = await sb.from("igr_avisos").insert({
       igreja_id: state.igreja.id, titulo, texto, imagem_url, video_url, data_evento, horario_evento, local_evento,
-      grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id,
+      grupo_id: state.membro.grupo_id, criado_por_membro_id: state.membro.id, visivel_no_mural: postarMural,
     }).select().single();
     if (error) { alert("Não deu pra publicar agora. Tente de novo."); return; }
     if (postarAgenda && data_evento) {
@@ -1604,9 +1605,10 @@ async function enviarAvisoLider(ev) {
     document.getElementById("lider-aviso-local").value = "";
     document.getElementById("lider-aviso-imagem").value = "";
     document.getElementById("lider-aviso-video").value = "";
+    document.getElementById("lider-aviso-mural").checked = true;
     document.getElementById("lider-aviso-agenda").checked = false;
     await carregarAvisos("home-avisos");
-    enviarPush({ tipo: "grupo", grupo_id: state.membro.grupo_id }, titulo, texto);
+    if (postarMural) enviarPush({ tipo: "grupo", grupo_id: state.membro.grupo_id }, titulo, texto);
   } catch (e) {
     console.error("Erro ao publicar aviso do líder:", e);
     alert("Não deu pra publicar agora. Verifique sua conexão.");
