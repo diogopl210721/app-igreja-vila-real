@@ -2144,9 +2144,17 @@
         <div class="card" id="grupo-bloco-avisos" style="border:1.5px dashed var(--brand);display:none;">
           <form id="form-grupo-aviso">
             <div class="field"><label>Título</label><input id="ga-titulo" required placeholder="Ex: Reunião de sexta"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Detalhes (opcional)</label><input id="ga-texto" placeholder="Data, horário, local..."></div>
-            <div class="field"><label>Imagem (opcional)</label><input id="ga-imagem" type="file" accept="image/*"></div>
-            <div class="field" style="margin-bottom:6px;"><label>Vídeo (opcional)</label><input id="ga-video" type="file" accept="video/*"></div>
+            <div class="field"><label>Texto</label><input id="ga-texto" placeholder="Detalhes do aviso"></div>
+            <div class="field"><label>Data do evento (opcional)</label><input id="ga-data" type="date"></div>
+            <div style="display:flex;gap:10px;">
+              <div class="field" style="flex:1;"><label>Horário (opcional)</label><input id="ga-horario" placeholder="Ex: 19h30"></div>
+              <div class="field" style="flex:1;"><label>Local (opcional)</label><input id="ga-local" placeholder="Ex: Templo"></div>
+            </div>
+            <div class="field"><label>Banner (opcional)</label><input id="ga-imagem" type="file" accept="image/*"></div>
+            <div class="field"><label>Vídeo (opcional)</label><input id="ga-video" type="file" accept="video/*"></div>
+            <p class="hint" style="margin-bottom:6px;">Onde publicar:</p>
+            <label class="interesse-item" style="margin-bottom:8px;"><input type="checkbox" id="ga-mural" checked> 📢 No mural de Avisos</label>
+            <label class="interesse-item" style="margin-bottom:10px;"><input type="checkbox" id="ga-agenda"> 🗓️ Também na Agenda (precisa de data)</label>
             <button class="btn btn-primary" type="submit">Publicar para o grupo</button>
           </form>
         </div>
@@ -2274,6 +2282,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1788920790"></script>
+<script src="app.js?v=1788921422"></script>
 </body>
 </html>

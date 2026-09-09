@@ -2483,7 +2483,13 @@ async function enviarAvisoGrupoDetalhe(ev) {
   if (!grupo) return;
   const titulo = document.getElementById("ga-titulo").value.trim();
   const texto = document.getElementById("ga-texto").value.trim();
+  const data_evento = document.getElementById("ga-data").value || null;
+  const horario_evento = document.getElementById("ga-horario").value.trim() || null;
+  const local_evento = document.getElementById("ga-local").value.trim() || null;
+  const postarMural = document.getElementById("ga-mural").checked;
+  const postarAgenda = document.getElementById("ga-agenda").checked;
   if (!titulo) return;
+  if (postarAgenda && !data_evento) { alert("Pra entrar na Agenda, preencha a data."); return; }
   const btn = ev.target.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Publicando...";
   try {
@@ -2491,14 +2497,21 @@ async function enviarAvisoGrupoDetalhe(ev) {
     const arquivoVideo = document.getElementById("ga-video").files[0];
     const imagem_url = await uploadArquivo(arquivo, "avisos");
     const video_url = await uploadArquivo(arquivoVideo, "avisos");
-    const { error } = await sb.from("igr_avisos").insert({
-      igreja_id: state.igreja.id, titulo, texto, imagem_url, video_url, grupo_id: grupo.id, criado_por_membro_id: state.membro.id,
-      publicado_em: new Date().toISOString(),
-    });
+    const { data: novoAviso, error } = await sb.from("igr_avisos").insert({
+      igreja_id: state.igreja.id, titulo, texto, imagem_url, video_url, data_evento, horario_evento, local_evento,
+      grupo_id: grupo.id, criado_por_membro_id: state.membro.id, publicado_em: new Date().toISOString(), visivel_no_mural: postarMural,
+    }).select().single();
     if (error) { alert("Não deu pra publicar: " + error.message); return; }
+    if (postarAgenda && data_evento) {
+      await sincronizarCalendarioDeOrigem({
+        tipoColuna: "aviso_id", origemId: novoAviso.id, titulo, local: local_evento, horario: horario_evento,
+        observacoes: texto, imagem_url, data: data_evento, data_fim: data_evento,
+      });
+    }
     ev.target.reset();
+    document.getElementById("ga-mural").checked = true;
     await carregarAvisosDoGrupoDetalhe(grupo.id);
-    enviarPush({ tipo: "grupo", grupo_id: grupo.id }, titulo, texto);
+    if (postarMural) enviarPush({ tipo: "grupo", grupo_id: grupo.id }, titulo, texto);
   } catch (e) {
     console.error("Erro ao publicar aviso do grupo:", e);
     alert("Não deu pra publicar agora. Verifique sua conexão e tente de novo.");
