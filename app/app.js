@@ -1824,7 +1824,10 @@ function renderizarListaEstudos(termoBusca) {
         <div style="flex:1;min-width:0;">
           <b style="font-size:14px;display:block;line-height:1.25;">${m.titulo}</b>
           ${tema ? `<p style="font-size:12px;color:var(--ink-soft);margin:5px 0 0;line-height:1.4;">${temaCurto}</p>` : ""}
-          <p class="hint" style="margin-top:8px;">${idsAulas.length ? `${concluidas}/${idsAulas.length} aula(s) concluída(s)` : "Nenhuma aula ainda"}</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;">
+            <p class="hint" style="margin:0;">${idsAulas.length ? `${concluidas}/${idsAulas.length} aula(s) concluída(s)` : "Nenhuma aula ainda"}</p>
+            <button type="button" class="btn btn-ghost" style="width:auto;flex:none;padding:5px 10px;font-size:11px;" data-compartilhar-modulo="${m.id}">📤</button>
+          </div>
         </div>
       </div>
     `;
@@ -1833,6 +1836,43 @@ function renderizarListaEstudos(termoBusca) {
   el.querySelectorAll("[data-abrir-modulo]").forEach(card => {
     card.addEventListener("click", () => abrirModuloAulas(card.dataset.abrirModulo));
   });
+  el.querySelectorAll("[data-compartilhar-modulo]").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const modulo = modulos.find(m => m.id === btn.dataset.compartilharModulo);
+      if (modulo) compartilharModulo(modulo);
+    });
+  });
+}
+
+async function compartilharModulo(modulo) {
+  const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
+  const texto = `📘 ${modulo.titulo}\n${modulo.tema || ""}\n\nEstuda com a gente pelo app da ${state.igreja?.nome || "igreja"}: ${link}`;
+  if (navigator.share) {
+    try {
+      const shareData = { text: texto };
+      if (modulo.capa_url && navigator.canShare) {
+        try {
+          const resp = await fetch(modulo.capa_url);
+          const blob = await resp.blob();
+          const arquivo = new File([blob], "estudo.jpg", { type: blob.type || "image/jpeg" });
+          if (navigator.canShare({ files: [arquivo] })) shareData.files = [arquivo];
+        } catch { /* segue só com texto se não der pra anexar a imagem */ }
+      }
+      await navigator.share(shareData);
+      return;
+    } catch { /* usuário cancelou */ }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+}
+
+async function compartilharAula(aula, modulo) {
+  const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
+  const texto = `📖 ${aula.titulo}${modulo ? ` (${modulo.titulo})` : ""}\n${aula.tema || ""}\n\nEstuda com a gente pelo app da ${state.igreja?.nome || "igreja"}: ${link}`;
+  if (navigator.share) {
+    try { await navigator.share({ text: texto }); return; } catch { /* usuário cancelou */ }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
 }
 
 async function abrirModuloAulas(moduloId) {
@@ -1874,6 +1914,7 @@ async function abrirAulaMateriais(aulaId) {
   document.getElementById("aula-titulo-tela").textContent = aula.titulo;
   document.getElementById("aula-tema-tela").textContent = aula.tema || "";
   document.getElementById("aula-voltar-btn").onclick = () => mostrarTela("tela-modulo-aulas");
+  document.getElementById("btn-compartilhar-aula").onclick = () => compartilharAula(aula, state.moduloAtual);
   const el = document.getElementById("aula-lista-materiais");
   el.innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
 
