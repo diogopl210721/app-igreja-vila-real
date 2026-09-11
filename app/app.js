@@ -3677,6 +3677,37 @@ async function carregarListaMensagens() {
   });
 }
 
+function configurarBuscaNovaConversa() {
+  const input = document.getElementById("msgs-busca-membro");
+  const sugestoesEl = document.getElementById("msgs-sugestoes-membro");
+  if (!input || input._jaConfigurado) return;
+  input._jaConfigurado = true;
+  input.addEventListener("input", async () => {
+    const termo = normalizarBusca(input.value);
+    if (!termo || !state.igreja || !state.membro) { sugestoesEl.style.display = "none"; return; }
+    const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url").eq("igreja_id", state.igreja.id).neq("id", state.membro.id);
+    const bateram = (membros || []).filter(m => normalizarBusca(m.nome_completo).includes(termo)).slice(0, 8);
+    if (!bateram.length) { sugestoesEl.innerHTML = `<div class="autocomplete-item" style="color:var(--ink-faint);">Ninguém encontrado.</div>`; sugestoesEl.style.display = "block"; return; }
+    sugestoesEl.innerHTML = bateram.map(m => `
+      <div class="autocomplete-item" data-iniciar-chat="${m.id}" data-nome="${m.nome_completo}" data-foto="${m.foto_url || ""}" style="display:flex;align-items:center;gap:8px;">
+        ${m.foto_url ? `<img src="${m.foto_url}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;">` : avatarIniciais(m.nome_completo, 26)}
+        ${m.nome_completo}
+      </div>
+    `).join("");
+    sugestoesEl.style.display = "block";
+    sugestoesEl.querySelectorAll("[data-iniciar-chat]").forEach(item => {
+      item.addEventListener("click", () => {
+        sugestoesEl.style.display = "none";
+        input.value = "";
+        abrirChat(item.dataset.iniciarChat, item.dataset.nome, item.dataset.foto || null);
+      });
+    });
+  });
+  document.addEventListener("click", (ev) => {
+    if (!sugestoesEl.contains(ev.target) && ev.target !== input) sugestoesEl.style.display = "none";
+  });
+}
+
 async function abrirChat(outroId, outroNome, outroFoto) {
   if (!state.membro) return;
   state.chatAtual = { outroId, outroNome };
@@ -8485,6 +8516,7 @@ async function iniciar() {
   document.getElementById("btn-sair-louvor-admin")?.addEventListener("click", sairLouvorAdmin);
   configurarBuscaOrganizadorEvento();
   configurarBuscaIndicadorVisitante();
+  configurarBuscaNovaConversa();
   document.getElementById("ev-gratuito")?.addEventListener("change", (ev) => {
     document.getElementById("ev-pagamento-detalhes").style.display = ev.target.value === "nao" ? "block" : "none";
   });
