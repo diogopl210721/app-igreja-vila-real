@@ -4905,6 +4905,7 @@ async function abrirAlbum(albumId) {
   const album = (state.albunsPublicoCache || []).find(a => a.id === albumId) || {};
   document.getElementById("album-titulo-detalhe").textContent = album.titulo || "";
   document.getElementById("album-data-detalhe").textContent = album.data ? formatarData(album.data) : "";
+  document.getElementById("btn-compartilhar-album").onclick = () => compartilharAlbum(album);
   mostrarTela("tela-fotos-album");
   const { data: fotos } = await sb.from("igr_fotos").select("*").eq("album_id", albumId).order("created_at");
   state.fotosAlbumAtual = fotos || [];
@@ -4916,6 +4917,29 @@ async function abrirAlbum(albumId) {
   document.querySelectorAll("[data-foto-idx]").forEach(el => {
     el.addEventListener("click", () => abrirLightbox(parseInt(el.dataset.fotoIdx, 10)));
   });
+}
+
+async function compartilharAlbum(album) {
+  const link = state.igreja?.site_url ? (state.igreja.site_url.startsWith("http") ? state.igreja.site_url : `https://${state.igreja.site_url}`) : window.location.origin;
+  const quando = album.data ? formatarData(album.data) : "";
+  const texto = `📸 ${album.titulo || "Álbum de fotos"}${quando ? " · " + quando : ""}\n\nVeja as fotos no app da ${state.igreja?.nome || "igreja"}: ${link}`;
+  const capa = (state.fotosAlbumAtual || [])[0]?.url;
+  if (navigator.share) {
+    try {
+      const shareData = { text: texto };
+      if (capa && navigator.canShare) {
+        try {
+          const resp = await fetch(capa);
+          const blob = await resp.blob();
+          const arquivo = new File([blob], "album.jpg", { type: blob.type || "image/jpeg" });
+          if (navigator.canShare({ files: [arquivo] })) shareData.files = [arquivo];
+        } catch { /* segue só com texto se não der pra anexar a imagem */ }
+      }
+      await navigator.share(shareData);
+      return;
+    } catch { /* usuário cancelou */ }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
 }
 
 // ---------- fotos: minhas fotos marcadas ----------
