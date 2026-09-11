@@ -701,7 +701,7 @@ async function carregarAvisos(targetId) {
       ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${a.imagem_url}">` : ""}
       ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
       <div class="row-avatar" style="align-items:flex-start;">
-        ${seloData(a.publicado_em)}
+        ${a.link_destino ? "" : seloData(a.publicado_em)}
         <div class="row-info">
           <b style="${a.link_destino ? "font-size:16px;" : ""}">${a.titulo}</b>
           <span class="badge-inline">${a.grupo_id ? "Aviso do grupo" : "Aviso"}</span>
@@ -710,13 +710,13 @@ async function carregarAvisos(targetId) {
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        ${state.membro ? `
+        ${state.membro && !a.link_destino ? `
           <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasReacoes[a.id] === "amei" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-reagir-aviso="${a.id}" data-reacao="amei" ${minhasReacoes[a.id] ? "disabled" : ""}>❤️ Amei</button>
           <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasReacoes[a.id] === "orando" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-reagir-aviso="${a.id}" data-reacao="orando" ${minhasReacoes[a.id] ? "disabled" : ""}>🙏 Orando</button>
         ` : ""}
         <button type="button" class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;" data-compartilhar-aviso="${a.id}">📤 Compartilhar</button>
       </div>
-      ${state.membro ? `
+      ${state.membro && !a.link_destino ? `
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
         <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasPresencas[a.id] === "vou" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-presenca-aviso="${a.id}" data-status="vou">✅ Vou</button>
         <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;flex:none;${minhasPresencas[a.id] === "nao_vou" ? "background:var(--brand-soft);color:var(--brand);" : ""}" data-presenca-aviso="${a.id}" data-status="nao_vou">❌ Não vou</button>
