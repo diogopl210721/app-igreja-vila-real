@@ -693,7 +693,7 @@ async function carregarAvisos(targetId) {
 
   el.innerHTML = visiveis.map(a => `
     <div class="card">
-      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${a.imagem_url}">` : ""}
       ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
       <div class="row-avatar" style="align-items:flex-start;">
         ${seloData(a.publicado_em)}
@@ -722,6 +722,9 @@ async function carregarAvisos(targetId) {
 
   el.querySelectorAll("[data-abrir-link-aviso]").forEach(btn => {
     btn.addEventListener("click", () => mostrarTela(btn.dataset.abrirLinkAviso));
+  });
+  el.querySelectorAll("[data-ampliar-imagem]").forEach(img => {
+    img.addEventListener("click", () => abrirLightboxImagemUnica(img.dataset.ampliarImagem));
   });
   el.querySelectorAll("[data-compartilhar-aviso]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -781,7 +784,7 @@ async function abrirAvisoDetalhe(avisoId, voltarPara) {
 
   el.innerHTML = `
     <div class="card">
-      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${a.imagem_url}">` : ""}
       ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
       <div class="row-avatar" style="align-items:flex-start;">
         ${seloData(a.publicado_em)}
@@ -809,6 +812,7 @@ async function abrirAvisoDetalhe(avisoId, voltarPara) {
   `;
 
   document.getElementById("ad-compartilhar").addEventListener("click", () => compartilharAviso(a));
+  el.querySelector("[data-ampliar-imagem]")?.addEventListener("click", () => abrirLightboxImagemUnica(a.imagem_url));
 
   if (state.membro) {
     ["ad-amei", "ad-orando"].forEach(idBtn => {
@@ -2486,7 +2490,7 @@ async function carregarAvisosDoGrupoDetalhe(grupoId) {
   const el = document.getElementById("grupo-detalhe-avisos");
   el.innerHTML = (data || []).map(a => `
     <div class="card">
-      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${a.imagem_url}">` : ""}
       ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
       <div class="row-avatar" style="align-items:flex-start;">
         ${seloData(a.publicado_em)}
@@ -2494,6 +2498,9 @@ async function carregarAvisosDoGrupoDetalhe(grupoId) {
       </div>
     </div>
   `).join("") || `<div class="empty">Nenhum aviso publicado ainda.</div>`;
+  el.querySelectorAll("[data-ampliar-imagem]").forEach(img => {
+    img.addEventListener("click", () => abrirLightboxImagemUnica(img.dataset.ampliarImagem));
+  });
 }
 
 async function enviarGrupoInfo(ev) {
@@ -7276,7 +7283,7 @@ async function carregarAvisosAdmin() {
   const { data } = await sb.from("igr_avisos").select("*, igr_grupos(nome)").eq("igreja_id", state.igreja.id).order("publicado_em", { ascending: false });
   el.innerHTML = (data || []).map(a => `
     <div class="card">
-      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="">` : ""}
+      ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${a.imagem_url}">` : ""}
       ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
         <div><b style="font-size:13.5px;">${a.titulo}</b><br><span class="hint" style="margin:0;">${a.igr_grupos?.nome || "Geral"}</span></div>
