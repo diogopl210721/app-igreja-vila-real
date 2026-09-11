@@ -701,6 +701,7 @@ async function carregarAvisos(targetId) {
           <b>${a.titulo}</b>
           <span class="badge-inline">${a.grupo_id ? "Aviso do grupo" : "Aviso"}</span>
           <p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p>
+          ${a.link_destino ? `<button type="button" class="btn btn-primary" style="width:auto;margin-top:8px;padding:8px 16px;font-size:12.5px;" data-abrir-link-aviso="${a.link_destino}">▶️ Assistir agora</button>` : ""}
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
@@ -719,6 +720,9 @@ async function carregarAvisos(targetId) {
     </div>
   `).join("") || `<div class="empty">Nenhum aviso no momento.</div>`;
 
+  el.querySelectorAll("[data-abrir-link-aviso]").forEach(btn => {
+    btn.addEventListener("click", () => mostrarTela(btn.dataset.abrirLinkAviso));
+  });
   el.querySelectorAll("[data-compartilhar-aviso]").forEach(btn => {
     btn.addEventListener("click", () => {
       const aviso = visiveis.find(a => a.id === btn.dataset.compartilharAviso);
@@ -8465,6 +8469,19 @@ async function iniciar() {
   document.getElementById("btn-admin-novo-evento")?.addEventListener("click", () => abrirFormEvento(null));
   document.getElementById("form-evento")?.addEventListener("submit", enviarFormEvento);
   document.getElementById("btn-ev-ler-banner")?.addEventListener("click", lerBannerComIA);
+  const CAMERAS_JERUSALEM = [
+    { id: "77akujLn4k8", nome: "Muro (EarthCam)" },
+    { id: "AKGqd20ik_A", nome: "Muro (Kotel)" },
+    { id: "ELnx7pTpSCM", nome: "Parque Arqueológico" },
+  ];
+  CAMERAS_JERUSALEM.forEach((cam, i) => {
+    document.getElementById(`cam-tab-${i}`)?.addEventListener("click", () => {
+      document.getElementById("camera-jerusalem-player").src = `https://www.youtube.com/embed/${cam.id}?autoplay=1&mute=1`;
+      CAMERAS_JERUSALEM.forEach((_, j) => {
+        document.getElementById(`cam-tab-${j}`).className = i === j ? "btn btn-primary" : "btn btn-ghost";
+      });
+    });
+  });
   document.getElementById("admin-card-louvor")?.addEventListener("click", entrarLouvorComoAdmin);
   document.getElementById("btn-sair-louvor-admin")?.addEventListener("click", sairLouvorAdmin);
   configurarBuscaOrganizadorEvento();
