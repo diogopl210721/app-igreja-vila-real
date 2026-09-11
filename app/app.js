@@ -676,7 +676,11 @@ async function compartilharAviso(aviso) {
 async function carregarAvisos(targetId) {
   const { data } = await sb.from("igr_avisos").select("*").eq("igreja_id", state.igreja.id).eq("visivel_no_mural", true).order("publicado_em", { ascending: false }).limit(8);
   const meusGrupos = state.membro?.grupoIds || (state.membro?.grupo_id ? [state.membro.grupo_id] : []);
-  const visiveis = (data || []).filter(a => !a.grupo_id || meusGrupos.includes(a.grupo_id)).slice(0, 5);
+  const visiveisBrutos = (data || []).filter(a => !a.grupo_id || meusGrupos.includes(a.grupo_id));
+  // avisos com link_destino (chamadas de atenção, tipo "assista ao vivo") ficam fixados no topo
+  const destacados = visiveisBrutos.filter(a => a.link_destino);
+  const normais = visiveisBrutos.filter(a => !a.link_destino).slice(0, 5 - destacados.length);
+  const visiveis = [...destacados, ...normais];
   const el = document.getElementById(targetId);
   if (!el) return;
 
@@ -692,16 +696,17 @@ async function carregarAvisos(targetId) {
   }
 
   el.innerHTML = visiveis.map(a => `
-    <div class="card">
+    <div class="card" ${a.link_destino ? `style="border:2px solid var(--brand);background:linear-gradient(135deg, var(--brand-soft), var(--bg-card, #fff));"` : ""}>
+      ${a.link_destino ? `<span class="badge-inline" style="background:var(--brand);color:#fff;margin-bottom:8px;">📌 EM DESTAQUE</span>` : ""}
       ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${a.imagem_url}">` : ""}
       ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
       <div class="row-avatar" style="align-items:flex-start;">
         ${seloData(a.publicado_em)}
         <div class="row-info">
-          <b>${a.titulo}</b>
+          <b style="${a.link_destino ? "font-size:16px;" : ""}">${a.titulo}</b>
           <span class="badge-inline">${a.grupo_id ? "Aviso do grupo" : "Aviso"}</span>
           <p style="margin:4px 0 0;font-size:12.5px;color:var(--ink-soft);">${a.texto || ""}</p>
-          ${a.link_destino ? `<button type="button" class="btn btn-primary" style="width:auto;margin-top:8px;padding:8px 16px;font-size:12.5px;" data-abrir-link-aviso="${a.link_destino}">▶️ Assistir agora</button>` : ""}
+          ${a.link_destino ? `<button type="button" class="btn btn-primary" style="width:100%;margin-top:10px;padding:12px;font-size:14px;font-weight:700;" data-abrir-link-aviso="${a.link_destino}">▶️ Assistir agora</button>` : ""}
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
@@ -8476,19 +8481,6 @@ async function iniciar() {
   document.getElementById("btn-admin-novo-evento")?.addEventListener("click", () => abrirFormEvento(null));
   document.getElementById("form-evento")?.addEventListener("submit", enviarFormEvento);
   document.getElementById("btn-ev-ler-banner")?.addEventListener("click", lerBannerComIA);
-  const CAMERAS_JERUSALEM = [
-    { id: "77akujLn4k8", nome: "Muro (EarthCam)" },
-    { id: "AKGqd20ik_A", nome: "Muro (Kotel)" },
-    { id: "ELnx7pTpSCM", nome: "Parque Arqueológico" },
-  ];
-  CAMERAS_JERUSALEM.forEach((cam, i) => {
-    document.getElementById(`cam-tab-${i}`)?.addEventListener("click", () => {
-      document.getElementById("camera-jerusalem-player").src = `https://www.youtube.com/embed/${cam.id}?autoplay=1&mute=1`;
-      CAMERAS_JERUSALEM.forEach((_, j) => {
-        document.getElementById(`cam-tab-${j}`).className = i === j ? "btn btn-primary" : "btn btn-ghost";
-      });
-    });
-  });
   document.getElementById("admin-card-louvor")?.addEventListener("click", entrarLouvorComoAdmin);
   document.getElementById("btn-sair-louvor-admin")?.addEventListener("click", sairLouvorAdmin);
   configurarBuscaOrganizadorEvento();
