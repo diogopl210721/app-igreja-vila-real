@@ -8367,6 +8367,7 @@ async function iniciar() {
       if (alvo === "tela-minhas-fotos") await carregarMinhasFotos();
       if (alvo === "tela-contatos") carregarContatos();
       if (alvo === "tela-sobre-igreja") await carregarSobreIgreja();
+      if (alvo === "tela-camera-jerusalem") document.getElementById("camera-jerusalem-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante";
       if (alvo === "tela-grupos-lista") await carregarGruposLista();
       if (alvo === "tela-diretorio") { configurarDiretorio(); document.getElementById("diretorio-voltar").dataset.nav = state.membro ? "tela-membro-home" : "tela-visitante"; }
       if (alvo === "tela-eventos") await carregarEventos();

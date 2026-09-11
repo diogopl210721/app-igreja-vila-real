@@ -188,6 +188,7 @@
         <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Bíblia</button>
         <button class="quicklink" data-nav="tela-biblioteca"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Livros</button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
+        <button class="quicklink" data-nav="tela-camera-jerusalem"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Câmera ao vivo</button>
         <a href="#form-visitante" class="quicklink"><span class="quicklink-ic"><svg class="icon"><use href="#i-plus"/></svg></span>Contato</a>
         <button class="quicklink" data-nav="tela-login"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Entrar / Cadastro</button>
       </div>
@@ -1020,6 +1021,7 @@
         <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#i-book"/></svg></span>Bíblia</button>
         <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#i-heart"/></svg></span>Sobre a igreja</button>
+        <button class="quicklink" data-nav="tela-camera-jerusalem"><span class="quicklink-ic"><svg class="icon"><use href="#i-camera"/></svg></span>Câmera ao vivo</button>
         <button class="quicklink" data-nav="tela-diretorio"><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Mão Amiga</button>
         <button class="quicklink" data-nav="tela-mensagens" style="position:relative;"><span class="quicklink-ic"><svg class="icon"><use href="#i-chat"/></svg></span>Mensagens<span id="msgs-badge-quicklink" style="display:none;position:absolute;top:-2px;right:18px;background:#E74C3C;color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px;"></span></button>
       </div>
@@ -2118,6 +2120,17 @@
     </div>
   </div>
 
+  <div class="screen" id="tela-camera-jerusalem">
+    <div class="scroll no-nav">
+      <div class="voltar-btn" id="camera-jerusalem-voltar"><svg class="icon" width="14" height="14"><use href="#i-arrowleft"/></svg>Voltar</div>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">🎥 Câmera ao vivo — Muro das Lamentações</span>
+      <p class="hint" style="margin-bottom:14px;">Transmissão ao vivo do Muro das Lamentações, em Jerusalém, cortesia da EarthCam.</p>
+      <div style="position:relative;width:100%;padding-top:56.25%;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);">
+        <iframe src="https://www.youtube.com/embed/77akujLn4k8?autoplay=1&mute=1" title="Câmera ao vivo do Muro das Lamentações" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
   <div class="screen" id="tela-grupo-detalhe">
     <div class="scroll no-nav">
       <div class="voltar-btn" data-nav="tela-grupos-lista">
@@ -2284,6 +2297,6 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=1789088620"></script>
+<script src="app.js?v=1789097296"></script>
 </body>
 </html>
