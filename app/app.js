@@ -580,7 +580,7 @@ async function carregarIgreja() {
 }
 
 async function compartilharCulto(culto) {
-  const link = window.location.origin;
+  const link = enderecoDoApp();
   const quando = culto.data ? formatarData(culto.data) : (DIA_SEMANA_NOMES_LOUVOR[culto.dia_semana] || culto.dia_semana || "");
   let texto = `📖 ${culto.titulo}\n${quando}${culto.horario ? " às " + culto.horario : ""}`;
   if (culto.local) texto += `\n📍 ${culto.local}`;
@@ -645,6 +645,14 @@ async function carregarCultos() {
   });
 }
 
+// window.location.origin sozinho perde a subpasta onde o app pode estar hospedado (ex: /app) -
+// isso pega o endereço completo de onde o app está rodando agora, sem o nome do arquivo nem barra sobrando
+function enderecoDoApp() {
+  let caminho = window.location.origin + window.location.pathname;
+  caminho = caminho.replace(/\/index\.html?$/, "/");
+  return caminho.replace(/\/$/, "");
+}
+
 // pra usar no final dos textos de compartilhamento - só entra se a igreja tiver um site institucional configurado
 function linhaVisiteSite() {
   if (!state.igreja?.site_url) return "";
@@ -653,7 +661,7 @@ function linhaVisiteSite() {
 }
 
 async function compartilharAviso(aviso) {
-  const link = window.location.origin;
+  const link = enderecoDoApp();
   let texto = `📢 ${aviso.titulo}`;
   if (aviso.texto) texto += `\n${aviso.texto}`;
   if (aviso.data_evento) texto += `\n📅 ${formatarData(aviso.data_evento)}${aviso.horario_evento ? " às " + aviso.horario_evento : ""}`;
@@ -1866,7 +1874,7 @@ function renderizarListaEstudos(termoBusca) {
 }
 
 async function compartilharModulo(modulo) {
-  const link = window.location.origin;
+  const link = enderecoDoApp();
   const texto = `📘 ${modulo.titulo}\n${modulo.tema || ""}\n\nEstuda com a gente pelo app da ${state.igreja?.nome || "igreja"}: ${link}${linhaVisiteSite()}`;
   if (navigator.share) {
     try {
@@ -1887,7 +1895,7 @@ async function compartilharModulo(modulo) {
 }
 
 async function compartilharAula(aula, modulo) {
-  const link = window.location.origin;
+  const link = enderecoDoApp();
   const texto = `📖 ${aula.titulo}${modulo ? ` (${modulo.titulo})` : ""}\n${aula.tema || ""}\n\nEstuda com a gente pelo app da ${state.igreja?.nome || "igreja"}: ${link}${linhaVisiteSite()}`;
   if (navigator.share) {
     try { await navigator.share({ text: texto }); return; } catch { /* usuário cancelou */ }
@@ -3415,7 +3423,7 @@ function renderizarListaLivros(termoBusca) {
 async function compartilharLivro(livroId) {
   const livro = state.livrosCache?.find(l => l.id === livroId);
   if (!livro) return;
-  const link = window.location.origin;
+  const link = enderecoDoApp();
   const texto = `📚 To lendo "${livro.titulo}"${livro.autor ? ` de ${livro.autor}` : ""} na biblioteca do app da ${state.igreja?.nome || "igreja"}! Se ainda não é membro, dá uma olhada e visite a gente: ${link}${linhaVisiteSite()}`;
   if (navigator.share) {
     try { await navigator.share({ text: texto }); return; } catch { /* usuário cancelou, sem problema */ }
@@ -4155,7 +4163,7 @@ function abrirDiaCalendario(dataISO) {
 }
 
 async function compartilharEventoCalendario(ev) {
-  const link = window.location.origin;
+  const link = enderecoDoApp();
   let texto = `📅 ${ev.titulo}\n${formatarPeriodoCalendario(ev.data, ev.data_fim, ev.dia_semana)}${ev.horario ? " às " + ev.horario : ""}`;
   if (ev.local) texto += `\n📍 ${ev.local}`;
   if (ev.observacoes) texto += `\n${ev.observacoes}`;
@@ -4499,7 +4507,7 @@ async function gerarPdfComprovanteInscricao(inscricao, evento) {
 }
 
 async function compartilharEvento(evento) {
-  const link = window.location.origin;
+  const link = enderecoDoApp();
   const texto = `📅 ${evento.titulo}\n${formatarPeriodo(evento.data, evento.data_fim)}${evento.horario ? " às " + evento.horario : ""}${evento.local ? "\n📍 " + evento.local : ""}\n\nVem participar comigo! Inscrições no app da ${state.igreja?.nome || "igreja"}: ${link}${linhaVisiteSite()}`;
   if (navigator.share) {
     try { await navigator.share({ text: texto }); darPontos("compartilhar_conteudo", evento.id); return; } catch { /* usuário cancelou */ }
@@ -4974,7 +4982,7 @@ async function abrirAlbum(albumId) {
 }
 
 async function compartilharAlbum(album) {
-  const link = window.location.origin;
+  const link = enderecoDoApp();
   const quando = album.data ? formatarData(album.data) : "";
   const texto = `📸 ${album.titulo || "Álbum de fotos"}${quando ? " · " + quando : ""}\n\nVeja as fotos no app da ${state.igreja?.nome || "igreja"}: ${link}${linhaVisiteSite()}`;
   const capa = (state.fotosAlbumAtual || [])[0]?.url;
