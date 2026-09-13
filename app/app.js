@@ -7850,11 +7850,18 @@ async function carregarMateriaisAdmin(aulaId) {
       <span style="font-size:18px;flex:none;">${mat.tipo === "imagem" ? "🖼️" : "📄"}</span>
       <div class="row-info"><b>${mat.titulo || (mat.tipo === "imagem" ? "Foto" : "PDF")}</b></div>
       <a class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" href="${mat.arquivo_url}" target="_blank" rel="noopener">Ver</a>
+      <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-editar="${mat.id}" data-titulo-atual="${mat.titulo || ""}">✏️</button>
       <button class="btn btn-ghost" style="width:auto;flex:none;padding:6px 10px;font-size:11px;" data-del="${mat.id}">🗑</button>
     </div>
   `).join("") || `<p class="hint">Nenhum material adicionado ainda.</p>`;
   el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
     await sb.from("igr_estudos_materiais").delete().eq("id", b.dataset.del);
+    carregarMateriaisAdmin(aulaId);
+  }));
+  el.querySelectorAll("[data-editar]").forEach(b => b.addEventListener("click", async () => {
+    const novoTitulo = prompt("Nome do material:", b.dataset.tituloAtual);
+    if (novoTitulo === null) return; // cancelou
+    await sb.from("igr_estudos_materiais").update({ titulo: novoTitulo.trim() || null }).eq("id", b.dataset.editar);
     carregarMateriaisAdmin(aulaId);
   }));
 }
