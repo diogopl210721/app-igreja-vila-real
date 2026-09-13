@@ -2834,6 +2834,8 @@ async function abrirBibliaTexto(livroId, capitulo) {
   document.getElementById("biblia-view-texto").style.display = "block";
   document.getElementById("biblia-versiculos").innerHTML = `<p class="hint"><span class="loading-dot"></span></p>`;
   document.getElementById("biblia-marcar-painel").style.display = "none";
+  state.bibliaCapituloAtual = capitulo;
+  limparSelecaoVersiculos();
 
   const resultado = await chamarBiblia({ acao: "texto", livroId, capitulo });
   if (!resultado?.versiculos) {
@@ -2861,7 +2863,23 @@ async function abrirBibliaTexto(livroId, capitulo) {
     document.getElementById("biblia-copyright").textContent = resultado.copyright || "";
 
     document.querySelectorAll("[data-versiculo-biblia]").forEach(span => {
-      span.addEventListener("click", () => abrirMarcarVersiculo(livro.nome, capitulo, span.dataset.versiculoBiblia));
+      const numero = span.dataset.versiculoBiblia;
+      if (versiculosLidos.has(parseInt(numero))) return; // já lido - não precisa selecionar de novo
+      span.addEventListener("click", () => {
+        if (!state.membro) { alert("Faça login pra marcar sua leitura."); return; }
+        if (!state.versiculosSelecionadosBiblia) state.versiculosSelecionadosBiblia = new Set();
+        if (state.versiculosSelecionadosBiblia.has(numero)) {
+          state.versiculosSelecionadosBiblia.delete(numero);
+          span.classList.remove("selecionado");
+          span.style.outline = "";
+        } else {
+          state.versiculosSelecionadosBiblia.add(numero);
+          span.classList.add("selecionado");
+          span.style.outline = "2px solid var(--brand)";
+          span.style.borderRadius = "4px";
+        }
+        atualizarBarraSelecaoVersiculos();
+      });
     });
   } catch (e) {
     console.error("Erro ao mostrar o capítulo:", e);
@@ -2869,34 +2887,58 @@ async function abrirBibliaTexto(livroId, capitulo) {
   }
 }
 
-function abrirMarcarVersiculo(livroNome, capitulo, versiculo) {
-  if (!state.membro) { alert("Faça login pra marcar sua leitura."); return; }
-  state.bibliaVersiculoMarcando = { livroNome, capitulo, versiculo };
-  document.getElementById("biblia-marcar-referencia").textContent = `${livroNome} ${capitulo}:${versiculo}`;
-  document.getElementById("biblia-marcar-lido").checked = true;
+function atualizarBarraSelecaoVersiculos() {
+  const selecionados = state.versiculosSelecionadosBiblia || new Set();
+  const barra = document.getElementById("biblia-selecao-barra");
+  if (selecionados.size === 0) { barra.style.display = "none"; return; }
+  barra.style.display = "block";
+  document.getElementById("biblia-selecao-contagem").textContent =
+    `${selecionados.size} versículo${selecionados.size > 1 ? "s" : ""} selecionado${selecionados.size > 1 ? "s" : ""}`;
+}
+
+function limparSelecaoVersiculos() {
+  state.versiculosSelecionadosBiblia = new Set();
+  document.querySelectorAll("[data-versiculo-biblia].selecionado").forEach(span => span.classList.remove("selecionado"));
+  atualizarBarraSelecaoVersiculos();
+}
+
+function abrirNotaParaSelecao() {
+  const selecionados = [...(state.versiculosSelecionadosBiblia || [])];
+  if (!selecionados.length || !state.membro) return;
+  const livro = state.bibliaLivroAtual;
+  document.getElementById("biblia-marcar-referencia").textContent =
+    selecionados.length === 1 ? `${livro.nome} ${state.bibliaCapituloAtual}:${selecionados[0]}` : `${livro.nome} ${state.bibliaCapituloAtual} — ${selecionados.length} versículos`;
   document.getElementById("biblia-marcar-nota").value = "";
   document.getElementById("biblia-marcar-compartilhar").checked = false;
   document.getElementById("biblia-marcar-painel").style.display = "block";
   document.getElementById("biblia-marcar-painel").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-async function salvarMarcarVersiculo() {
-  const alvo = state.bibliaVersiculoMarcando;
-  if (!alvo || !state.membro) return;
-  const nota = document.getElementById("biblia-marcar-nota").value.trim() || null;
-  const compartilhado = document.getElementById("biblia-marcar-compartilhar").checked;
-  const btn = document.getElementById("btn-biblia-marcar-salvar");
+async function confirmarLeituraSelecionada(comNota) {
+  const selecionados = [...(state.versiculosSelecionadosBiblia || [])];
+  if (!selecionados.length || !state.membro) return;
+  const livro = state.bibliaLivroAtual;
+  const capitulo = state.bibliaCapituloAtual;
+  const nota = comNota ? (document.getElementById("biblia-marcar-nota").value.trim() || null) : null;
+  const compartilhado = comNota ? document.getElementById("biblia-marcar-compartilhar").checked : false;
+
+  const btn = comNota ? document.getElementById("btn-biblia-marcar-salvar") : document.getElementById("btn-biblia-selecao-confirmar");
   btn.disabled = true; btn.textContent = "Salvando...";
-  await sb.from("igr_leituras").insert({
-    igreja_id: state.igreja.id, membro_id: state.membro.id,
-    livro: alvo.livroNome, capitulo: parseInt(alvo.capitulo), versiculo_inicio: parseInt(alvo.versiculo),
-    nota, compartilhado,
-  });
-  darPontos("leitura_biblica");
-  btn.disabled = false; btn.textContent = "Salvar";
-  document.getElementById("biblia-marcar-painel").style.display = "none";
-  if (nota) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
-  await abrirBibliaTexto(state.bibliaLivroAtual.id, alvo.capitulo);
+  try {
+    await sb.from("igr_leituras").insert(selecionados.map(v => ({
+      igreja_id: state.igreja.id, membro_id: state.membro.id,
+      livro: livro.nome, capitulo: parseInt(capitulo), versiculo_inicio: parseInt(v),
+      nota, compartilhado,
+    })));
+    selecionados.forEach(() => darPontos("leitura_biblica"));
+    if (nota) sb.functions.invoke("igr-atualizar-perfil-espiritual", { body: { membro_id: state.membro.id } }).catch(() => {});
+    document.getElementById("biblia-marcar-painel").style.display = "none";
+    limparSelecaoVersiculos();
+    await abrirBibliaTexto(livro.id, capitulo);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = comNota ? "Salvar" : "✓ Marcar como lido";
+  }
 }
 
 // ---------- diário de leitura ----------
@@ -8498,10 +8540,13 @@ async function iniciar() {
   document.getElementById("biblia-voltar")?.addEventListener("click", () => mostrarTela(state.membro ? "tela-membro-home" : "tela-visitante"));
   configurarAutocompleteLivroBiblia();
   document.getElementById("btn-biblia-ir")?.addEventListener("click", irParaReferenciaBiblia);
-  document.getElementById("btn-biblia-marcar-salvar")?.addEventListener("click", salvarMarcarVersiculo);
+  document.getElementById("btn-biblia-marcar-salvar")?.addEventListener("click", () => confirmarLeituraSelecionada(true));
   document.getElementById("btn-biblia-marcar-cancelar")?.addEventListener("click", () => {
     document.getElementById("biblia-marcar-painel").style.display = "none";
   });
+  document.getElementById("btn-biblia-selecao-confirmar")?.addEventListener("click", () => confirmarLeituraSelecionada(false));
+  document.getElementById("btn-biblia-selecao-nota")?.addEventListener("click", abrirNotaParaSelecao);
+  document.getElementById("btn-biblia-selecao-cancelar")?.addEventListener("click", limparSelecaoVersiculos);
   document.getElementById("biblia-voltar-livros")?.addEventListener("click", () => abrirBibliaLivros());
   document.getElementById("biblia-voltar-capitulos")?.addEventListener("click", () => {
     document.getElementById("biblia-view-texto").style.display = "none";
