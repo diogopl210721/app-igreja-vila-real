@@ -3534,18 +3534,21 @@ const PONTOS = {
   aviso_confirmar_presenca: 15,
 };
 
-function periodoDoDia() {
-  const hora = new Date().getHours();
+function periodoDaHora(hora) {
   return hora < 12 ? "manha" : hora < 18 ? "tarde" : "noite";
+}
+function periodoDoDia() {
+  return periodoDaHora(new Date().getHours());
 }
 
 async function darPontos(tipo, referencia_id) {
   if (!state.membro || !state.igreja) return;
   const pontos = PONTOS[tipo];
   if (!pontos) return;
-  await sb.from("igr_pontos_eventos").insert({
+  const { error } = await sb.from("igr_pontos_eventos").insert({
     igreja_id: state.igreja.id, membro_id: state.membro.id, tipo, pontos, referencia_id: referencia_id || null,
   });
+  if (error) console.error(`Não deu pra dar ponto (tipo: ${tipo}):`, error);
 }
 
 // pra dar ponto a OUTRA pessoa que nao a logada agora (ex: quem indicou um visitante)
@@ -3553,9 +3556,10 @@ async function darPontosParaMembro(membroId, igrejaId, tipo, referencia_id) {
   if (!membroId || !igrejaId) return;
   const pontos = PONTOS[tipo];
   if (!pontos) return;
-  await sb.from("igr_pontos_eventos").insert({
+  const { error } = await sb.from("igr_pontos_eventos").insert({
     igreja_id: igrejaId, membro_id: membroId, tipo, pontos, referencia_id: referencia_id || null,
   });
+  if (error) console.error(`Não deu pra dar ponto pro indicador (tipo: ${tipo}):`, error);
 }
 
 // pra acoes que nao podem pontuar toda vez (ex: abrir o devocional) - so da ponto 1x por dia
@@ -3572,11 +3576,12 @@ async function darPontosUmaVezPorDia(tipo) {
 async function darPontosUmaVezPorPeriodo(tipo) {
   if (!state.membro || !state.igreja) return;
   const hoje = new Date().toISOString().slice(0, 10);
-  const periodo = periodoDoDia();
-  const { data: jaGanhou } = await sb.from("igr_pontos_eventos").select("id, referencia_id")
+  const periodoAtual = periodoDoDia();
+  const { data: jaGanhou } = await sb.from("igr_pontos_eventos").select("created_at")
     .eq("membro_id", state.membro.id).eq("tipo", tipo).gte("created_at", hoje + "T00:00:00");
-  if ((jaGanhou || []).some(p => p.referencia_id === periodo)) return;
-  await darPontos(tipo, periodo);
+  const jaTemEssePeriodo = (jaGanhou || []).some(p => periodoDaHora(new Date(p.created_at).getHours()) === periodoAtual);
+  if (jaTemEssePeriodo) return;
+  await darPontos(tipo); // referencia_id é coluna uuid, então não dá pra guardar "manha/tarde/noite" ali
 }
 
 function mostrarToast(msg, duracaoMs, aoClicar) {
