@@ -1428,6 +1428,9 @@ function sair() {
   document.getElementById("tema-input").value = "";
   document.getElementById("tema-resultado").innerHTML = "";
   mostrarTela("tela-visitante");
+  carregarCultos().catch(e => console.error("Falha ao carregar cultos:", e));
+  carregarAvisos("visitante-avisos").catch(e => console.error("Falha ao carregar avisos:", e));
+  carregarFotosPreviewVisitante().catch(e => console.error("Falha ao carregar preview de fotos:", e));
 }
 
 // ---------- home do membro ----------
