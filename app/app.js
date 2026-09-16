@@ -690,8 +690,11 @@ async function compartilharAviso(aviso) {
 
 async function carregarAvisos(targetId) {
   const { data } = await sb.from("igr_avisos").select("*").eq("igreja_id", state.igreja.id).eq("visivel_no_mural", true).order("publicado_em", { ascending: false }).limit(8);
+  const hojeISO = new Date().toISOString().slice(0, 10);
   const meusGrupos = state.membro?.grupoIds || (state.membro?.grupo_id ? [state.membro.grupo_id] : []);
-  const visiveisBrutos = (data || []).filter(a => !a.grupo_id || meusGrupos.includes(a.grupo_id));
+  const visiveisBrutos = (data || [])
+    .filter(a => !a.grupo_id || meusGrupos.includes(a.grupo_id))
+    .filter(a => !a.data_evento || a.data_evento >= hojeISO); // aviso de evento que ja passou some do mural (mas continua no historico do calendario)
   // avisos com link_destino (chamadas de atenção, tipo "assista ao vivo") ficam fixados no topo
   const destacados = visiveisBrutos.filter(a => a.link_destino);
   const normais = visiveisBrutos.filter(a => !a.link_destino).slice(0, 5 - destacados.length);
@@ -2507,8 +2510,10 @@ async function enviarComentarioCelula(postId, celulaId) {
 
 async function carregarAvisosDoGrupoDetalhe(grupoId) {
   const { data } = await sb.from("igr_avisos").select("*").eq("grupo_id", grupoId).order("publicado_em", { ascending: false }).limit(10);
+  const hojeISO = new Date().toISOString().slice(0, 10);
+  const visiveis = (data || []).filter(a => !a.data_evento || a.data_evento >= hojeISO);
   const el = document.getElementById("grupo-detalhe-avisos");
-  el.innerHTML = (data || []).map(a => `
+  el.innerHTML = visiveis.map(a => `
     <div class="card">
       ${a.imagem_url ? `<img class="capa-thumb" src="${a.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${a.imagem_url}">` : ""}
       ${a.video_url ? `<video class="capa-thumb" src="${a.video_url}" controls playsinline></video>` : ""}
