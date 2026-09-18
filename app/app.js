@@ -1114,11 +1114,12 @@ function abrirEditarPerfil() {
 async function computarMinhaPontuacaoMes() {
   if (!state.membro || !state.igreja) return null;
   const inicioMes = primeiroDiaDoMes(0);
-  const { data } = await sb.from("igr_pontos_eventos").select("membro_id, pontos")
-    .eq("igreja_id", state.igreja.id).gte("created_at", inicioMes.toISOString());
+  const { data } = await sb.rpc("igr_pontos_totais_periodo", {
+    p_igreja_id: state.igreja.id, p_inicio: inicioMes.toISOString(),
+  });
 
   const totais = {};
-  (data || []).forEach(p => { totais[p.membro_id] = (totais[p.membro_id] || 0) + p.pontos; });
+  (data || []).forEach(p => { totais[p.membro_id] = Number(p.pontos); });
   const meusPontos = totais[state.membro.id] || 0;
   if (!meusPontos) return { pontos: 0, colocacao: null };
   const colocacao = Object.values(totais).filter(p => p > meusPontos).length + 1;
@@ -3907,13 +3908,13 @@ async function garantirFechamentoMesAnterior() {
     .eq("igreja_id", state.igreja.id).eq("mes", mesAnteriorISO).limit(1).maybeSingle();
   if (jaFechado) return;
 
-  const { data: pontosMesAnterior } = await sb.from("igr_pontos_eventos").select("membro_id, pontos")
-    .eq("igreja_id", state.igreja.id)
-    .gte("created_at", inicioMesAnterior.toISOString()).lt("created_at", inicioMesAtual.toISOString());
+  const { data: pontosMesAnterior } = await sb.rpc("igr_pontos_totais_periodo", {
+    p_igreja_id: state.igreja.id, p_inicio: inicioMesAnterior.toISOString(), p_fim: inicioMesAtual.toISOString(),
+  });
   if (!pontosMesAnterior || !pontosMesAnterior.length) return; // ninguem pontuou no mes anterior, nada pra fechar
 
   const totais = {};
-  pontosMesAnterior.forEach(p => { totais[p.membro_id] = (totais[p.membro_id] || 0) + p.pontos; });
+  pontosMesAnterior.forEach(p => { totais[p.membro_id] = Number(p.pontos); });
   const top3 = Object.entries(totais).sort((a, b) => b[1] - a[1]).slice(0, 3);
   if (!top3.length) return;
 
@@ -3936,12 +3937,13 @@ async function carregarRankingDoMes() {
   await garantirFechamentoMesAnterior();
 
   const inicioMes = primeiroDiaDoMes(0);
-  const { data } = await sb.from("igr_pontos_eventos").select("membro_id, pontos")
-    .eq("igreja_id", state.igreja.id).gte("created_at", inicioMes.toISOString());
+  const { data } = await sb.rpc("igr_pontos_totais_periodo", {
+    p_igreja_id: state.igreja.id, p_inicio: inicioMes.toISOString(),
+  });
   if (minhaSolicitacao !== ultimaSolicitacaoRanking) return; // uma chamada mais nova ja respondeu - descarta essa resposta atrasada
 
   const totais = {};
-  (data || []).forEach(p => { totais[p.membro_id] = (totais[p.membro_id] || 0) + p.pontos; });
+  (data || []).forEach(p => { totais[p.membro_id] = Number(p.pontos); });
   const ids = Object.keys(totais).filter(id => totais[id] > 0);
 
   const diasRestantes = Math.ceil((primeiroDiaDoMes(1) - new Date()) / 86400000);
