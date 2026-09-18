@@ -8666,4 +8666,32 @@ async function iniciar() {
   document.getElementById("tela-carregando-inicial")?.remove();
 }
 
+// ---------- verificacao automatica de nova versao (evita o app ficar preso numa versao antiga em cache) ----------
+async function verificarNovaVersao() {
+  try {
+    const resp = await fetch(`${enderecoDoApp()}/index.html?t=${Date.now()}`, { cache: "no-store" });
+    const html = await resp.text();
+    const match = html.match(/app\.js\?v=(\d+)/);
+    if (match && window.APP_VERSION && match[1] !== window.APP_VERSION) {
+      mostrarBannerNovaVersao();
+    }
+  } catch (e) { /* sem internet ou falha de rede - nao interrompe o uso normal do app */ }
+}
+
+function mostrarBannerNovaVersao() {
+  if (document.getElementById("banner-nova-versao")) return; // já está mostrando
+  const el = document.createElement("div");
+  el.id = "banner-nova-versao";
+  el.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:var(--brand);color:#fff;padding:13px 16px;text-align:center;font-size:13px;font-weight:700;z-index:99999;cursor:pointer;box-shadow:0 -2px 10px rgba(0,0,0,.15);";
+  el.textContent = "✨ Tem uma versão nova do app — toque aqui pra atualizar";
+  el.addEventListener("click", () => window.location.reload());
+  document.body.appendChild(el);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") verificarNovaVersao();
+});
+setTimeout(verificarNovaVersao, 6000);
+setInterval(verificarNovaVersao, 5 * 60 * 1000);
+
 iniciar();
