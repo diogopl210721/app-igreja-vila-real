@@ -1125,11 +1125,14 @@ async function computarMinhaPontuacaoMes() {
   return { pontos: meusPontos, colocacao };
 }
 
+let ultimaSolicitacaoPontuacaoPerfil = 0;
 async function carregarMinhaPontuacaoPerfil() {
   const box = document.getElementById("ep-minha-pontuacao");
   const texto = document.getElementById("ep-pontos-texto");
   if (!state.membro || !state.igreja) { box.style.display = "none"; return; }
+  const minhaSolicitacao = ++ultimaSolicitacaoPontuacaoPerfil;
   const resultado = await computarMinhaPontuacaoMes();
+  if (minhaSolicitacao !== ultimaSolicitacaoPontuacaoPerfil) return; // uma chamada mais nova ja respondeu - descarta essa resposta atrasada
   if (!resultado) { box.style.display = "none"; return; }
   box.style.display = "block";
   texto.textContent = resultado.pontos
@@ -1137,10 +1140,13 @@ async function carregarMinhaPontuacaoPerfil() {
     : "Você ainda não pontuou esse mês — participe do app pra entrar no Ranking do Mês! 🎮";
 }
 
+let ultimaSolicitacaoPontuacaoHome = 0;
 async function carregarMinhaPontuacaoHome() {
   const el = document.getElementById("home-minha-pontuacao");
   if (!el || !state.membro || !state.igreja) { if (el) el.style.display = "none"; return; }
+  const minhaSolicitacao = ++ultimaSolicitacaoPontuacaoHome;
   const resultado = await computarMinhaPontuacaoMes();
+  if (minhaSolicitacao !== ultimaSolicitacaoPontuacaoHome) return; // uma chamada mais nova ja respondeu - descarta essa resposta atrasada
   if (!resultado || !resultado.pontos) { el.style.display = "none"; return; }
   el.style.display = "block";
   el.innerHTML = `<button class="badge-inline" id="btn-home-minha-pontuacao" style="border:none;cursor:pointer;">🎮 ${resultado.pontos} pontos este mês — ${resultado.colocacao}º lugar</button>`;
@@ -3922,14 +3928,17 @@ async function garantirFechamentoMesAnterior() {
   await sb.from("igr_ranking_vencedores").insert(linhas);
 }
 
+let ultimaSolicitacaoRanking = 0;
 async function carregarRankingDoMes() {
   const el = document.getElementById("ranking-mes-lista");
   if (!el || !state.igreja) return;
+  const minhaSolicitacao = ++ultimaSolicitacaoRanking;
   await garantirFechamentoMesAnterior();
 
   const inicioMes = primeiroDiaDoMes(0);
   const { data } = await sb.from("igr_pontos_eventos").select("membro_id, pontos")
     .eq("igreja_id", state.igreja.id).gte("created_at", inicioMes.toISOString());
+  if (minhaSolicitacao !== ultimaSolicitacaoRanking) return; // uma chamada mais nova ja respondeu - descarta essa resposta atrasada
 
   const totais = {};
   (data || []).forEach(p => { totais[p.membro_id] = (totais[p.membro_id] || 0) + p.pontos; });
@@ -3941,6 +3950,7 @@ async function carregarRankingDoMes() {
   if (!ids.length) { el.innerHTML = `<p class="hint">Ninguém pontuou esse mês ainda — comece você! 🎮</p>`; return; }
 
   const { data: membros } = await sb.from("igr_membros").select("id, nome_completo, foto_url").in("id", ids);
+  if (minhaSolicitacao !== ultimaSolicitacaoRanking) return; // uma chamada mais nova ja respondeu - descarta essa resposta atrasada
   const ranking = (membros || [])
     .map(m => ({ ...m, pontos: totais[m.id] || 0 }))
     .sort((a, b) => b.pontos - a.pontos)
