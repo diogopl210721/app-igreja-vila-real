@@ -7723,8 +7723,9 @@ async function carregarModulosAdmin(categoria) {
       ${m.capa_url ? `<img class="capa-thumb" src="${m.capa_url}" alt="">` : ""}
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
         <b style="font-size:13.5px;">${m.titulo}</b>
-        <div style="display:flex;gap:6px;flex:none;">
+        <div style="display:flex;gap:6px;flex:none;flex-wrap:wrap;">
           <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-gerenciar="${m.id}">Aulas</button>
+          <button class="btn btn-ghost" style="width:auto;padding:7px 10px;font-size:11.5px;" data-compartilhar-modulo-admin="${m.id}">📤</button>
           <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-edit="${m.id}">Editar</button>
           <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:11.5px;" data-del="${m.id}">Excluir</button>
         </div>
@@ -7739,6 +7740,10 @@ async function carregarModulosAdmin(categoria) {
   el.querySelectorAll("[data-gerenciar]").forEach(b => b.addEventListener("click", () => {
     const m = state.modulosAdminCache.find(x => x.id === b.dataset.gerenciar);
     if (m) abrirAulasDoModuloAdmin(m);
+  }));
+  el.querySelectorAll("[data-compartilhar-modulo-admin]").forEach(b => b.addEventListener("click", () => {
+    const m = state.modulosAdminCache.find(x => x.id === b.dataset.compartilharModuloAdmin);
+    if (m) compartilharModulo(m);
   }));
 }
 
