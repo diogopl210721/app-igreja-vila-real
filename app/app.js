@@ -562,6 +562,7 @@ function aplicarMarca(igreja) {
   document.getElementById("drawer-nome").textContent = igreja.nome;
   document.querySelector(".drawer-brand img").src = igreja.logo_url || "assets/logo.png";
   document.title = igreja.nome;
+  try { localStorage.setItem("igr_marca", JSON.stringify({ nome: igreja.nome, cor: igreja.cor_primaria, cor2: igreja.cor_secundaria, logo: igreja.logo_url || "" })); } catch (e) {}
 }
 
 // ---------- carregamento inicial ----------
@@ -699,6 +700,7 @@ async function carregarAvisos(targetId) {
   const destacados = visiveisBrutos.filter(a => a.link_destino);
   const normais = visiveisBrutos.filter(a => !a.link_destino).slice(0, 5 - destacados.length);
   const visiveis = [...destacados, ...normais];
+  if (targetId === "home-avisos") { state.avisosHomeCache = visiveis; document.dispatchEvent(new Event("avisos-prontos")); }
   const el = document.getElementById(targetId);
   if (!el) return;
 

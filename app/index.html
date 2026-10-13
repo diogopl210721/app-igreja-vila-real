@@ -15,7 +15,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=1788792728">
-<link rel="stylesheet" href="design-v5.css?v=1791926545">
+<link rel="stylesheet" href="design-v5.css?v=1791927003">
+<link rel="stylesheet" href="design-v6.css?v=1791927003">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -23,6 +24,17 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
+<div id="intro-overlay" aria-hidden="true">
+  <div class="intro-beams"><span class="beam b1"></span><span class="beam b2"></span><span class="beam b3"></span></div>
+  <div class="intro-rings"><i></i><i></i><i></i></div>
+  <div class="intro-centro">
+    <div class="intro-logo"><img src="assets/logo.png" alt=""></div>
+    <h1 class="intro-nome" id="intro-nome"></h1>
+    <span class="intro-linha"></span>
+    <p class="intro-verso" id="intro-verso"></p>
+  </div>
+  <div class="intro-toque">toque para entrar</div>
+</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -30,6 +42,9 @@
     <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5A2.5 2.5 0 0 1 20 21.5z"/></symbol>
     <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></symbol>
     <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.1 2.3 4.5 6 4c2-.3 3.7.6 4.8 2.2L12 7.7l1.2-1.5C14.3 4.6 16 3.7 18 4c3.7.5 5.6 4.1 4 7.7C19.5 16.4 12 21 12 21z"/></symbol>
+    <symbol id="k-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+    <symbol id="k-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="k-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
     <symbol id="k-bible" viewBox="0 0 24 24"><path d="M6 3h11a2 2 0 0 1 2 2v15H8a2 2 0 0 1-2-2V3z"/><path d="M6 18a2 2 0 0 1 2-2h11"/><path d="M12.5 6v6M10.5 8h4"/></symbol>
     <symbol id="k-study" viewBox="0 0 24 24"><path d="M3 5.5C5.2 4.5 8.2 4.6 12 6.6c3.8-2 6.8-2.1 9-1.1v13c-2.2-1-5.2-.9-9 1.1-3.8-2-6.8-2.1-9-1.1z"/><path d="M12 6.6v13"/></symbol>
     <symbol id="k-diary" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 15.4s-3.2-2-3.2-4.2a1.8 1.8 0 0 1 3.2-1.1 1.8 1.8 0 0 1 3.2 1.1c0 2.2-3.2 4.2-3.2 4.2z"/></symbol>
@@ -981,6 +996,44 @@
     </div>
   </div>
 
+  <!-- ============ EXPLORAR (menu completo) ============ -->
+  <div id="menu-explorar" class="explorar" aria-hidden="true">
+    <div class="explorar-bg"><span class="beam b1"></span><span class="beam b2"></span><span class="beam b3"></span></div>
+    <div class="explorar-topo">
+      <div><small>MENU</small><h2>Explorar</h2></div>
+      <button class="explorar-x" data-fechar-explorar aria-label="Fechar"><svg class="icon"><use href="#k-close"/></svg></button>
+    </div>
+    <div class="explorar-busca"><svg class="icon"><use href="#k-search"/></svg><input id="explorar-busca" type="search" placeholder="Buscar no app..." autocomplete="off"></div>
+    <div class="explorar-scroll">
+      <p class="explorar-grupo">Palavra</p>
+      <div class="quicklinks icones-grid">
+        <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#k-bible"/></svg></span>Bíblia</button>
+        <button class="quicklink" data-nav="tela-membro-estudos"><span class="quicklink-ic"><svg class="icon"><use href="#k-study"/></svg></span>Estudos</button>
+        <button class="quicklink" data-nav="tela-diario"><span class="quicklink-ic"><svg class="icon"><use href="#k-diary"/></svg></span>Meu Diário</button>
+        <button class="quicklink" data-nav="tela-biblioteca"><span class="quicklink-ic"><svg class="icon"><use href="#k-books"/></svg></span>Livros</button>
+        <button class="quicklink" data-nav="tela-membro-pastor"><span class="quicklink-ic"><svg class="icon"><use href="#i-mic"/></svg></span>Pastor</button>
+      </div>
+      <p class="explorar-grupo">Igreja</p>
+      <div class="quicklinks icones-grid">
+        <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#k-event"/></svg></span>Eventos</button>
+        <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#k-calendar"/></svg></span>Calendário</button>
+        <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#k-people"/></svg></span>Grupos</button>
+        <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#k-people"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
+        <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#k-church"/></svg></span>Sobre a igreja</button>
+        <button class="quicklink" data-nav="tela-contatos"><span class="quicklink-ic"><svg class="icon"><use href="#i-phone"/></svg></span>Contatos</button>
+      </div>
+      <p class="explorar-grupo">Comunidade</p>
+      <div class="quicklinks icones-grid">
+        <button class="quicklink" data-nav="tela-diretorio"><span class="quicklink-ic"><svg class="icon"><use href="#k-handheart"/></svg></span>Mão Amiga</button>
+        <button class="quicklink" data-nav="tela-mensagens" style="position:relative;"><span class="quicklink-ic"><svg class="icon"><use href="#k-chat"/></svg></span>Mensagens<span id="msgs-badge-quicklink" style="display:none;position:absolute;top:-2px;right:18px;background:#E74C3C;color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px;"></span></button>
+        <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#k-camera"/></svg></span>Fotos</button>
+        <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#k-gallery"/></svg></span>Minhas fotos</button>
+        <button class="quicklink" data-nav="tela-camera-jerusalem"><span class="quicklink-ic"><svg class="icon"><use href="#k-live"/></svg></span>Jerusalém ao vivo</button>
+      </div>
+      <div style="height:40px"></div>
+    </div>
+  </div>
+
   <!-- ============ HOME DO MEMBRO ============ -->
   <div class="screen" id="tela-membro-home">
     <div class="home-bg" id="home-bg"><span class="beam b1"></span><span class="beam b2"></span><span class="beam b3"></span></div>
@@ -996,22 +1049,20 @@
       <p class="greet-sub">Que bom te ver por aqui hoje.</p>
       <div id="home-minha-pontuacao" style="display:none;margin-top:8px;"></div>
 
-      <div class="quicklinks icones-grid">
-        <button class="quicklink" data-nav="tela-biblia"><span class="quicklink-ic"><svg class="icon"><use href="#k-bible"/></svg></span>Bíblia</button>
-        <button class="quicklink" data-nav="tela-membro-estudos"><span class="quicklink-ic"><svg class="icon"><use href="#k-study"/></svg></span>Estudos</button>
-        <button class="quicklink" data-nav="tela-diario"><span class="quicklink-ic"><svg class="icon"><use href="#k-diary"/></svg></span>Meu Diário</button>
-        <button class="quicklink" data-nav="tela-biblioteca"><span class="quicklink-ic"><svg class="icon"><use href="#k-books"/></svg></span>Livros</button>
-        <button class="quicklink" data-nav="tela-eventos"><span class="quicklink-ic"><svg class="icon"><use href="#k-event"/></svg></span>Eventos</button>
-        <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#k-calendar"/></svg></span>Calendário</button>
-        <button class="quicklink" data-nav="tela-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#k-camera"/></svg></span>Fotos</button>
-        <button class="quicklink" data-nav="tela-minhas-fotos"><span class="quicklink-ic"><svg class="icon"><use href="#k-gallery"/></svg></span>Minhas fotos</button>
-        <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#k-people"/></svg></span>Grupos</button>
-        <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#k-people"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
-        <button class="quicklink" data-nav="tela-diretorio"><span class="quicklink-ic"><svg class="icon"><use href="#k-handheart"/></svg></span>Mão Amiga</button>
-        <button class="quicklink" data-nav="tela-mensagens" style="position:relative;"><span class="quicklink-ic"><svg class="icon"><use href="#k-chat"/></svg></span>Mensagens<span id="msgs-badge-quicklink" style="display:none;position:absolute;top:-2px;right:18px;background:#E74C3C;color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px;"></span></button>
-        <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#k-church"/></svg></span>Sobre a igreja</button>
-      </div>
+      <div id="home-stories" class="stories-row" aria-label="Destaques"></div>
 
+      <div class="hero-carousel" id="hero-carousel">
+        <div class="slide"><div id="home-proximo-culto" class="home-culto"></div></div>
+        <div class="slide">
+      <div class="devo-card">
+        <div class="pattern"></div>
+        <span class="devo-eyebrow"><svg class="icon" width="12" height="12" style="stroke:rgba(255,255,255,.8)"><use href="#i-sparkle"/></svg> DEVOCIONAL DE HOJE</span>
+        <h3 id="home-devo-titulo">Carregando...</h3>
+        <p id="home-devo-resumo"></p>
+        <button class="btn" id="btn-ler-devocional">Ler agora</button>
+      </div>
+        </div>
+        <div class="slide">
       <button class="foto-tile tile-ao-vivo" data-nav="tela-camera-jerusalem">
         <span class="tile-bg"></span>
         <span class="tile-live"><i></i> AO VIVO</span>
@@ -1019,19 +1070,22 @@
         <span class="tile-sub">Muro das Lamentações em tempo real</span>
         <svg class="icon tile-seta"><use href="#k-chevron"/></svg>
       </button>
+        </div>
+      </div>
+      <div class="hero-dots" id="hero-dots"></div>
 
-      <div id="home-proximo-culto" class="home-culto"></div>
+      <div class="atalhos-rapidos">
+        <button class="ar" data-nav="tela-biblia"><span class="ar-ic"><svg class="icon"><use href="#k-bible"/></svg></span>Bíblia</button>
+        <button class="ar" data-nav="tela-diario"><span class="ar-ic"><svg class="icon"><use href="#k-diary"/></svg></span>Diário</button>
+        <button class="ar" data-nav="tela-eventos"><span class="ar-ic"><svg class="icon"><use href="#k-event"/></svg></span>Eventos</button>
+        <button class="ar" data-nav="tela-mensagens"><span class="ar-ic"><svg class="icon"><use href="#k-chat"/></svg></span>Chat</button>
+        <button class="ar ar-mais" data-abrir-explorar><span class="ar-ic"><svg class="icon"><use href="#k-grid"/></svg></span>Tudo</button>
+      </div>
+
 
       <div class="section-label"><b>Avisos</b></div>
       <div id="home-avisos" class="carrossel"></div>
 
-      <div class="devo-card" style="margin-top:16px;">
-        <div class="pattern"></div>
-        <span class="devo-eyebrow"><svg class="icon" width="12" height="12" style="stroke:rgba(255,255,255,.8)"><use href="#i-sparkle"/></svg> DEVOCIONAL DE HOJE</span>
-        <h3 id="home-devo-titulo">Carregando...</h3>
-        <p id="home-devo-resumo"></p>
-        <button class="btn" id="btn-ler-devocional">Ler agora</button>
-      </div>
 
       <div class="card" id="checkin-diario-box" style="margin-top:16px;">
         <p class="checkin-pergunta" style="font-weight:700;font-size:14.5px;margin:0 0 12px;">Como você está hoje?</p>
@@ -1115,10 +1169,10 @@
     <div class="bottomnav" id="bottomnav" style="display:none;">
       <button class="navitem on" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
       <button class="navitem" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem nav-fab" data-abrir-explorar aria-label="Explorar"><span class="fab-orb"><svg class="icon"><use href="#k-grid"/></svg></span></button>
       <button class="navitem" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
       <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
       <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-phone"/></svg>Contatos</button>
-      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
     </div>
   </div>
 
@@ -1312,10 +1366,10 @@
     <div class="bottomnav" style="display:flex;">
       <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
       <button class="navitem on" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem nav-fab" data-abrir-explorar aria-label="Explorar"><span class="fab-orb"><svg class="icon"><use href="#k-grid"/></svg></span></button>
       <button class="navitem" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
       <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
       <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-phone"/></svg>Contatos</button>
-      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
     </div>
   </div>
 
@@ -1361,10 +1415,10 @@
     <div class="bottomnav" style="display:flex;">
       <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
       <button class="navitem" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem nav-fab" data-abrir-explorar aria-label="Explorar"><span class="fab-orb"><svg class="icon"><use href="#k-grid"/></svg></span></button>
       <button class="navitem" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
       <button class="navitem on" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
       <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-phone"/></svg>Contatos</button>
-      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
     </div>
   </div>
 
@@ -1398,10 +1452,10 @@
     <div class="bottomnav" style="display:flex;">
       <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
       <button class="navitem" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem nav-fab" data-abrir-explorar aria-label="Explorar"><span class="fab-orb"><svg class="icon"><use href="#k-grid"/></svg></span></button>
       <button class="navitem on" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
       <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
       <button class="navitem" data-nav="tela-contatos"><svg class="icon"><use href="#i-phone"/></svg>Contatos</button>
-      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
     </div>
   </div>
 
@@ -2345,18 +2399,19 @@
     <div class="bottomnav" style="display:flex;">
       <button class="navitem" data-nav="tela-membro-home"><svg class="icon"><use href="#i-home"/></svg>Início</button>
       <button class="navitem" data-nav="tela-membro-estudos"><svg class="icon"><use href="#i-book"/></svg>Estudos</button>
+      <button class="navitem nav-fab" data-abrir-explorar aria-label="Explorar"><span class="fab-orb"><svg class="icon"><use href="#k-grid"/></svg></span></button>
       <button class="navitem" data-nav="tela-membro-louvor" data-louvor-only style="display:none;"><svg class="icon"><use href="#i-music"/></svg>Louvor</button>
       <button class="navitem" data-nav="tela-membro-pastor"><svg class="icon"><use href="#i-mic"/></svg>Pastor</button>
       <button class="navitem on" data-nav="tela-contatos"><svg class="icon"><use href="#i-phone"/></svg>Contatos</button>
-      <button class="navitem" data-nav="tela-grupos-lista"><svg class="icon"><use href="#i-user"/></svg>Grupos</button>
     </div>
   </div>
 
 </div>
 
 <script src="config.js"></script>
-<script>window.APP_VERSION = "1791926545";</script>
-<script src="motion.js?v=1791926545"></script>
-<script src="app.js?v=1791926545"></script>
+<script>window.APP_VERSION = "1791927003";</script>
+<script src="motion.js?v=1791927003"></script>
+<script src="app.js?v=1791927003"></script>
+<script src="stories.js?v=1791927003"></script>
 </body>
 </html>
