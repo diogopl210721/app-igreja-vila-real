@@ -2704,13 +2704,16 @@ function renderizarCardProximoCulto(resultado) {
   const amanhaISO = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const quandoTexto = data === hojeISO ? "Hoje" : data === amanhaISO ? "Amanhã" : formatarData(data);
   return `
-    <div class="card" style="padding:0;overflow:hidden;">
-      ${c.imagem_url ? `<img src="${c.imagem_url}" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;">` : ""}
-      <div style="padding:14px 16px;">
-        <span class="badge-inline" style="margin-bottom:6px;">Próximo culto</span>
-        <h3 style="margin:0 0 2px;font-size:15px;">${c.titulo}</h3>
-        <p style="margin:0 0 8px;font-size:13px;color:var(--ink-soft);">${quandoTexto} · ${c.horario || ""}${c.local ? " · " + c.local : ""}</p>
-        <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:12px;" data-compartilhar-culto-proximo="${c.id}">📤 Compartilhar</button>
+    <div class="culto-hero ${c.imagem_url ? "" : "sem-foto"}" ${c.imagem_url ? `style="background-image:url('${c.imagem_url}')"` : ""}>
+      <div class="culto-hero-shade"></div>
+      <div class="culto-hero-topo">
+        <span class="culto-pill"><i></i> Próximo culto</span>
+        <button class="culto-share" data-compartilhar-culto-proximo="${c.id}" title="Compartilhar" aria-label="Compartilhar"><svg class="icon"><use href="#i-share"/></svg></button>
+      </div>
+      <div class="culto-hero-base">
+        <p class="culto-quando">${quandoTexto}${c.horario ? " · " + c.horario : ""}</p>
+        <h3>${c.titulo}</h3>
+        ${c.local ? `<p class="culto-local">📍 ${c.local}</p>` : ""}
       </div>
     </div>
   `;

@@ -1,0 +1,212 @@
+/* =====================================================================
+   DESIGN V4 — "Luz Editorial": claro, arejado, foto em destaque, serifa
+   elegante nos títulos, ícones em cores suaves e movimento sutil.
+   Substitui V2/V3 (arquivos antigos continuam na pasta, sem uso).
+   ===================================================================== */
+:root{
+  --bg:#F6F5F1;
+  --card:#FFFFFF;
+  --ink:#15171E;
+  --ink-soft:#626878;
+  --ink-faint:#A3A8B5;
+  --line:rgba(21,23,30,.07);
+  --brand-lite:var(--brand);
+  --brand-soft:color-mix(in srgb, var(--brand) 9%, #fff);
+  --shadow:0 1px 2px rgba(21,23,30,.04), 0 12px 32px -16px rgba(21,23,30,.18);
+  --shadow-lg:0 2px 4px rgba(21,23,30,.05), 0 28px 50px -24px rgba(21,23,30,.35);
+  --r:24px;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --spring:cubic-bezier(.34,1.56,.64,1);
+  --serif:'Fraunces', Georgia, serif;
+}
+html,body{ background:var(--bg); }
+body{ font-family:'Plus Jakarta Sans','Inter',sans-serif; color:var(--ink); }
+#app{ background:transparent; position:relative; }
+/* luz suave no topo, na cor da igreja */
+body::before{
+  content:""; position:fixed; z-index:0; top:-220px; left:50%; width:620px; height:520px; margin-left:-310px; pointer-events:none;
+  background:radial-gradient(closest-side, color-mix(in srgb, var(--brand) 20%, transparent), transparent);
+  filter:blur(30px); animation:respira 9s ease-in-out infinite alternate;
+}
+@keyframes respira{ to{ transform:translateY(40px) scale(1.12); opacity:.75; } }
+.screen{ position:relative; z-index:1; }
+
+h1,h2,h3,.card h3,.center-flow h2{ font-family:var(--serif); letter-spacing:-.3px; }
+
+/* ---------- movimento ---------- */
+.screen.active{ animation:entra .55s var(--ease) both; }
+@keyframes entra{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:none; } }
+.rv{ opacity:0; transform:translateY(24px) scale(.985); }
+.rv.rv-on{ opacity:1; transform:none; transition:opacity .7s var(--ease), transform .8s var(--ease); transition-delay:calc(var(--i,0) * 60ms); }
+.ripple-onda{ position:absolute; border-radius:50%; background:rgba(255,255,255,.5); transform:scale(0); animation:onda .65s ease-out forwards; pointer-events:none; }
+.btn-ghost .ripple-onda, .navitem .ripple-onda{ background:color-mix(in srgb, var(--brand) 18%, transparent); }
+@keyframes onda{ to{ transform:scale(4); opacity:0; } }
+
+/* ---------- superfícies ---------- */
+.card, .banner, .evento-card, .album-card, .contato-item, .admin-grid-card{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow);
+  transition:transform .4s var(--spring), box-shadow .3s;
+}
+.card:active, .evento-card:active, .album-card:active, .admin-grid-card:active{ transform:scale(.98); }
+.card h3{ font-size:16px; font-weight:600; }
+.scroll{ padding:14px 18px calc(118px + var(--safe-bottom)); }
+.scroll.no-nav{ padding-bottom:28px; }
+
+/* ---------- botões ---------- */
+.btn{ border-radius:18px; font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; position:relative; overflow:hidden; transition:transform .3s var(--spring), box-shadow .3s; }
+.btn:active{ transform:scale(.96); }
+.btn-primary{ background:var(--brand); color:#fff; box-shadow:0 10px 24px -10px color-mix(in srgb, var(--brand) 70%, transparent); }
+.btn-ghost{ background:#fff; border:1px solid var(--line); color:var(--ink); box-shadow:0 1px 2px rgba(21,23,30,.04); }
+.field input, .field select, .field textarea, textarea{ background:#fff; border:1.5px solid rgba(21,23,30,.09); border-radius:16px; transition:border-color .2s, box-shadow .3s; }
+.field input:focus, .field select:focus, .field textarea:focus{ border-color:var(--brand); box-shadow:0 0 0 4px color-mix(in srgb, var(--brand) 14%, transparent); background:#fff; }
+
+/* ---------- títulos de seção ---------- */
+.section-label{ margin:30px 0 12px; }
+.section-label b{ font-family:var(--serif); font-size:21px; font-weight:600; letter-spacing:-.4px; text-transform:none; color:var(--ink); padding-left:0; }
+.section-label b::before{ display:none; }
+
+/* ---------- topo ---------- */
+.appbar{ background:rgba(246,245,241,.78); -webkit-backdrop-filter:blur(18px) saturate(1.6); backdrop-filter:blur(18px) saturate(1.6); border-bottom:1px solid var(--line); }
+.appbar-btn, .iconbtn{ background:#fff; border:1px solid var(--line); border-radius:50%; box-shadow:0 1px 2px rgba(21,23,30,.05); transition:transform .3s var(--spring); }
+.appbar-btn:active, .iconbtn:active{ transform:scale(.88); }
+.voltar-btn, .admin-aba-voltar{ background:#fff; border:1px solid var(--line); box-shadow:0 1px 2px rgba(21,23,30,.05); }
+
+/* ---------- barra inferior ---------- */
+.bottomnav{
+  left:16px; right:16px; bottom:calc(14px + var(--safe-bottom)); max-width:488px; padding:8px; gap:2px;
+  background:rgba(255,255,255,.88); -webkit-backdrop-filter:blur(22px) saturate(1.8); backdrop-filter:blur(22px) saturate(1.8);
+  border:1px solid rgba(255,255,255,.9); border-radius:28px; box-shadow:0 20px 44px -14px rgba(21,23,30,.35), 0 2px 6px rgba(21,23,30,.06);
+}
+.navitem{ position:relative; padding:9px 0 7px; border-radius:20px; color:var(--ink-faint); font-weight:700; font-size:9.5px; transition:color .25s, transform .3s var(--spring); }
+.navitem .icon{ width:22px; height:22px; transition:transform .45s var(--spring); }
+.navitem.on{ color:var(--brand); }
+.navitem.on::before{ content:""; position:absolute; inset:0; z-index:-1; border-radius:20px; background:var(--brand-soft); animation:pop .45s var(--spring); }
+.navitem.on .icon{ transform:translateY(-1px) scale(1.12); }
+@keyframes pop{ from{ transform:scale(.6); opacity:0; } }
+
+/* =====================================================================
+   HOME
+   ===================================================================== */
+#tela-membro-home .topbar{ margin-bottom:6px; }
+.badge.membro{ background:#fff; color:var(--ink-soft); border:1px solid var(--line); font-weight:700; letter-spacing:.2px; }
+.greet-name{
+  font-family:var(--serif); font-size:36px; line-height:1.05; font-weight:600; letter-spacing:-1.2px; margin:10px 0 6px; color:var(--ink);
+}
+.greet-sub{ font-size:14.5px; color:var(--ink-soft); }
+#home-minha-pontuacao .badge-inline{
+  display:inline-flex; align-items:center; gap:6px; padding:9px 15px; font-size:12.5px; font-weight:700; text-transform:none; letter-spacing:0;
+  color:var(--ink); background:#fff; border:1px solid var(--line) !important; box-shadow:var(--shadow); border-radius:999px;
+}
+#home-minha-pontuacao .badge-inline span{ color:var(--brand); font-weight:800; font-size:14px; }
+
+/* próximo culto: foto grande com texto sobreposto */
+.home-culto{ margin-top:18px; }
+.culto-hero{
+  position:relative; border-radius:30px; overflow:hidden; min-height:300px; display:flex; flex-direction:column; justify-content:space-between;
+  padding:18px; color:#fff; background-size:cover; background-position:center; box-shadow:var(--shadow-lg);
+  background-color:var(--brand);
+}
+.culto-hero.sem-foto{
+  background-image:radial-gradient(120% 100% at 100% 0%, color-mix(in srgb, var(--coral) 70%, transparent), transparent 60%),
+                   linear-gradient(155deg, var(--brand), color-mix(in srgb, var(--brand) 60%, #000));
+}
+.culto-hero-shade{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.28) 0%, transparent 35%, rgba(0,0,0,.78) 100%); }
+.culto-hero > *:not(.culto-hero-shade){ position:relative; }
+.culto-hero-topo{ display:flex; justify-content:space-between; align-items:center; }
+.culto-pill{
+  display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:.3px; padding:8px 13px; border-radius:999px;
+  background:rgba(255,255,255,.2); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.3);
+}
+.culto-pill i{ width:7px; height:7px; border-radius:50%; background:#5CFFB0; box-shadow:0 0 0 0 rgba(92,255,176,.7); animation:ping 1.8s infinite; }
+@keyframes ping{ 70%{ box-shadow:0 0 0 9px rgba(92,255,176,0); } 100%{ box-shadow:0 0 0 0 rgba(92,255,176,0); } }
+.culto-share{ width:40px; height:40px; border-radius:50%; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.2); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); color:#fff; display:flex; align-items:center; justify-content:center; transition:transform .3s var(--spring); }
+.culto-share:active{ transform:scale(.86); }
+.culto-share .icon{ stroke:#fff; width:18px; height:18px; }
+.culto-quando{ margin:0 0 6px; font-size:14px; font-weight:700; color:rgba(255,255,255,.88); letter-spacing:.2px; }
+.culto-hero h3{ margin:0 0 8px; font-family:var(--serif); font-size:32px; line-height:1.04; font-weight:600; letter-spacing:-1px; color:#fff; text-shadow:0 4px 30px rgba(0,0,0,.35); }
+.culto-local{ margin:0; font-size:13px; color:rgba(255,255,255,.85); font-weight:600; }
+#btn-home-ver-todos-cultos{ margin-top:10px; border-radius:18px; }
+
+/* avisos: carrossel horizontal */
+.carrossel{
+  display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -18px; padding:4px 18px 18px; scrollbar-width:none;
+}
+.carrossel::-webkit-scrollbar{ display:none; }
+.carrossel > .card{ flex:0 0 84%; scroll-snap-align:center; margin:0; min-width:0; }
+.carrossel > .empty{ flex:1; }
+.carrossel .capa-thumb{ height:150px; border-radius:18px; }
+
+/* devocional: cartão editorial claro */
+.devo-card{
+  position:relative; overflow:hidden; border-radius:30px; padding:24px 22px 22px; margin-top:22px; isolation:isolate;
+  background:linear-gradient(160deg, #fff, color-mix(in srgb, var(--brand) 7%, #fff)); border:1px solid var(--line); box-shadow:var(--shadow);
+  color:var(--ink);
+}
+.devo-card .pattern{ position:absolute; z-index:-1; right:-40px; top:-40px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle, color-mix(in srgb, var(--coral) 45%, transparent), transparent 70%); animation:respira 8s ease-in-out infinite alternate; }
+.devo-card::before{ content:"“"; position:absolute; right:18px; top:-6px; font-family:var(--serif); font-size:120px; line-height:1; color:color-mix(in srgb, var(--brand) 14%, transparent); z-index:-1; }
+.devo-eyebrow{ color:var(--brand); font-weight:800; letter-spacing:1.3px; font-size:11px; }
+.devo-eyebrow .icon{ stroke:var(--brand) !important; }
+.devo-card h3{ font-family:var(--serif); font-size:26px; line-height:1.12; font-weight:600; letter-spacing:-.7px; color:var(--ink); margin:10px 0 8px; }
+.devo-card p{ color:var(--ink-soft); font-size:14px; line-height:1.55; }
+.devo-card .btn{ width:auto; padding:13px 22px; background:var(--ink); color:#fff; border-radius:999px; box-shadow:0 12px 24px -10px rgba(21,23,30,.5); }
+.devo-card .btn::after{ content:" →"; }
+
+/* humor */
+#checkin-diario-box{ background:transparent; border:none; box-shadow:none; padding:0; margin-top:22px !important; }
+.checkin-pergunta{ font-family:var(--serif); font-size:21px !important; font-weight:600; letter-spacing:-.4px; }
+.reacao-row{ flex-wrap:nowrap; overflow-x:auto; gap:10px; margin:0 -18px; padding:2px 18px 10px; scrollbar-width:none; }
+.reacao-row::-webkit-scrollbar{ display:none; }
+.reacao-btn{ flex:0 0 auto; min-width:84px; background:#fff; border:1px solid var(--line); border-radius:22px; padding:14px 10px; box-shadow:var(--shadow); font-size:24px; color:var(--ink-soft); transition:transform .35s var(--spring), background .25s; }
+.reacao-btn span{ font-size:11px; font-weight:700; }
+.reacao-btn:active{ transform:scale(.9); }
+.reacao-btn.on{ background:var(--brand); color:#fff; border-color:transparent; transform:translateY(-4px); box-shadow:0 16px 26px -12px color-mix(in srgb, var(--brand) 80%, transparent); animation:salta .5s var(--spring); }
+@keyframes salta{ 40%{ transform:translateY(-14px) scale(1.1); } }
+
+/* atalhos: ícones pastel estilo "widgets" */
+.quicklinks{ grid-template-columns:repeat(4,1fr); gap:18px 6px; padding:4px 0 6px; }
+.quicklink{ background:none !important; border:none !important; box-shadow:none !important; padding:0; min-height:0; gap:8px; position:relative; transition:transform .35s var(--spring); }
+.quicklink:active{ transform:scale(.88); }
+.quicklink-ic{
+  width:62px; height:62px; border-radius:22px; background:var(--t,#E8EEFF) !important; box-shadow:0 10px 20px -14px var(--i,#3355ff) !important; border:1px solid rgba(255,255,255,.8);
+  transition:transform .45s var(--spring);
+}
+.quicklink-ic .icon{ width:25px; height:25px; stroke:var(--i,#2442d6) !important; stroke-width:1.9; }
+.quicklink:active .quicklink-ic{ transform:rotate(-8deg) scale(1.08); }
+.quicklink span, .quicklink{ font-size:11px; font-weight:700; color:var(--ink); line-height:1.15; }
+.quicklink:nth-child(6n+1){ --t:#E4ECFF; --i:#2F55D9; }
+.quicklink:nth-child(6n+2){ --t:#FFE7DA; --i:#E0560F; }
+.quicklink:nth-child(6n+3){ --t:#DDF5EA; --i:#0E8F65; }
+.quicklink:nth-child(6n+4){ --t:#EDE3FF; --i:#6B3FE0; }
+.quicklink:nth-child(6n+5){ --t:#FFF1C9; --i:#B27A00; }
+.quicklink:nth-child(6n){ --t:#FFE0EA; --i:#D1306A; }
+.quicklink[data-nav="tela-camera-jerusalem"]::after{ content:""; position:absolute; top:-2px; right:calc(50% - 38px); width:12px; height:12px; border-radius:50%; background:#FF3B5C; border:2px solid var(--bg); animation:ping2 1.6s infinite; }
+@keyframes ping2{ 70%{ box-shadow:0 0 0 8px rgba(255,59,92,0); } 0%{ box-shadow:0 0 0 0 rgba(255,59,92,.6); } }
+
+/* aniversariantes / ranking */
+.bday .circle{ background:#fff; color:#B27A00; box-shadow:0 0 0 2px #fff, 0 0 0 4px #FFC857, 0 10px 18px -10px #FFC857; }
+.bday-nome{ color:var(--ink); } .bday-data{ color:var(--brand); }
+.chip{ background:#fff; border:1px solid var(--line); color:var(--ink-soft); }
+.chip.on{ background:var(--ink); color:#fff; border-color:transparent; }
+.badge-inline{ background:var(--brand-soft); color:var(--brand); }
+.perfil-lembrete{ border-radius:20px; }
+
+/* modal */
+.modal-overlay{ background:rgba(21,23,30,.4); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
+.modal-overlay.open .modal-card{ animation:sobe .5s var(--spring); }
+.modal-card{ border-radius:30px; }
+@keyframes sobe{ from{ transform:translateY(40px) scale(.92); opacity:0; } }
+.empty{ padding:36px 16px; }
+.empty::before{ content:"✨"; display:block; font-size:30px; margin-bottom:8px; animation:flutua 3s ease-in-out infinite; }
+@keyframes flutua{ 50%{ transform:translateY(-7px); } }
+
+/* toast de pontos + confete */
+.toast-pontos{ position:fixed; left:50%; top:calc(16px + var(--safe-top)); z-index:99998; transform:translate(-50%,-90px); display:flex; gap:9px; padding:13px 22px; border-radius:999px; color:#fff; font-weight:800; font-size:15px; background:var(--ink); box-shadow:0 20px 40px -12px rgba(21,23,30,.6); animation:toastP 2.6s var(--spring) forwards; }
+@keyframes toastP{ 12%,80%{ transform:translate(-50%,0); } 100%{ transform:translate(-50%,-90px); opacity:0; } }
+.confete-peca{ position:fixed; z-index:99997; width:9px; height:14px; top:-20px; pointer-events:none; border-radius:2px; animation:cai linear forwards; }
+@keyframes cai{ to{ transform:translate3d(var(--dx),105vh,0) rotate(var(--rot)); opacity:.9; } }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  .rv{ opacity:1; transform:none; }
+}
+.card p.checkin-pergunta, #checkin-diario-box .checkin-pergunta{ color:var(--ink) !important; }

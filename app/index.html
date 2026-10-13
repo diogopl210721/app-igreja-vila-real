@@ -13,10 +13,9 @@
 <link rel="icon" href="assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=1788792728">
-<link rel="stylesheet" href="design-v2.css?v=1791925614">
-<link rel="stylesheet" href="design-v3.css?v=1791925614">
+<link rel="stylesheet" href="design-v4.css?v=1791925857">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -31,6 +30,7 @@
     <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5A2.5 2.5 0 0 1 20 21.5z"/></symbol>
     <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></symbol>
     <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.1 2.3 4.5 6 4c2-.3 3.7.6 4.8 2.2L12 7.7l1.2-1.5C14.3 4.6 16 3.7 18 4c3.7.5 5.6 4.1 4 7.7C19.5 16.4 12 21 12 21z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></symbol>
@@ -981,6 +981,11 @@
       <p class="greet-sub">Que bom te ver por aqui hoje.</p>
       <div id="home-minha-pontuacao" style="display:none;margin-top:8px;"></div>
 
+      <div id="home-proximo-culto" class="home-culto"></div>
+
+      <div class="section-label"><b>Avisos</b></div>
+      <div id="home-avisos" class="carrossel"></div>
+
       <div class="devo-card" style="margin-top:16px;">
         <div class="pattern"></div>
         <span class="devo-eyebrow"><svg class="icon" width="12" height="12" style="stroke:rgba(255,255,255,.8)"><use href="#i-sparkle"/></svg> DEVOCIONAL DE HOJE</span>
@@ -988,8 +993,6 @@
         <p id="home-devo-resumo"></p>
         <button class="btn" id="btn-ler-devocional">Ler agora</button>
       </div>
-
-      <div id="home-proximo-culto" style="margin-top:14px;"></div>
 
       <div class="card" id="checkin-diario-box" style="margin-top:16px;">
         <p class="checkin-pergunta" style="font-weight:700;font-size:14.5px;margin:0 0 12px;">Como você está hoje?</p>
@@ -1063,9 +1066,6 @@
         <button class="btn btn-primary" id="btn-ativar-push">Ativar</button>
         <button class="btn btn-ghost" id="btn-dispensar-push" style="margin-top:8px;">Agora não</button>
       </div>
-
-      <div class="section-label"><b>Avisos</b></div>
-      <div id="home-avisos"></div>
 
       <div id="meus-grupos-lista" style="display:flex;flex-direction:column;gap:6px;margin:6px 0 4px;"></div>
 
@@ -2332,8 +2332,8 @@
 </div>
 
 <script src="config.js"></script>
-<script>window.APP_VERSION = "1791925614";</script>
-<script src="motion.js?v=1791925614"></script>
-<script src="app.js?v=1791925614"></script>
+<script>window.APP_VERSION = "1791925857";</script>
+<script src="motion.js?v=1791925857"></script>
+<script src="app.js?v=1791925857"></script>
 </body>
 </html>
