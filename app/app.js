@@ -1473,6 +1473,7 @@ async function montarHomeMembro() {
   });
 
   configurarCheckinDiario();
+  if (window.v8Home) window.v8Home(m);
   configurarCaixaPush();
 
   const lembreteBox = document.getElementById("perfil-lembrete-box");
