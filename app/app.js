@@ -567,7 +567,8 @@ function aplicarMarca(igreja) {
   document.getElementById("appbar-nome").innerHTML = nomeBonito(igreja.nome);
   document.getElementById("appbar-logo").src = ehVilaReal(igreja.nome) ? "assets/icone-igreja.png" : (igreja.logo_url || "assets/logo.png");
   document.getElementById("drawer-nome").textContent = igreja.nome;
-  document.querySelector(".drawer-brand img").src = igreja.logo_url || "assets/logo.png";
+  const dLogo = document.querySelector(".drawer-logo");
+  if (dLogo && igreja.logo_url && !ehVilaReal(igreja.nome)) { dLogo.src = igreja.logo_url; dLogo.classList.add("logo-cor"); }
   document.title = igreja.nome;
   try { localStorage.setItem("igr_marca", JSON.stringify({ nome: igreja.nome, cor: igreja.cor_primaria, cor2: igreja.cor_secundaria, logo: igreja.logo_url || "" })); } catch (e) {}
 }
@@ -624,15 +625,27 @@ async function carregarCultos() {
     const periodo = (c.data_inicio || c.data_fim)
       ? `${c.data_inicio ? formatarData(c.data_inicio) : "início"} à ${c.data_fim ? formatarData(c.data_fim) : "sem data final"}${c.dia_semana && !c.data ? " às " + c.dia_semana.toLowerCase() + "s" : ""}`
       : "";
+    const nomeDia = (DIA_SEMANA_NOMES_LOUVOR[c.dia_semana] || c.dia_semana || "");
+    const MA = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+    const dEsp = c.data ? new Date(c.data + "T00:00:00") : null;
+    const tileA = dEsp ? String(dEsp.getDate()) : (nomeDia || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 3).toUpperCase();
+    const tileB = dEsp ? MA[dEsp.getMonth()] : "TODA SEMANA";
     return `
-    <div class="card">
-      ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
-      <h3>${c.titulo}</h3>
-      <p>${c.data ? formatarData(c.data) + " (especial)" : (DIA_SEMANA_NOMES_LOUVOR[c.dia_semana] || c.dia_semana || "")} · ${c.horario || ""} · ${c.local || ""}</p>
-      ${periodo ? `<p class="hint" style="margin:2px 0 0;">📅 ${periodo}</p>` : ""}
-      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-        <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" data-add-agenda-culto="${c.id}">📅 Adicionar à agenda</button>
-        <button class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:12px;" data-compartilhar-culto="${c.id}">📤 Compartilhar</button>
+    <div class="card culto-card c${(c.titulo || "").length % 5}">
+      <div class="dt"><b>${tileA}</b><small>${tileB}</small></div>
+      <div class="cc-body">
+        ${c.imagem_url ? `<img class="capa-thumb" src="${c.imagem_url}" alt="">` : ""}
+        <h3>${c.titulo}</h3>
+        <div class="cc-meta">
+          ${dEsp ? `<span class="cc-chip esp">Especial · ${formatarData(c.data)}</span>` : (nomeDia ? `<span class="cc-chip">${nomeDia}</span>` : "")}
+          ${c.horario ? `<span class="cc-chip"><svg class="ic8"><use href="#k-clock"/></svg>${c.horario}</span>` : ""}
+          ${c.local ? `<span class="cc-chip"><svg class="ic8"><use href="#k-pin"/></svg>${c.local}</span>` : ""}
+        </div>
+        ${periodo ? `<p class="hint cc-periodo"><svg class="ic8"><use href="#k-calendar"/></svg>${periodo}</p>` : ""}
+        <div class="cc-acoes">
+          <button class="btn btn-ghost" data-add-agenda-culto="${c.id}"><svg class="ic8"><use href="#k-calendar"/></svg>Agenda</button>
+          <button class="btn btn-ghost" data-compartilhar-culto="${c.id}"><svg class="ic8"><use href="#k-share2"/></svg>Compartilhar</button>
+        </div>
       </div>
     </div>
   `;

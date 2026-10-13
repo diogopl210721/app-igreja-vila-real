@@ -1,0 +1,247 @@
+/* =====================================================================
+   DESIGN V9 — tema CLARO (papel) como padrão + menu lateral novo + barra
+   inferior corrigida. O tema escuro continua disponível (html sem .claro).
+   ===================================================================== */
+:root{ --gold-t:#E8B000; }
+html.claro{
+  color-scheme:light;
+  --bg:#f5f0e6; --card:rgba(255,255,255,.82); --ink:#0b1030; --ink-soft:rgba(11,16,48,.66); --ink-faint:rgba(11,16,48,.42);
+  --line:rgba(11,16,48,.1); --brand-soft:rgba(0,38,183,.08); --brand-lite:#0026B7; --glass:rgba(255,255,255,.7); --glass-2:rgba(255,255,255,.9);
+  --shadow:0 18px 40px -26px rgba(11,16,48,.45); --gold-t:#9a6b00; --gold-soft:rgba(249,189,0,.2);
+}
+html.claro body{ color-scheme:light; background:var(--bg); color:var(--ink); }
+html.claro body::before{ background:radial-gradient(closest-side, rgba(0,38,183,.16), transparent); opacity:.9; }
+html.claro body::after{ background:radial-gradient(closest-side, rgba(249,189,0,.28), transparent); }
+html.claro #app{ background:transparent; }
+
+/* ilhas escuras (continuam cinematográficas) */
+html.claro .devo-card, html.claro .culto-hero, html.claro .foto-tile, html.claro .hero-boasvindas, html.claro .pal-card:not(.feito),
+html.claro #palavra, html.claro #intro-overlay, html.claro .explorar, html.claro .verse-block, html.claro .story-viewer, html.claro .sv, html.claro .toast-pontos{
+  --ink:#fff; --ink-soft:rgba(255,255,255,.7); --ink-faint:rgba(255,255,255,.45); --line:rgba(255,255,255,.14); --card:rgba(255,255,255,.07); color:#fff; color-scheme:dark; }
+
+/* tipografia */
+html.claro .screen h2, html.claro .section-label b, html.claro .screen span[style*="Montserrat"], html.claro .screen h2[style*="Montserrat"],
+html.claro #devo-titulo-detalhe, html.claro #admin-titulo-painel, html.claro #biblia-nome-livro, html.claro .card h3, html.claro .greet-name small{ color:var(--ink); }
+html.claro .screen h2 em, html.claro .screen span[style*="Montserrat"] em{ color:var(--gold-t); }
+html.claro .screen h2 + p.hint, html.claro .screen > .scroll > p.hint:first-of-type{ color:var(--ink-soft); }
+html.claro .greet-name b{ background:linear-gradient(100deg,#0b1030 25%,#0026B7 90%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; text-shadow:none; }
+html.claro .greet-sub{ color:var(--ink-soft); }
+html.claro .section-label b::before{ background:var(--coral); box-shadow:0 0 12px rgba(249,189,0,.6); }
+html.claro .section-label b::after{ background:linear-gradient(90deg,rgba(11,16,48,.2),transparent); }
+html.claro .hint,html.claro .card p,html.claro .empty{ color:var(--ink-soft); }
+html.claro #devo-tema-detalhe, html.claro .cal-item .tx em.gold, html.claro .ev-v8 .info .vagas, html.claro .album-card .info span{ color:var(--gold-t); }
+html.claro .album-card .info span{ color:var(--coral); }
+
+/* topo */
+html.claro .appbar{ background:rgba(245,240,230,.72); }
+html.claro .appbar.rolou{ background:rgba(245,240,230,.92); border-bottom-color:var(--line); }
+html.claro .appbar-btn, html.claro .iconbtn{ background:rgba(255,255,255,.75); border-color:var(--line); color:var(--ink); box-shadow:0 8px 20px -14px rgba(11,16,48,.5); }
+html.claro .appbar-btn .icon, html.claro .iconbtn .icon{ color:var(--ink); stroke:var(--ink); }
+html.claro .appbar-brand span i{ color:var(--ink); }
+html.claro .appbar-brand span b{ color:var(--gold-t); }
+html.claro .appbar-brand img{ background:#0b1030!important; border-color:rgba(11,16,48,.2)!important; }
+html.claro .voltar-btn, html.claro .admin-aba-voltar{ background:rgba(255,255,255,.8); color:var(--ink); border-color:var(--line); }
+html.claro .voltar-btn .icon{ stroke:var(--ink); }
+html.claro .badge.membro, html.claro .badge.visitante{ background:rgba(255,255,255,.8); color:var(--ink-soft); border-color:var(--line); }
+
+/* superfícies */
+html.claro .card, html.claro .banner, html.claro .evento-card, html.claro .contato-item, html.claro .admin-grid-card, html.claro .reacao-btn,
+html.claro .interesse-item, html.claro .grouppick, html.claro .prayer-item, html.claro .quicklink, html.claro .ar, html.claro .cal-item, html.claro .wz-prev-card{
+  background:linear-gradient(160deg,rgba(255,255,255,.95),rgba(255,255,255,.7)); border-color:rgba(11,16,48,.09); color:var(--ink);
+  box-shadow:0 18px 40px -28px rgba(11,16,48,.5), inset 0 1px 0 #fff; }
+html.claro .quicklink{ background:linear-gradient(160deg,rgba(255,255,255,.95),rgba(255,255,255,.7))!important; border-color:rgba(11,16,48,.09)!important; }
+html.claro .quicklink-ic .icon, html.claro .ar-ic .icon{ stroke:var(--brand)!important; filter:none!important; }
+html.claro .admin-grid-card .icon{ stroke:#fff; }
+html.claro .card::before, html.claro .evento-card::before, html.claro .contato-item::before, html.claro .admin-grid-card::before{ background:radial-gradient(260px circle at var(--mx,50%) var(--my,0%), rgba(249,189,0,.22), transparent 70%); }
+@media (hover:hover){ html.claro .card:hover, html.claro .evento-card:hover, html.claro .contato-item:hover, html.claro .admin-grid-card:hover{ border-color:rgba(0,38,183,.35); box-shadow:0 30px 60px -30px rgba(0,38,183,.45); } }
+html.claro .ar-mais{ background:linear-gradient(160deg,rgba(249,189,0,.5),rgba(249,189,0,.15))!important; border-color:rgba(249,189,0,.7)!important; }
+html.claro .card-actions-row, html.claro .row-avatar .row-info span, html.claro .prayer-item span{ color:var(--ink-soft); }
+html.claro .prayer-item p, html.claro .row-avatar .row-info b, html.claro .contato-item .txt b, html.claro .perfil-lembrete .txt b, html.claro .perfil-lembrete{ color:var(--ink); }
+html.claro .evento-card .info b, html.claro .ev-v8 .info b, html.claro .cal-item .tx span, html.claro .wz-prev-card .tx b, html.claro .album-card .info b{ color:var(--ink)!important; }
+html.claro .album-card .info b{ color:#fff!important; }
+html.claro .ev-v8 .info span, html.claro .cal-item .tx em, html.claro .wz-prev-card .tx span{ color:var(--ink-soft); }
+html.claro .badge-inline{ background:rgba(0,38,183,.08); color:var(--brand); }
+html.claro .status-pill.novo, html.claro a.linklike{ color:var(--brand); }
+
+/* botões e campos */
+html.claro .btn-ghost, html.claro .chip{ background:rgba(255,255,255,.85); color:var(--ink); border-color:rgba(11,16,48,.12); }
+html.claro .chip.on{ background:var(--coral); color:#241a00; border-color:var(--coral); }
+html.claro .btn-primary{ color:#fff; }
+html.claro .field label{ color:var(--ink-soft); }
+html.claro .field input, html.claro .field select, html.claro .field textarea, html.claro textarea, html.claro .data-input-wrapper, html.claro .pin-box, html.claro .parente-linha select, html.claro #novo-pedido-texto{
+  background:rgba(255,255,255,.92); border:1.5px solid rgba(11,16,48,.12); color:var(--ink); box-shadow:inset 0 1px 2px rgba(11,16,48,.04); }
+html.claro .field input::placeholder, html.claro textarea::placeholder{ color:var(--ink-faint); }
+html.claro .field input:focus, html.claro .field select:focus, html.claro .field textarea:focus{ background:#fff; border-color:var(--brand); box-shadow:0 0 0 4px rgba(0,38,183,.12); }
+html.claro select option{ background:#fff; color:#0b1030; }
+html.claro .autocomplete-lista{ background:#fff; border-color:var(--line); box-shadow:0 20px 40px -20px rgba(11,16,48,.4); }
+html.claro .autocomplete-item{ color:var(--ink); }
+html.claro .field input[type="file"]{ background:rgba(255,255,255,.7); }
+
+/* calendário / criação em passos */
+html.claro .cal-dia{ background:rgba(255,255,255,.85); border-color:rgba(11,16,48,.1); color:var(--ink); }
+html.claro .cal-dia.tem{ background:linear-gradient(160deg,#dfe6ff,#c9d5ff); border-color:rgba(0,38,183,.35); color:#0026B7; }
+html.claro .cal-dia.hoje{ border-color:var(--coral); box-shadow:0 0 0 3px rgba(249,189,0,.35); color:#7a5400; }
+html.claro #cal-dias-semana span{ color:var(--gold-t); }
+html.claro .wz-p{ background:rgba(255,255,255,.8); border-color:rgba(11,16,48,.1); }
+html.claro .wz-p i{ background:rgba(11,16,48,.1); color:var(--ink); }
+html.claro .wz-p b{ color:var(--ink-soft); } html.claro .wz-p.on b{ color:var(--ink); }
+html.claro .wz-p.on{ background:rgba(249,189,0,.22); }
+html.claro .wz-prev-eye{ color:var(--gold-t); }
+html.claro .wz-prev-card{ border-color:rgba(154,107,0,.5); }
+
+/* Bíblia / devocional / leitura */
+html.claro #biblia-versiculos{ color:var(--ink); }
+html.claro #biblia-view-texto .card:first-of-type{ background:linear-gradient(180deg,#fffdf7,#fbf5e6); }
+html.claro #biblia-referencia{ color:var(--gold-t); }
+html.claro #biblia-versiculos sup{ color:var(--brand)!important; }
+html.claro #biblia-lista-capitulos .chip{ background:rgba(255,255,255,.85); }
+html.claro p.reflect{ color:rgba(11,16,48,.88)!important; }
+html.claro p.reflect::first-letter{ color:var(--gold-t); }
+html.claro .reacao-btn{ color:var(--ink-soft); }
+html.claro .reacao-btn.on{ background:var(--coral)!important; color:#241a00!important; }
+
+/* chat */
+html.claro #chat-mensagens > div{ background:#fff!important; color:var(--ink)!important; border-color:rgba(11,16,48,.08); box-shadow:0 8px 20px -14px rgba(11,16,48,.4); }
+html.claro #chat-mensagens > div[style*="align-self:flex-end"]{ background:linear-gradient(135deg,#1239e0,#0026B7)!important; color:#fff!important; }
+html.claro #form-chat-enviar{ background:rgba(245,240,230,.85)!important; border-top-color:var(--line)!important; }
+html.claro #chat-input-texto{ background:#fff!important; color:var(--ink); border-color:var(--line)!important; }
+html.claro #chat-nome-titulo{ color:var(--ink); }
+
+/* admin / grupos / listas */
+html.claro .admin-grid-card{ color:var(--ink); }
+html.claro [style*="dashed var(--brand)"]{ border-color:rgba(154,107,0,.55)!important; background:linear-gradient(160deg,rgba(249,189,0,.12),rgba(255,255,255,.6)); }
+html.claro .avatar-ini{ box-shadow:0 0 0 2px var(--bg), 0 0 0 4px rgba(249,189,0,.7); }
+html.claro .bday .circle{ box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--coral); background:#fff; }
+html.claro .bday-nome{ color:var(--ink); } html.claro .bday .bday-data{ color:var(--gold-t); }
+html.claro #ranking-mes-lista .card:first-child{ background:linear-gradient(150deg,rgba(249,189,0,.35),rgba(255,255,255,.8)); border-color:rgba(249,189,0,.8); }
+html.claro .contato-item .ic{ background:rgba(0,38,183,.08); } html.claro .contato-item .ic .icon{ stroke:var(--brand); color:var(--brand); }
+html.claro .perfil-lembrete{ background:rgba(249,189,0,.2); border-color:rgba(154,107,0,.4); }
+html.claro .loading-dot{ background:var(--brand)!important; }
+html.claro .modal-card, html.claro .foto-editor-box{ background:rgba(255,255,255,.97); color:var(--ink); border-color:var(--line); }
+html.claro .modal-fechar{ background:rgba(11,16,48,.08); color:var(--ink); }
+html.claro .modal-overlay{ background:rgba(11,16,48,.45); }
+html.claro #novo-pedido-texto{ color:var(--ink); }
+html.claro .scroll > .btn-ghost:not([style*="dashed"]){ background:linear-gradient(160deg,#fff,rgba(255,255,255,.7)); }
+html.claro [data-abrir-livro] div[style*="height:5px"]{ background:rgba(11,16,48,.1)!important; }
+html.claro .foto-item{ border-color:rgba(11,16,48,.1); }
+html.claro .v8-ring::after{ border-color:rgba(11,16,48,.5); }
+html.claro .v8-ring.on::after{ border-color:var(--coral); background:rgba(249,189,0,.16); }
+
+/* home: fundo aurora suave sobre o papel */
+html.claro .home-bg{ -webkit-mask-image:linear-gradient(#000 40%, transparent); mask-image:linear-gradient(#000 40%, transparent); }
+html.claro .home-bg::before{ opacity:0!important; }
+html.claro .home-bg::after{ background:linear-gradient(180deg,rgba(245,240,230,0),var(--bg) 85%); }
+html.claro .home-bg .beam{ opacity:.35; }
+html.claro .home-bg .aurora i{ opacity:.55; }
+html.claro #home-minha-pontuacao .badge-inline{ background:rgba(255,255,255,.85); color:var(--ink); border-color:var(--line)!important; }
+html.claro #home-minha-pontuacao .badge-inline span{ color:var(--gold-t); }
+html.claro .stories-row .story-ring span, html.claro .story-ring .nome{ color:var(--ink-soft); }
+html.claro .pal-card.feito{ background:linear-gradient(155deg,#fff,rgba(255,255,255,.7)); border-color:var(--line); color:var(--ink); }
+html.claro .pal-card.feito .pc-t{ color:var(--ink); } html.claro .pal-card.feito .pc-eye{ color:var(--gold-t); }
+html.claro .pal-card.feito .pc-go{ background:rgba(0,38,183,.1); color:var(--brand); } html.claro .pal-card.feito .pc-go .icon{ stroke:var(--brand); }
+html.claro .verso-dia .vd-texto span{ color:rgba(11,16,48,.22); } html.claro .verso-dia .vd-texto span.on{ color:var(--ink); }
+html.claro .dds-copy, html.claro .dds-copy small{ color:var(--ink-soft); } html.claro .dds-copy a{ color:var(--gold-t); }
+html.claro .hero-dots i{ background:rgba(11,16,48,.2); }
+html.claro .toast-pontos{ color:#0A0A0D; }
+
+/* =====================================================================
+   BARRA INFERIOR — corrigida (iOS cortava o botão central por causa do
+   backdrop-filter): o vidro vai num pseudo-elemento, o botão fica livre.
+   ===================================================================== */
+.bottomnav{ background:none!important; -webkit-backdrop-filter:none!important; backdrop-filter:none!important; border:none!important; box-shadow:none!important; overflow:visible!important; }
+.bottomnav::before{ content:""; position:absolute; inset:0; z-index:-2; border-radius:30px; background:rgba(14,15,19,.9); -webkit-backdrop-filter:blur(26px) saturate(1.6); backdrop-filter:blur(26px) saturate(1.6); border:1px solid rgba(255,255,255,.12); box-shadow:0 26px 54px -16px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.1); }
+html.claro .bottomnav::before{ background:rgba(255,255,255,.88); border-color:rgba(11,16,48,.1); box-shadow:0 24px 50px -18px rgba(11,16,48,.45), inset 0 1px 0 #fff; }
+html.claro .navitem{ color:var(--ink-faint); } html.claro .navitem.on{ color:var(--brand); }
+html.claro .navitem.on .icon{ filter:none; }
+html.claro .nav-blob{ background:linear-gradient(160deg,rgba(0,38,183,.14),rgba(0,38,183,.04)); border-color:rgba(0,38,183,.2); box-shadow:none; }
+.navitem.nav-fab{ overflow:visible; background:none!important; transform:none!important; }
+.nav-fab.v8-mag{ transform:none!important; }
+.fab-orb{ box-shadow:0 0 0 5px var(--bg), 0 10px 22px -8px rgba(232,150,0,.75)!important; animation:none!important; background:linear-gradient(145deg,#FFD66B,#F9BD00 60%,#F59E0B); }
+html:not(.claro) .fab-orb{ box-shadow:0 0 0 5px #0e0f13, 0 10px 22px -8px rgba(232,150,0,.7)!important; }
+.fab-orb .icon{ stroke:#241a00!important; }
+
+/* =====================================================================
+   MENU LATERAL — novo
+   ===================================================================== */
+.drawer{ width:86%!important; max-width:340px!important; padding:0!important; display:flex; flex-direction:column; overflow:hidden; border-radius:0 34px 34px 0!important; background:var(--bg)!important; border:none!important; box-shadow:30px 0 80px -20px rgba(0,0,0,.5); }
+html:not(.claro) .drawer{ background:#0b0e1c!important; }
+.drawer-hero{ position:relative; padding:calc(26px + env(safe-area-inset-top,0px)) 22px 26px; color:#fff; overflow:hidden; background:radial-gradient(120% 120% at 100% 0%,rgba(249,189,0,.35),transparent 55%),linear-gradient(155deg,#0b1030,#0026B7 140%); }
+.drawer-hero::after{ content:""; position:absolute; inset:0; background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.1) 50%,transparent 65%); transform:translateX(-120%); animation:palBrilho 6s 1s infinite; pointer-events:none; }
+.drawer-logo{ display:block; width:min(62%,180px); height:auto; margin:6px 0 14px; filter:drop-shadow(0 8px 22px rgba(0,0,0,.4)); }
+.drawer-logo.logo-cor{ background:#fff; padding:8px; border-radius:16px; width:84px; }
+.drawer-brand-nome{ display:block; font-family:var(--serif); font-weight:300; font-size:26px; line-height:1.05; letter-spacing:-.02em; font-variation-settings:"opsz" 144; }
+.drawer-x{ position:absolute; top:calc(14px + env(safe-area-inset-top,0px)); right:14px; width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.12); color:#fff; display:grid; place-items:center; cursor:pointer; }
+.drawer-x .icon{ stroke:#fff; width:18px; height:18px; }
+.drawer-lista{ padding:16px 14px 6px; display:flex; flex-direction:column; gap:6px; flex:1; overflow-y:auto; }
+.drawer-item{ display:flex!important; align-items:center; gap:14px; width:100%; padding:11px 12px!important; border-radius:20px!important; border:1px solid transparent!important; background:none; text-align:left; cursor:pointer; transition:transform .4s cubic-bezier(.22,1,.36,1), background .3s, border-color .3s; opacity:0; transform:translateX(-18px); }
+.drawer.open .drawer-item{ opacity:1; transform:none; transition-delay:calc(.12s + var(--i,0) * 60ms); }
+.drawer-item:nth-child(1){ --i:0 } .drawer-item:nth-child(2){ --i:1 } .drawer-item:nth-child(3){ --i:2 } .drawer-item:nth-child(4){ --i:3 }
+.drawer-item:active{ background:rgba(0,38,183,.08)!important; }
+@media (hover:hover){ .drawer-item:hover{ background:rgba(0,38,183,.06)!important; border-color:rgba(0,38,183,.15)!important; transform:translateX(4px)!important; } }
+.di-ic{ flex:none; width:46px; height:46px; border-radius:16px; display:grid; place-items:center; background:linear-gradient(150deg,var(--tc2),var(--tc)); box-shadow:0 10px 22px -10px var(--tc); }
+.di-ic .icon{ width:22px; height:22px; stroke:#fff!important; color:#fff!important; }
+.di-tx{ display:flex; flex-direction:column; gap:2px; }
+.di-tx b{ font-family:var(--serif); font-weight:400; font-size:21px; letter-spacing:-.01em; color:var(--ink); }
+.di-tx small{ font-size:12px; color:var(--ink-soft); font-family:var(--fino); }
+.drawer-tema{ display:flex; align-items:center; gap:14px; margin:6px 14px 6px; padding:12px 14px; border-radius:22px; border:1px solid var(--line); background:rgba(255,255,255,.06); cursor:pointer; text-align:left; color:var(--ink); }
+html.claro .drawer-tema{ background:rgba(255,255,255,.85); }
+.dt-ic{ width:40px; height:40px; border-radius:14px; display:grid; place-items:center; background:rgba(249,189,0,.2); } .dt-ic .icon{ width:20px; height:20px; stroke:var(--gold-t); }
+.dt-tx{ flex:1; display:flex; flex-direction:column; } .dt-tx b{ font-family:var(--serif); font-weight:400; font-size:19px; } .dt-tx small{ font-size:12px; color:var(--ink-soft); }
+.dt-sw{ width:46px; height:26px; border-radius:99px; background:rgba(11,16,48,.15); position:relative; transition:background .3s; }
+.dt-sw i{ position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.3); transition:transform .35s cubic-bezier(.34,1.56,.64,1); }
+html:not(.claro) .dt-sw{ background:var(--coral); } html:not(.claro) .dt-sw i{ transform:translateX(20px); }
+.drawer .dds-copy{ margin:6px 0 18px; text-align:center; }
+
+/* =====================================================================
+   Ícones de linha no lugar dos emojis (compartilhar, ranking, pin...)
+   ===================================================================== */
+.ic8{ display:inline-block; width:1.15em; height:1.15em; vertical-align:-.2em; margin-right:.4em; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.btn .ic8{ margin-right:2px; }
+
+/* ---------- Abertura: logo ORIGINAL com os efeitos ---------- */
+#intro-overlay.modo-logo .intro-logo{ position:relative; width:min(86vw,380px); margin-bottom:10px; }
+#intro-overlay.modo-logo .intro-logo img{ -webkit-mask:none!important; mask:none!important; filter:drop-shadow(0 0 22px rgba(249,189,0,.4)) drop-shadow(0 18px 40px rgba(0,0,0,.5)); }
+#intro-overlay.modo-logo .intro-logo::after{ content:""; position:absolute; inset:0; pointer-events:none; opacity:0;
+  background:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.95) 50%,transparent 58%) 130% 0/260% 100% no-repeat;
+  -webkit-mask:url(assets/logo-branca.png) center/contain no-repeat; mask:url(assets/logo-branca.png) center/contain no-repeat; animation:logoBrilho 4.5s 2.2s ease-in-out infinite; }
+@keyframes logoBrilho{ 0%{ opacity:1; background-position:130% 0; } 55%{ opacity:1; background-position:-30% 0; } 56%,100%{ opacity:0; background-position:-30% 0; } }
+#intro-overlay.modo-logo .intro-nome, #intro-overlay.modo-logo .intro-arco{ display:none; }
+#intro-overlay.modo-logo .intro-sub{ margin-top:14px; font-size:24px; }
+#intro-overlay.modo-logo .intro-centro{ margin-top:-40px; }
+html.claro body::after{ background:radial-gradient(closest-side, rgba(249,189,0,.14), transparent); }
+html.claro .verse-block{ background:linear-gradient(155deg,#0b1030,#0026B7 150%)!important; border:1px solid rgba(249,189,0,.5)!important; box-shadow:0 26px 50px -26px rgba(0,38,183,.7); }
+html.claro .verse-block p{ color:#fff!important; } html.claro .verse-block span{ color:#ffd54a!important; }
+html.claro .admin-grid-card .icon{ background:linear-gradient(150deg,#3355ff,#0026B7); box-shadow:0 10px 22px -10px rgba(0,38,183,.8); }
+html.claro .admin-grid-card:nth-child(4n+2) .icon{ background:linear-gradient(150deg,#FFD15C,#E8A400); box-shadow:0 10px 22px -10px rgba(232,164,0,.8); stroke:#241a00; }
+html.claro .admin-grid-card:nth-child(4n+3) .icon{ background:linear-gradient(150deg,#ff8f7a,#d9483b); box-shadow:0 10px 22px -10px rgba(217,72,59,.7); }
+html.claro .admin-grid-card:nth-child(4n) .icon{ background:linear-gradient(150deg,#3ddba7,#0f9d73); box-shadow:0 10px 22px -10px rgba(15,157,115,.7); }
+html.claro .reacao-btn span{ color:var(--ink-soft); }
+
+/* ---------- Cultos ---------- */
+.culto-card{ display:flex!important; gap:14px; align-items:flex-start; padding:14px!important; border-radius:26px!important; margin-bottom:12px; }
+.culto-card .dt{ width:70px; height:78px; flex:none; }
+.culto-card .dt b{ font-size:30px; letter-spacing:.02em; } .culto-card .dt small{ font-size:8.5px; letter-spacing:.1em; text-align:center; }
+.cc-body{ flex:1; min-width:0; }
+.cc-body .capa-thumb{ width:100%; height:130px; object-fit:cover; border-radius:18px; margin-bottom:10px; }
+.culto-card h3{ margin:0 0 8px!important; font-size:25px!important; line-height:1.06; }
+.cc-meta{ display:flex; flex-wrap:wrap; gap:6px; }
+.cc-chip{ display:inline-flex; align-items:center; gap:2px; padding:6px 11px; border-radius:99px; font:700 11.5px/1 var(--fino); background:rgba(0,38,183,.08); color:var(--brand); border:1px solid rgba(0,38,183,.14); }
+html:not(.claro) .cc-chip{ background:rgba(255,255,255,.08); color:#fff; border-color:rgba(255,255,255,.16); }
+.cc-chip.esp{ background:rgba(249,189,0,.22); color:#7a5400; border-color:rgba(249,189,0,.5); }
+html:not(.claro) .cc-chip.esp{ color:var(--coral); }
+.cc-periodo{ display:flex; align-items:center; font-size:12px!important; margin:8px 0 0!important; }
+.cc-acoes{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+.cc-acoes .btn{ width:auto!important; flex:1 1 auto; padding:10px 14px!important; font-size:12.5px!important; border-radius:99px; }
+
+/* ---------- Ranking / pontuação / botões utilitários ---------- */
+#home-minha-pontuacao .badge-inline{ gap:8px!important; }
+#home-minha-pontuacao .ic8{ color:var(--gold-t); }
+.scroll > .btn-ghost .ic8, .card .btn-ghost .ic8{ color:var(--brand); }
+html:not(.claro) .scroll > .btn-ghost .ic8{ color:var(--coral); }
+.section-label b .ic8{ width:.85em; height:.85em; margin-right:0; color:var(--gold-t); }
+#btn-toggle-como-pontuar,#bloco-como-pontuar{ font-family:var(--fino); }
+#bloco-como-pontuar{ line-height:2!important; }
+.cc-acoes .btn{ flex:1 1 42%!important; }
+html:not(.claro) .cc-acoes .ic8{ color:var(--coral); }
+html.claro .home-bg .beam{ opacity:.2!important; }
+html.claro .home-bg .aurora i{ opacity:.35!important; }
