@@ -81,4 +81,43 @@
     window.confete(50);
     setTimeout(() => t.remove(), 2700);
   };
+
+  // 6) Cor clara derivada da cor da igreja (texto legível no tema escuro)
+  function brandLite() {
+    const c = getComputedStyle(document.documentElement).getPropertyValue("--brand").trim();
+    const m = c.match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return;
+    const n = parseInt(m[1], 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    const mix = v => Math.round(v + (255 - v) * 0.55);
+    const novo = `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+    if (document.documentElement.style.getPropertyValue("--brand-lite") !== novo) document.documentElement.style.setProperty("--brand-lite", novo);
+  }
+  brandLite();
+  new MutationObserver(brandLite).observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
+
+  // 7) Brilho que segue o dedo + inclinação 3D no cartão do devocional
+  const seletorBrilho = ".card, .evento-card, .admin-grid-card, .quicklink";
+  document.addEventListener("pointermove", e => {
+    if (reduz) return;
+    const el = e.target.closest && e.target.closest(seletorBrilho);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", (e.clientX - r.left) + "px");
+      el.style.setProperty("--my", (e.clientY - r.top) + "px");
+      el.classList.add("tocado");
+    }
+    const devo = e.target.closest && e.target.closest(".devo-card");
+    if (devo) {
+      const r = devo.getBoundingClientRect();
+      devo.style.setProperty("--ry", (((e.clientX - r.left) / r.width - .5) * 10).toFixed(2) + "deg");
+      devo.style.setProperty("--rx", ((.5 - (e.clientY - r.top) / r.height) * 8).toFixed(2) + "deg");
+    }
+  }, { passive: true });
+  function soltar() {
+    document.querySelectorAll(".tocado").forEach(el => el.classList.remove("tocado"));
+    document.querySelectorAll(".devo-card").forEach(el => { el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg"); });
+  }
+  document.addEventListener("pointerup", soltar, { passive: true });
+  document.addEventListener("pointercancel", soltar, { passive: true });
+  document.addEventListener("pointerleave", soltar, { passive: true });
 })();

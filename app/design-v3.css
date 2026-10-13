@@ -1,0 +1,210 @@
+/* =====================================================================
+   DESIGN V3 — "Aurora Neon": escuro imersivo, bento, bordas luminosas,
+   inclinação 3D e brilho que segue o toque. Vem DEPOIS do design-v2.css.
+   ===================================================================== */
+:root{
+  --bg:#070A1A;
+  --card:rgba(255,255,255,.055);
+  --ink:#F3F5FF;
+  --ink-soft:#A9B0CC;
+  --ink-faint:#6E7596;
+  --line:rgba(255,255,255,.09);
+  --brand-lite:#8FA8FF;           /* recalculado pelo motion.js a partir da cor da igreja */
+  --brand-soft:rgba(143,168,255,.14);
+  --gold-soft:rgba(255,178,62,.14);
+  --mint-soft:rgba(21,192,138,.16);
+  --glass:rgba(255,255,255,.06);
+  --glass-line:rgba(255,255,255,.12);
+  --glass-shadow:0 20px 50px -24px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08);
+  --shadow:0 18px 40px -22px rgba(0,0,0,.8);
+  --neon-a:#6C8CFF; --neon-b:#B06CFF; --neon-c:#2DE2C0; --neon-d:#FF7AA8;
+  --grad-brand:linear-gradient(135deg, #5B7CFF, #9B5CFF);
+  --grad-hot:linear-gradient(135deg, #FF7AA8, #FFB23E);
+  --grad-cool:linear-gradient(135deg, #2DE2C0, #3AA8FF);
+}
+html,body{ background:var(--bg); color:var(--ink); }
+body{ color-scheme:dark; }
+
+/* ---------- aurora de fundo (mais viva) + grão ---------- */
+body::before,body::after{ opacity:.8; filter:blur(80px); }
+body::before{ width:460px; height:460px; top:-160px; left:-140px; background:radial-gradient(circle, #4F6BFF, transparent 68%); }
+body::after{ width:420px; height:420px; bottom:-140px; right:-140px; background:radial-gradient(circle, #B06CFF, transparent 68%); }
+#app::before{
+  content:""; position:fixed; z-index:-1; width:320px; height:320px; top:38%; left:-120px; border-radius:50%; filter:blur(90px); opacity:.5;
+  background:radial-gradient(circle, #2DE2C0, transparent 70%); animation:blobB 26s ease-in-out infinite alternate; pointer-events:none;
+}
+#app::after{
+  content:""; position:fixed; inset:0; z-index:999; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ---------- cartões: vidro escuro + brilho que segue o dedo ---------- */
+.card, .banner, .evento-card, .album-card, .contato-item, .admin-grid-card, .reacao-btn, .interesse-item, .grouppick{
+  background:linear-gradient(160deg, rgba(255,255,255,.085), rgba(255,255,255,.03));
+  border:1px solid var(--glass-line); box-shadow:var(--glass-shadow); color:var(--ink);
+  position:relative;
+}
+.card::after, .evento-card::after, .admin-grid-card::after, .quicklink::after{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; opacity:0; transition:opacity .35s;
+  background:radial-gradient(180px circle at var(--mx,50%) var(--my,0%), rgba(143,168,255,.28), transparent 70%);
+}
+.card.tocado::after, .evento-card.tocado::after, .admin-grid-card.tocado::after, .quicklink.tocado::after{ opacity:1; }
+.card p, .card .hint{ color:var(--ink-soft); }
+.hint{ color:var(--ink-soft); }
+.banner .body{ background:transparent; }
+.banner .body p{ color:var(--ink-soft); }
+
+/* ---------- textos de destaque legíveis no escuro ---------- */
+a.linklike, .badge-inline, .evento-card .info b, .status-pill.novo{ color:var(--brand-lite); }
+.badge-inline{ background:var(--brand-soft); }
+.section-label b{ color:var(--ink-soft); letter-spacing:1.6px; }
+.section-label b::before{ background:var(--grad-brand); box-shadow:0 0 14px #6C8CFF; }
+.empty{ color:var(--ink-soft); }
+
+/* ---------- botões neon ---------- */
+.btn-primary{
+  background:var(--grad-brand); color:#fff;
+  box-shadow:0 0 0 1px rgba(255,255,255,.18) inset, 0 16px 34px -12px rgba(108,140,255,.75), 0 0 28px -6px rgba(176,108,255,.55);
+}
+.btn-ghost{ background:rgba(255,255,255,.07); color:var(--ink); border:1px solid var(--glass-line); box-shadow:none; }
+.chip{ background:rgba(255,255,255,.06); color:var(--ink-soft); border-color:var(--glass-line); }
+.chip.on{ background:var(--grad-brand); color:#fff; border-color:transparent; box-shadow:0 0 22px -4px #6C8CFF; }
+
+/* ---------- campos ---------- */
+.field label{ color:var(--ink-soft); }
+.field input, .field select, .field textarea, textarea, .data-input-wrapper, .pin-box, .parente-linha select{
+  background:rgba(255,255,255,.06); border:1px solid var(--glass-line); color:var(--ink); box-shadow:none;
+}
+.field input::placeholder, textarea::placeholder{ color:var(--ink-faint); }
+.field input:focus, .field select:focus, .field textarea:focus{
+  background:rgba(255,255,255,.1); border-color:#6C8CFF; box-shadow:0 0 0 4px rgba(108,140,255,.2), 0 0 24px -6px #6C8CFF;
+}
+select option{ background:#12162B; color:#fff; }
+
+/* ---------- topo e navegação ---------- */
+.appbar{ background:rgba(7,10,26,.6); border-bottom:1px solid var(--glass-line); }
+.appbar-brand span{ color:var(--ink); }
+.appbar-btn, .iconbtn, .voltar-btn, .admin-aba-voltar{ background:rgba(255,255,255,.07); border:1px solid var(--glass-line); color:var(--ink); }
+.icon{ stroke:currentColor; }
+.appbar-btn .icon, .iconbtn .icon{ color:var(--ink); }
+.voltar-btn .icon{ stroke:var(--brand-lite); }
+.badge.membro{ background:rgba(45,226,192,.14); color:#2DE2C0; box-shadow:0 0 18px -6px #2DE2C0; border:1px solid rgba(45,226,192,.3); }
+.badge.visitante{ background:rgba(255,255,255,.07); color:var(--ink-soft); }
+
+.bottomnav{
+  background:rgba(14,18,42,.72); border:1px solid var(--glass-line); border-radius:30px; left:14px; right:14px; bottom:calc(14px + var(--safe-bottom));
+  box-shadow:0 24px 50px -16px rgba(0,0,0,.9), 0 0 40px -14px rgba(108,140,255,.55), inset 0 1px 0 rgba(255,255,255,.1);
+}
+.navitem{ color:var(--ink-faint); }
+.navitem.on{ color:#fff; }
+.navitem.on::before{ background:linear-gradient(135deg, rgba(91,124,255,.55), rgba(155,92,255,.45)); box-shadow:0 0 22px -2px rgba(108,140,255,.8); }
+.navitem.on .icon{ filter:drop-shadow(0 0 6px rgba(255,255,255,.7)); }
+
+/* ---------- Home: saudação gigante ---------- */
+.greet-name{
+  font-size:38px; line-height:1.02; font-weight:800; letter-spacing:-1.4px; margin:6px 0 6px;
+  background:linear-gradient(100deg, #fff 20%, #B9C6FF 55%, #D9B8FF 90%); -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.greet-sub{ color:var(--ink-soft); font-size:14px; }
+#home-minha-pontuacao .badge-inline{
+  color:#fff; background:linear-gradient(135deg, rgba(91,124,255,.35), rgba(155,92,255,.35)); border:1px solid rgba(180,160,255,.5) !important;
+  font-size:12.5px; padding:10px 16px; backdrop-filter:blur(10px);
+  box-shadow:0 0 30px -6px rgba(140,110,255,.8), inset 0 0 14px rgba(255,255,255,.08);
+}
+
+/* ---------- cartão do devocional: borda luminosa giratória + 3D ---------- */
+@property --ang{ syntax:"<angle>"; initial-value:0deg; inherits:false; }
+.devo-card{
+  border-radius:30px; padding:26px 22px 22px; border:none; transform-style:preserve-3d; will-change:transform;
+  transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transition:transform .25s ease-out;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255,122,168,.55), transparent 55%),
+    radial-gradient(100% 90% at 0% 100%, rgba(45,226,192,.35), transparent 55%),
+    linear-gradient(150deg, #3B4DFF, #7A3CFF 70%);
+  box-shadow:0 30px 60px -24px rgba(108,92,255,.9), 0 0 60px -20px rgba(176,108,255,.7);
+}
+.devo-card::after{
+  content:""; position:absolute; inset:0; border-radius:inherit; padding:1.5px; pointer-events:none; z-index:3;
+  background:conic-gradient(from var(--ang), transparent 0 55%, rgba(255,255,255,.95) 75%, transparent 90%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude;
+  animation:giraBorda 5s linear infinite;
+}
+@keyframes giraBorda{ to{ --ang:360deg; } }
+.devo-eyebrow{ letter-spacing:1.6px; color:rgba(255,255,255,.85); }
+.devo-card h3{ font-size:25px; line-height:1.12; letter-spacing:-.6px; margin-bottom:10px; text-shadow:0 4px 24px rgba(0,0,0,.35); }
+.devo-card p{ font-size:13.5px; color:rgba(255,255,255,.88); }
+.devo-card .btn{ background:#fff; color:#3B2BD6; font-weight:800; box-shadow:0 14px 30px -10px rgba(0,0,0,.55); }
+
+/* ---------- humor: botões com brilho ---------- */
+.checkin-pergunta{ color:var(--ink); }
+.reacao-btn{ color:var(--ink-soft); }
+.reacao-btn.on{ background:linear-gradient(135deg, rgba(91,124,255,.45), rgba(155,92,255,.4)); color:#fff; border-color:rgba(180,160,255,.6); box-shadow:0 0 28px -4px rgba(140,110,255,.9); }
+
+/* ---------- BENTO: atalhos em grade assimétrica ---------- */
+.quicklinks{ grid-template-columns:repeat(4,1fr); grid-auto-flow:dense; gap:10px; padding:2px 0 8px; }
+.quicklink{
+  min-height:98px; border-radius:24px; padding:14px 6px 10px; background:linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.025));
+  border:1px solid var(--glass-line); color:var(--ink); box-shadow:var(--glass-shadow); justify-content:center;
+}
+.quicklink span, .quicklink{ color:var(--ink); font-size:11px; }
+.quicklink-ic{ width:50px; height:50px; border-radius:17px; box-shadow:0 0 26px -4px var(--glow, #6C8CFF); background:var(--g, var(--grad-brand)); }
+.quicklink-ic .icon{ width:21px; height:21px; }
+.quicklink:nth-child(n) .quicklink-ic{ background:var(--g, var(--grad-brand)); box-shadow:0 0 26px -4px var(--glow,#6C8CFF); }
+
+/* tiles grandes (2 colunas, ícone à esquerda) */
+.quicklink[data-nav="tela-biblia"], .quicklink[data-nav="tela-membro-estudos"],
+.quicklink[data-nav="tela-eventos"], .quicklink[data-nav="tela-camera-jerusalem"]{
+  grid-column:span 2; flex-direction:row; justify-content:flex-start; gap:12px; padding:16px 14px; text-align:left; min-height:84px; font-size:14px; font-weight:800;
+}
+.quicklink[data-nav="tela-biblia"]{ --g:linear-gradient(135deg,#FFB23E,#FF7AA8); --glow:#FF9F6B; background:linear-gradient(135deg, rgba(255,178,62,.2), rgba(255,122,168,.1)); }
+.quicklink[data-nav="tela-membro-estudos"]{ --g:linear-gradient(135deg,#5B7CFF,#9B5CFF); --glow:#7C6CFF; background:linear-gradient(135deg, rgba(91,124,255,.25), rgba(155,92,255,.1)); }
+.quicklink[data-nav="tela-eventos"]{ --g:linear-gradient(135deg,#2DE2C0,#3AA8FF); --glow:#2DE2C0; background:linear-gradient(135deg, rgba(45,226,192,.2), rgba(58,168,255,.1)); }
+.quicklink[data-nav="tela-camera-jerusalem"]{ --g:linear-gradient(135deg,#FF5C7A,#FF8A4C); --glow:#FF6A6A; background:linear-gradient(135deg, rgba(255,92,122,.22), rgba(255,138,76,.08)); }
+.quicklink[data-nav="tela-camera-jerusalem"]::before{
+  content:"AO VIVO"; position:absolute; top:9px; right:10px; font-size:8.5px; font-weight:800; letter-spacing:1px; color:#fff;
+  background:#FF3B5C; padding:3px 7px 3px 15px; border-radius:99px; box-shadow:0 0 14px #FF3B5C;
+}
+.quicklink[data-nav="tela-camera-jerusalem"]{ overflow:hidden; }
+.quicklink[data-nav="tela-camera-jerusalem"] .quicklink-ic{ animation:pulsaVivo 1.8s ease-in-out infinite; }
+@keyframes pulsaVivo{ 50%{ box-shadow:0 0 0 8px rgba(255,92,122,.0), 0 0 34px 2px rgba(255,92,122,.9); } }
+.quicklink:nth-child(2) .quicklink-ic{ --g:var(--grad-hot); --glow:#FF9F6B; }
+.quicklink:nth-child(3) .quicklink-ic{ --g:var(--grad-cool); --glow:#2DE2C0; }
+.quicklink:nth-child(4) .quicklink-ic{ --g:linear-gradient(135deg,#B06CFF,#FF7AA8); --glow:#B06CFF; }
+.quicklink:nth-child(5) .quicklink-ic{ --g:linear-gradient(135deg,#FF7AA8,#B06CFF); --glow:#FF7AA8; }
+.quicklink:nth-child(7) .quicklink-ic{ --g:linear-gradient(135deg,#3AA8FF,#5B7CFF); --glow:#3AA8FF; }
+.quicklink:nth-child(8) .quicklink-ic{ --g:var(--grad-cool); --glow:#2DE2C0; }
+.quicklink:nth-child(11) .quicklink-ic{ --g:var(--grad-hot); --glow:#FFB23E; }
+.quicklink:nth-child(13) .quicklink-ic{ --g:linear-gradient(135deg,#B06CFF,#5B7CFF); --glow:#B06CFF; }
+.quicklink:nth-child(14) .quicklink-ic{ --g:linear-gradient(135deg,#2DE2C0,#5B7CFF); --glow:#2DE2C0; }
+
+/* ---------- aniversariantes, ranking, avisos ---------- */
+.bday .circle{ background:var(--gold-soft); color:#FFC46B; box-shadow:0 0 0 2px #070A1A, 0 0 0 4px #FFB23E, 0 0 22px -2px #FFB23E; }
+.bday-nome{ color:var(--ink); } .bday-data{ color:var(--brand-lite); }
+.prayer-item{ border-color:var(--line); } .prayer-item p{ color:var(--ink); }
+.perfil-lembrete{ background:rgba(255,178,62,.12); border-color:rgba(255,178,62,.5); color:var(--ink); }
+.perfil-lembrete .txt b{ color:var(--ink); }
+
+/* ---------- modais e superfícies claras que sobravam ---------- */
+.modal-card, .foto-editor-box, .drawer{ background:rgba(16,20,46,.92); color:var(--ink); border:1px solid var(--glass-line); }
+.modal-fechar{ background:rgba(255,255,255,.1); color:var(--ink); }
+.drawer-item{ color:var(--ink); } .drawer-item:active{ background:rgba(255,255,255,.08); }
+.drawer-sobre-box{ background:rgba(255,255,255,.06); }
+.autocomplete-lista{ background:#12162B; border-color:var(--glass-line); }
+.autocomplete-item{ color:var(--ink); border-color:var(--line); }
+.parente-linha, .interesse-item{ background:rgba(255,255,255,.06); border-color:var(--glass-line); }
+.wordmark img, .appbar-brand img, .drawer-brand img{ background:#fff; }
+
+/* ---------- toque: elementos "flutuam" com leve movimento contínuo ---------- */
+.rv.rv-on{ transition-duration:.8s; }
+@media (hover:hover){ .card:hover, .quicklink:hover{ box-shadow:0 26px 60px -24px rgba(108,140,255,.7), inset 0 1px 0 rgba(255,255,255,.12); } }
+
+/* ---------- correções de contraste (ícones/links que usavam a cor da igreja direto) ---------- */
+.admin-grid-card .icon, .lesson .thumb .icon, .data-input-icone .icon, .contato-item .ic, .contato-item .ic .icon{ stroke:var(--brand-lite); color:var(--brand-lite); }
+.admin-grid-card{ color:var(--ink); }
+.admin-grid-card .icon{ filter:drop-shadow(0 0 8px var(--brand-lite)); }
+.contato-item .txt b{ color:var(--ink); }
+.contato-sub-links a, .parente-pill, .chip-pessoa, .badge-inline{ color:var(--brand-lite); background:var(--brand-soft); }
+.date-badge{ color:var(--brand-lite); background:var(--brand-soft); }
+.tl-year, .evento-card .info span{ color:var(--brand-lite); }
+.bottomnav{ background:rgba(12,15,36,.92); }
