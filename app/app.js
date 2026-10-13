@@ -4162,12 +4162,7 @@ function renderGradeCalendario() {
     const dataISO = `${mesRef.getFullYear()}-${String(mesRef.getMonth() + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
     const temEvento = !!eventosPorDia[dataISO];
     const ehHoje = dataISO === hojeStr;
-    return `
-      <button data-dia-calendario="${dataISO}" style="aspect-ratio:1;border-radius:10px;border:1.5px solid ${ehHoje ? "var(--brand)" : "var(--line)"};background:${temEvento ? "var(--brand-soft)" : "#fff"};font-size:13px;font-weight:${temEvento ? "700" : "400"};color:${temEvento ? "var(--brand)" : "var(--ink)"};cursor:pointer;position:relative;">
-        ${dia}
-        ${temEvento ? `<span style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--coral);"></span>` : ""}
-      </button>
-    `;
+    return `<button data-dia-calendario="${dataISO}" class="cal-dia${temEvento ? " tem" : ""}${ehHoje ? " hoje" : ""}">${dia}${temEvento ? `<i></i>` : ""}</button>`;
   }).join("");
 
   document.querySelectorAll("[data-dia-calendario]").forEach(btn => {
@@ -4188,9 +4183,11 @@ function renderGradeCalendario() {
   legendaEl.innerHTML = itensLegenda.map(ev => {
     const diaExibir = ev.data.slice(0, 7) === mesStr ? new Date(ev.data + "T00:00:00").getDate() : 1;
     const infoDia = ev.dia_semana && DIA_SEMANA_INFO[ev.dia_semana];
-    return `<div data-legenda-dia="${ev.data.slice(0, 7) === mesStr ? ev.data : `${mesStr}-01`}" style="display:flex;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;">
-      <b style="color:var(--brand);flex:none;width:26px;">${String(diaExibir).padStart(2, "0")}</b>
-      <span style="font-size:13px;">${ev.titulo}${infoDia ? ` <span class="hint" style="font-size:11.5px;">(${infoDia.plural})</span>` : ""}</span>
+    const dt = new Date(ev.data + "T00:00:00");
+    const MA = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+    return `<div data-legenda-dia="${ev.data.slice(0, 7) === mesStr ? ev.data : `${mesStr}-01`}" class="cal-item c${(ev.titulo || "").length % 5}">
+      <div class="dt"><b>${String(diaExibir).padStart(2, "0")}</b><small>${MA[ev.data.slice(0, 7) === mesStr ? dt.getMonth() : mesRef.getMonth()]}</small></div>
+      <div class="tx"><span>${ev.titulo}</span>${infoDia ? `<em>${infoDia.plural}</em>` : ""}${ev.local ? `<em>${ev.local}</em>` : ""}</div>
     </div>`;
   }).join("") || `<p class="hint" style="padding:6px 4px;">Nada marcado nesse mês.</p>`;
   legendaEl.querySelectorAll("[data-legenda-dia]").forEach(el => {
@@ -4410,14 +4407,15 @@ async function carregarEventos() {
     const inscritos = ev.igr_eventos_inscricoes?.[0]?.count || 0;
     const vagasTexto = ev.vagas_maximas ? `${inscritos}/${ev.vagas_maximas} vagas` : `${inscritos} inscritos`;
     return `
-    <div class="evento-card" data-evento="${ev.id}">
-      <img src="${ev.banner_url || "assets/logo.png"}" alt="">
+    <div class="evento-card ev-v8 c${(ev.titulo || "").length % 5}" data-evento="${ev.id}">
+      <div class="dt"><b>${new Date(ev.data + "T00:00:00").getDate()}</b><small>${["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"][new Date(ev.data + "T00:00:00").getMonth()]}</small></div>
       <div class="info">
         <b>${ev.titulo}</b>
         <span>${formatarPeriodo(ev.data, ev.data_fim)}${ev.horario ? " · " + ev.horario : ""}</span>
         <span>${ev.local || ""}</span>
-        <span>${vagasTexto}</span>
+        <span class="vagas">${vagasTexto}</span>
       </div>
+      ${ev.banner_url ? `<img src="${ev.banner_url}" alt="">` : ""}
     </div>`;
   }).join("") || `<div class="empty">Nenhum evento agendado no momento.</div>`;
 
