@@ -50,6 +50,8 @@ gl_FragColor=vec4(col,1.);}`;
     return { play() { if (!on && !document.hidden) { on = true; size(); draw(); } }, stop() { on = false; cancelAnimationFrame(raf); } };
   }
 
+  window.v8Aurora = aurora;
+
   /* ---------- overlay ---------- */
   function montarOverlay() {
     if ($("#palavra")) return;

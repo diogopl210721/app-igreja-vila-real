@@ -40,6 +40,10 @@
     let k = 0;
     $("#intro-nome").innerHTML = pal.map((p, i) => `<span class="pal ${i === 0 ? "n1" : "n2"}">${p.split("").map(l => `<span class="l" style="--k:${k++}">${l}</span>`).join("")}</span>`).join(" ");
 
+    // fundo líquido (WebGL) atrás das partículas
+    let fxIntro = null;
+    if (window.v8Aurora && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) { fxIntro = window.v8Aurora($("#intro-aurora")); fxIntro.play(); }
+
     // partículas douradas
     const cv = $("#intro-canvas"), cx = cv.getContext("2d");
     let W = 0, H = 0, dpr = Math.min(2, window.devicePixelRatio || 1), pts = [], vivo = true, prog = 0;
@@ -71,7 +75,7 @@
       ov.style.transform = "";
       ov.classList.add("sai");
       vibrar(14);
-      setTimeout(() => { vivo = false; ov.remove(); }, 1000);
+      setTimeout(() => { vivo = false; fxIntro && fxIntro.stop(); ov.remove(); }, 1000);
     }
     function inclinar(e) {
       const r = ov.getBoundingClientRect();
