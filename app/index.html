@@ -14,9 +14,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1791927698">
-<link rel="stylesheet" href="design-v5.css?v=1791927698">
-<link rel="stylesheet" href="design-v6.css?v=1791927698">
+<link rel="stylesheet" href="style.css?v=1791928378">
+<link rel="stylesheet" href="design-v5.css?v=1791928378">
+<link rel="stylesheet" href="design-v6.css?v=1791928378">
+<link rel="stylesheet" href="design-v7.css?v=1791928378">
+<link rel="preload" href="assets/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -25,15 +27,17 @@
 </head>
 <body>
 <div id="intro-overlay" aria-hidden="true">
+  <canvas id="intro-canvas"></canvas>
   <div class="intro-beams"><span class="beam b1"></span><span class="beam b2"></span><span class="beam b3"></span></div>
   <div class="intro-rings"><i></i><i></i><i></i></div>
-  <div class="intro-centro">
+  <div class="intro-centro" id="intro-centro">
     <div class="intro-logo"><img src="assets/logo.png" alt=""></div>
     <h1 class="intro-nome" id="intro-nome"></h1>
-    <span class="intro-linha"></span>
-    <p class="intro-verso" id="intro-verso"></p>
+    <svg class="intro-arco" viewBox="0 0 320 36" aria-hidden="true"><path d="M4 32 Q160 -12 316 32"/></svg>
+    <p class="intro-sub" id="intro-sub"></p>
   </div>
-  <div class="intro-toque">toque para entrar</div>
+  <div class="intro-dica"><span class="chev"><i></i><i></i><i></i></span><b>Deslize para cima</b><small>para abrir o app</small></div>
+  <a class="intro-copy" href="https://ddsinovacao.com.br" target="_blank" rel="noopener">© 2026 · <u>DDS Inovação</u></a>
 </div>
 
 <svg width="0" height="0" style="position:absolute">
@@ -197,9 +201,7 @@
     <button class="drawer-item" data-nav="tela-login" data-close-drawer><svg class="icon"><use href="#i-user"/></svg>Entrar / Sou membro</button>
     <button class="drawer-item" data-nav="tela-diretorio" data-close-drawer><svg class="icon"><use href="#i-user"/></svg>Mão Amiga</button>
     <button class="drawer-item" data-nav="tela-admin-login" data-close-drawer><svg class="icon"><use href="#i-settings"/></svg>Acesso do administrador</button>
-    <p style="font-size:11px;color:var(--ink-faint);text-align:center;padding:16px 12px 4px;margin:0;line-height:1.5;">
-      © Todos os direitos e a criação deste aplicativo são reservados a<br>Diogo Soares — (41) 99154-2931
-    </p>
+    <p class="dds-copy" style="margin-top:20px">© 2026 · <a href="https://ddsinovacao.com.br" target="_blank" rel="noopener">DDS Inovação</a><small>Todos os direitos reservados</small></p>
   </nav>
 
   <!-- ============ VISITANTE ============ -->
@@ -1036,7 +1038,7 @@
 
   <!-- ============ HOME DO MEMBRO ============ -->
   <div class="screen" id="tela-membro-home">
-    <div class="home-bg" id="home-bg"><span class="beam b1"></span><span class="beam b2"></span><span class="beam b3"></span></div>
+    <div class="home-bg" id="home-bg"><div class="aurora"><i></i><i></i><i></i></div><span class="beam b1"></span><span class="beam b2"></span><span class="beam b3"></span></div>
     <div class="scroll">
       <div class="topbar">
         <span class="badge membro"><svg class="icon" width="11" height="11"><use href="#i-heart"/></svg>Membro</span>
@@ -2409,9 +2411,10 @@
 </div>
 
 <script src="config.js"></script>
-<script>window.APP_VERSION = "1791927698";</script>
-<script src="motion.js?v=1791927698"></script>
-<script src="app.js?v=1791927698"></script>
-<script src="stories.js?v=1791927698"></script>
+<script>window.APP_VERSION = "1791928378";</script>
+<script src="motion.js?v=1791928378"></script>
+<script src="app.js?v=1791928378"></script>
+<script src="v7.js?v=1791928378"></script>
+<script src="stories.js?v=1791928378"></script>
 </body>
 </html>

@@ -143,19 +143,3 @@
   .explorar .quicklink{ opacity:1; }
 }
 
-/* ===== V7: marca refinada ===== */
-#intro-overlay.modo-logo .intro-logo{ position:relative; width:min(86vw,360px); height:auto; margin:0 auto 6px; border-radius:0; background:none; box-shadow:none; filter:none; transform:none; opacity:1; animation:none; clip-path:inset(-60px 100% -60px -60px); animation:marcaRevela 1.6s .25s cubic-bezier(.65,0,.2,1) forwards; }
-#intro-overlay.modo-logo .intro-logo img{ width:100%; height:auto; display:block; filter:drop-shadow(0 0 22px rgba(249,189,0,.35)) drop-shadow(0 18px 30px rgba(0,0,0,.55)); }
-#intro-overlay.modo-logo .intro-logo .brilho{ position:absolute; inset:0; background:linear-gradient(105deg, transparent 38%, rgba(255,230,120,.95) 50%, transparent 62%); -webkit-mask:url(assets/logo-branca.png) center/100% 100% no-repeat; mask:url(assets/logo-branca.png) center/100% 100% no-repeat; opacity:0; animation:marcaBrilho 1.4s 1.7s ease-in-out forwards; }
-@keyframes marcaRevela{ 0%{ clip-path:inset(-60px 100% -60px -60px); transform:scale(.94); } 100%{ clip-path:inset(-60px -60px -60px -60px); transform:scale(1); } }
-@keyframes marcaBrilho{ 0%{ opacity:1; transform:translateX(-120%); } 100%{ opacity:1; transform:translateX(120%); } }
-#intro-overlay.modo-logo .intro-linha{ margin-top:30px; }
-.intro-nome{ font-weight:300; letter-spacing:7px; background:linear-gradient(180deg,#fff 30%, rgba(255,255,255,.55)); -webkit-background-clip:text; background-clip:text; }
-.intro-nome span{ -webkit-text-fill-color:transparent; }
-
-/* Nome na barra superior: duas tonalidades, sem "carimbo" */
-.appbar-brand{ gap:10px; }
-.appbar-brand img{ width:40px; height:40px; padding:5px; border-radius:13px; background:rgba(255,255,255,.07)!important; border:1px solid rgba(255,255,255,.18)!important; box-shadow:0 8px 20px -8px color-mix(in srgb, var(--coral,#F9BD00) 70%, transparent); }
-.appbar-brand span{ display:flex; flex-direction:column; line-height:1; gap:3px; text-transform:none; letter-spacing:0; }
-.appbar-brand span b{ font-family:'Jost','Plus Jakarta Sans',sans-serif; font-weight:600; font-size:17px; letter-spacing:5px; text-transform:uppercase; background:linear-gradient(90deg, var(--coral,#F9BD00), #fff 140%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-.appbar-brand span i{ font-style:normal; font-family:'Jost','Plus Jakarta Sans',sans-serif; font-weight:300; font-size:10.5px; letter-spacing:4.5px; text-transform:uppercase; color:rgba(255,255,255,.7); }

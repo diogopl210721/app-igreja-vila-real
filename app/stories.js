@@ -23,31 +23,87 @@
     try { marca = JSON.parse(localStorage.getItem("igr_marca") || "{}"); } catch (e) {}
     if (marca.cor) document.documentElement.style.setProperty("--brand", marca.cor);
     if (marca.cor2) document.documentElement.style.setProperty("--coral", marca.cor2);
-    const completo = !marca.nome || /vila\s*real/i.test(marca.nome);
-    if (completo) {
+    const vila = !marca.nome || /vila\s*real/i.test(marca.nome);
+    const nome = vila ? "IEQ Vila Real" : marca.nome;
+    if (vila) {
       ov.classList.add("modo-logo");
-      const lg = $(".intro-logo", ov);
-      lg.innerHTML = '<img src="assets/logo-branca.png" alt="IEQ Vila Real"><span class="brilho"></span>';
-      $("#intro-nome").remove();
+      $(".intro-logo img", ov).src = "assets/igreja-arte.png";
+      $("#intro-sub").textContent = "Ministério Pr. José e Pra. Laura";
     } else {
-      if (marca.logo) { const im = $(".intro-logo img", ov); if (im) im.src = marca.logo; }
-      const nome = marca.nome.toUpperCase();
-      const h = $("#intro-nome");
-      let k = 0;
-      h.innerHTML = nome.split(" ").map(p => `<span style="display:inline-block;white-space:nowrap">${p.split("").map(l => `<span style="--k:${k++}">${l}</span>`).join("")}</span>`).join(" ");
+      if (marca.logo) $(".intro-logo img", ov).src = marca.logo;
+      else $(".intro-logo", ov).style.display = "none";
+      $("#intro-sub").remove();
     }
-    const v = VERSOS[Math.floor(Math.random() * VERSOS.length)];
-    $("#intro-verso").innerHTML = `${v[0]}<br><small style="letter-spacing:3px;text-transform:uppercase;font-size:11px;opacity:.7;display:inline-block;margin-top:8px">${v[1]}</small>`;
-    let saiu = false;
+    const pal = nome.trim().split(/\s+/);
+    let k = 0;
+    $("#intro-nome").innerHTML = pal.map((p, i) => `<span class="pal ${i === 0 ? "n1" : "n2"}">${p.split("").map(l => `<span class="l" style="--k:${k++}">${l}</span>`).join("")}</span>`).join(" ");
+
+    // partículas douradas
+    const cv = $("#intro-canvas"), cx = cv.getContext("2d");
+    let W = 0, H = 0, dpr = Math.min(2, window.devicePixelRatio || 1), pts = [], vivo = true, prog = 0;
+    function dim() { W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    dim(); window.addEventListener("resize", dim);
+    for (let i = 0; i < 70; i++) pts.push({ x: Math.random(), y: Math.random(), r: .6 + Math.random() * 2.2, v: .02 + Math.random() * .06, d: Math.random() * 6.28, z: .3 + Math.random() });
+    (function quadro() {
+      if (!vivo) return;
+      cx.clearRect(0, 0, W, H);
+      const ouro = getComputedStyle(document.documentElement).getPropertyValue("--coral").trim() || "#F9BD00";
+      pts.forEach(p => {
+        p.y -= p.v * .004 * (1 + prog * 10) * p.z; p.d += .012;
+        if (p.y < -.05) { p.y = 1.05; p.x = Math.random(); }
+        const x = (p.x + Math.sin(p.d) * .015) * W, y = p.y * H;
+        cx.globalAlpha = (.25 + .5 * Math.abs(Math.sin(p.d * 1.7))) * p.z;
+        cx.fillStyle = ouro; cx.shadowColor = ouro; cx.shadowBlur = 10 * p.z;
+        cx.beginPath(); cx.arc(x, y, p.r * p.z, 0, 6.28); cx.fill();
+      });
+      requestAnimationFrame(quadro);
+    })();
+
+    // gesto: arrastar para cima abre o app
+    let saiu = false, y0 = null, dyAtual = 0, t0 = 0;
+    function progresso(p) { prog = p; ov.style.setProperty("--p", p.toFixed(3)); }
     function sair() {
       if (saiu) return; saiu = true;
       try { sessionStorage.setItem("igr_intro", "1"); } catch (e) {}
+      ov.classList.remove("arrastando");
+      ov.style.transform = "";
       ov.classList.add("sai");
-      vibrar(12);
-      setTimeout(() => ov.remove(), 1500);
+      vibrar(14);
+      setTimeout(() => { vivo = false; ov.remove(); }, 1000);
     }
-    ov.addEventListener("click", sair);
-    setTimeout(sair, 4300);
+    function inclinar(e) {
+      const r = ov.getBoundingClientRect();
+      ov.style.setProperty("--ry", (((e.clientX - r.left) / r.width - .5) * 14).toFixed(1) + "deg");
+      ov.style.setProperty("--rx", ((.5 - (e.clientY - r.top) / r.height) * 10).toFixed(1) + "deg");
+    }
+    ov.addEventListener("pointerdown", e => {
+      if (e.target.closest(".intro-copy")) return;
+      y0 = e.clientY; t0 = performance.now(); dyAtual = 0;
+      ov.classList.add("arrastando");
+      try { ov.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    ov.addEventListener("pointermove", e => {
+      inclinar(e);
+      if (y0 === null) return;
+      dyAtual = Math.min(0, e.clientY - y0);
+      ov.style.transform = `translateY(${dyAtual}px)`;
+      progresso(Math.min(1, -dyAtual / (innerHeight * .45)));
+    });
+    function soltar() {
+      if (y0 === null) return;
+      const v = -dyAtual / Math.max(1, performance.now() - t0);
+      const deslizou = dyAtual < -90 || v > .6 && dyAtual < -30;
+      y0 = null;
+      if (deslizou) { sair(); return; }
+      ov.classList.remove("arrastando");
+      ov.style.transform = "";
+      progresso(0);
+      if (dyAtual > -8) { const d = $(".intro-dica", ov); d.classList.remove("nudge"); void d.offsetWidth; d.classList.add("nudge"); }
+    }
+    ov.addEventListener("pointerup", soltar);
+    ov.addEventListener("pointercancel", soltar);
+    ov.addEventListener("wheel", e => { if (e.deltaY > 20) sair(); }, { passive: true });
+    document.addEventListener("keydown", e => { if (!saiu && (e.key === "Enter" || e.key === "ArrowUp" || e.key === " ")) sair(); });
   }
   abertura();
 
