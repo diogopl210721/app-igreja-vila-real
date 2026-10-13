@@ -552,13 +552,20 @@ function mostrarTela(id) {
   window.scrollTo(0, 0);
 }
 
+const ehVilaReal = n => /vila\s*real/i.test(n || "");
+function nomeBonito(n) {
+  const esc = t => String(t).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const p = String(n || "").trim().split(/\s+/);
+  if (p.length < 2) return esc(n || "");
+  return `<b>${esc(p[0])}</b><i>${esc(p.slice(1).join(" "))}</i>`;
+}
 function aplicarMarca(igreja) {
   document.documentElement.style.setProperty("--brand", igreja.cor_primaria || "#3D5AFE");
   document.documentElement.style.setProperty("--coral", igreja.cor_secundaria || "#FF6A5C");
   document.querySelectorAll(".wordmark span").forEach(el => el.textContent = igreja.nome);
   document.querySelectorAll(".wordmark img").forEach(el => el.src = igreja.logo_url || "assets/logo.png");
-  document.getElementById("appbar-nome").textContent = igreja.nome;
-  document.getElementById("appbar-logo").src = igreja.logo_url || "assets/logo.png";
+  document.getElementById("appbar-nome").innerHTML = nomeBonito(igreja.nome);
+  document.getElementById("appbar-logo").src = ehVilaReal(igreja.nome) ? "assets/icone-igreja.png" : (igreja.logo_url || "assets/logo.png");
   document.getElementById("drawer-nome").textContent = igreja.nome;
   document.querySelector(".drawer-brand img").src = igreja.logo_url || "assets/logo.png";
   document.title = igreja.nome;

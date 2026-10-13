@@ -23,12 +23,19 @@
     try { marca = JSON.parse(localStorage.getItem("igr_marca") || "{}"); } catch (e) {}
     if (marca.cor) document.documentElement.style.setProperty("--brand", marca.cor);
     if (marca.cor2) document.documentElement.style.setProperty("--coral", marca.cor2);
-    if (marca.logo) { const im = $(".intro-logo img", ov); if (im) im.src = marca.logo; }
-    const nome = (marca.nome || document.title || "Bem-vindo").toUpperCase();
-    const h = $("#intro-nome");
-    // quebra o nome em linhas de palavras e anima letra por letra
-    let k = 0;
-    h.innerHTML = nome.split(" ").map(p => `<span style="display:inline-block;white-space:nowrap">${p.split("").map(l => `<span style="--k:${k++}">${l}</span>`).join("")}</span>`).join(" ");
+    const completo = !marca.nome || /vila\s*real/i.test(marca.nome);
+    if (completo) {
+      ov.classList.add("modo-logo");
+      const lg = $(".intro-logo", ov);
+      lg.innerHTML = '<img src="assets/logo-branca.png" alt="IEQ Vila Real"><span class="brilho"></span>';
+      $("#intro-nome").remove();
+    } else {
+      if (marca.logo) { const im = $(".intro-logo img", ov); if (im) im.src = marca.logo; }
+      const nome = marca.nome.toUpperCase();
+      const h = $("#intro-nome");
+      let k = 0;
+      h.innerHTML = nome.split(" ").map(p => `<span style="display:inline-block;white-space:nowrap">${p.split("").map(l => `<span style="--k:${k++}">${l}</span>`).join("")}</span>`).join(" ");
+    }
     const v = VERSOS[Math.floor(Math.random() * VERSOS.length)];
     $("#intro-verso").innerHTML = `${v[0]}<br><small style="letter-spacing:3px;text-transform:uppercase;font-size:11px;opacity:.7;display:inline-block;margin-top:8px">${v[1]}</small>`;
     let saiu = false;
