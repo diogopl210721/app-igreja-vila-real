@@ -218,3 +218,74 @@ gl_FragColor=vec4(col,1.);}`;
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", destacar); else destacar();
 })();
+
+/* ---------- Criar em passos, com pré-visualização ao vivo ---------- */
+(function () {
+  const $ = id => document.getElementById(id);
+  const MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  function filhoDireto(form, id) { let e = $(id); while (e && e.parentElement !== form) e = e.parentElement; return e; }
+
+  function wizard(cfg) {
+    const form = $(cfg.form); if (!form || form.dataset.wz) return; form.dataset.wz = 1;
+    const kids = Array.from(form.children);
+    const marcas = cfg.passos.map(p => kids.indexOf(filhoDireto(form, p.inicio)));
+    const passos = cfg.passos.map((p, i) => {
+      const box = document.createElement("div"); box.className = "wz-step";
+      const fim = i + 1 < marcas.length ? marcas[i + 1] : kids.length;
+      kids.slice(marcas[i], fim).forEach(k => box.appendChild(k));
+      return box;
+    });
+    const trilho = document.createElement("div"); trilho.className = "wz-trilho";
+    trilho.innerHTML = cfg.passos.map((p, i) => `<span class="wz-p"><i>${i + 1}</i><b>${p.titulo}</b></span>`).join("");
+    const prev = document.createElement("div"); prev.className = "wz-prev"; prev.innerHTML = `<span class="wz-prev-eye">Assim vai aparecer</span><div class="wz-prev-card"><div class="dt c0"><b class="pd">--</b><small class="pm">DATA</small></div><div class="tx"><b class="pt"></b><span class="ps"></span><img class="pi" alt=""></div></div>`;
+    const nav = document.createElement("div"); nav.className = "wz-nav";
+    nav.innerHTML = `<button type="button" class="btn btn-ghost wz-voltar">Voltar</button><button type="button" class="btn btn-primary wz-seguir">Continuar</button>`;
+    const alvo = form.closest(".card") ? form.closest(".card") : form;
+    alvo.parentElement.insertBefore(trilho, alvo); alvo.parentElement.insertBefore(prev, alvo);
+    passos.forEach(b => form.appendChild(b)); form.appendChild(nav);
+    // o botão de enviar fica no último passo; a navegação fica abaixo
+    let atual = 0;
+    const submit = form.querySelector('button[type="submit"]');
+    function ir(n) {
+      atual = Math.max(0, Math.min(passos.length - 1, n));
+      passos.forEach((b, i) => b.classList.toggle("on", i === atual));
+      trilho.querySelectorAll(".wz-p").forEach((p, i) => { p.classList.toggle("on", i === atual); p.classList.toggle("ok", i < atual); });
+      nav.querySelector(".wz-voltar").style.visibility = atual ? "visible" : "hidden";
+      nav.querySelector(".wz-seguir").style.display = atual === passos.length - 1 ? "none" : "flex";
+      if (submit) submit.style.display = atual === passos.length - 1 ? "flex" : "none";
+      const sc = form.closest(".scroll"); if (sc) sc.scrollTop = 0;
+    }
+    function valido() { return Array.from(passos[atual].querySelectorAll("input,select,textarea")).every(i => i.reportValidity()); }
+    nav.querySelector(".wz-seguir").onclick = () => { if (valido()) ir(atual + 1); };
+    nav.querySelector(".wz-voltar").onclick = () => ir(atual - 1);
+    form.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT" && atual < passos.length - 1) { e.preventDefault(); nav.querySelector(".wz-seguir").click(); } });
+    trilho.querySelectorAll(".wz-p").forEach((p, i) => p.onclick = () => { if (i <= atual || valido()) ir(i); });
+    // pré-visualização
+    const q = s => prev.querySelector(s);
+    function atualizar() {
+      q(".pt").textContent = ($(cfg.prev.titulo).value || "").trim() || cfg.vazio;
+      const d = $(cfg.prev.data).value;
+      if (d) { const dt = new Date(d + "T00:00:00"); q(".pd").textContent = dt.getDate(); q(".pm").textContent = MESES[dt.getMonth()]; } else { q(".pd").textContent = "--"; q(".pm").textContent = "DATA"; }
+      q(".ps").textContent = [$(cfg.prev.hora).value, $(cfg.prev.local).value].filter(Boolean).join(" · ");
+      const f = $(cfg.prev.img).files && $(cfg.prev.img).files[0];
+      const im = q(".pi");
+      if (f) { im.src = URL.createObjectURL(f); im.style.display = "block"; } else im.style.display = "none";
+    }
+    form.addEventListener("input", atualizar); form.addEventListener("change", atualizar);
+    // volta ao passo 1 sempre que a tela abre
+    const tela = form.closest(".screen");
+    new MutationObserver(() => { if (tela.classList.contains("active")) { ir(0); atualizar(); } }).observe(tela, { attributes: true, attributeFilter: ["class"] });
+    form.addEventListener("reset", () => setTimeout(() => { ir(0); atualizar(); })); ir(0); atualizar();
+  }
+
+  function iniciar() {
+    // banner e leitura por IA pertencem ao primeiro passo (o quê)
+    const fe = $("form-evento");
+    if (fe && !fe.dataset.wz) { const ref = filhoDireto(fe, "ev-local"); ["ev-banner", "btn-ev-ler-banner", "ev-status-ia"].forEach(id => { const n = filhoDireto(fe, id); if (n && ref) fe.insertBefore(n, ref); }); }
+    wizard({ form: "form-evento", vazio: "Nome do seu evento", prev: { titulo: "ev-titulo", data: "ev-data", hora: "ev-horario", local: "ev-local", img: "ev-banner" },
+      passos: [{ titulo: "O quê", inicio: "ev-titulo" }, { titulo: "Quando e onde", inicio: "ev-local" }, { titulo: "Detalhes", inicio: "ev-vagas-min" }] });
+    wizard({ form: "form-lider-aviso", vazio: "Título do aviso", prev: { titulo: "lider-aviso-titulo", data: "lider-aviso-data", hora: "lider-aviso-horario", local: "lider-aviso-local", img: "lider-aviso-imagem" },
+      passos: [{ titulo: "O quê", inicio: "lider-aviso-titulo" }, { titulo: "Quando e onde", inicio: "lider-aviso-data" }, { titulo: "Mídia e destino", inicio: "lider-aviso-imagem" }] });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
+})();
