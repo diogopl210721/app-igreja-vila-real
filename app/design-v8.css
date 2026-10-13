@@ -222,3 +222,22 @@ body.palavra-aberta{ overflow:hidden; }
 .v8-mag,.v8-tilt{ transition:transform .25s cubic-bezier(.22,1,.36,1)!important; }
 @media (prefers-reduced-motion:reduce){ .v8-prog{ display:none; } }
 .screen h2[style*="Montserrat"]{ font-family:var(--serif)!important; font-weight:300!important; font-size:clamp(34px,9vw,46px)!important; letter-spacing:-.03em; line-height:1.02; font-variation-settings:"opsz" 144; }
+
+/* ---------- Bíblia: leitura editorial ---------- */
+#biblia-lista-capitulos{ grid-template-columns:repeat(auto-fill,minmax(54px,1fr))!important; gap:10px!important; }
+#biblia-lista-capitulos .chip{ aspect-ratio:1; display:grid; place-items:center; padding:0; border-radius:50%; font:400 22px var(--serif); font-variation-settings:"opsz" 72; background:rgba(255,255,255,.05); transition:transform .35s cubic-bezier(.22,1,.36,1),background .3s,border-color .3s; }
+@media (hover:hover){ #biblia-lista-capitulos .chip:hover{ transform:scale(1.14); background:var(--gold); color:#241a00; border-color:var(--gold); } }
+#biblia-nome-livro{ font-family:var(--serif)!important; font-weight:300!important; font-size:40px!important; letter-spacing:-.03em; font-variation-settings:"opsz" 144; }
+#biblia-view-texto .card:first-of-type{ background:linear-gradient(180deg,rgba(246,241,231,.08),rgba(246,241,231,.03)); padding:26px 22px 28px; }
+#biblia-referencia{ font-family:var(--serif)!important; font-weight:300!important; font-size:34px!important; font-style:italic; color:var(--gold); letter-spacing:-.02em; font-variation-settings:"opsz" 144; }
+#biblia-versiculos{ font-family:var(--serif); font-weight:300; font-size:20px!important; line-height:1.85!important; letter-spacing:.005em; color:rgba(255,255,255,.92); font-variation-settings:"opsz" 24; }
+#biblia-versiculos sup{ font:800 10.5px var(--fino); color:var(--gold)!important; margin-right:4px; vertical-align:.5em; }
+#biblia-versiculos > span{ border-radius:6px; transition:background .3s; }
+#biblia-versiculos > span:first-child::first-letter{ font-size:2.4em; float:left; line-height:.8; padding:6px 8px 0 0; color:var(--gold); font-style:italic; }
+@media (hover:hover){ #biblia-versiculos > span:hover{ background:rgba(249,189,0,.12); } }
+@media (min-width:900px){ #biblia-versiculos{ font-size:23px!important; } #biblia-view-texto{ max-width:760px; margin:0 auto; } }
+
+/* ---------- Louvor ---------- */
+.cal-item.card{ margin-bottom:10px; } .cal-item .tx em.gold{ color:var(--gold); font-weight:700; }
+[data-abrir-musica-louvor] b{ font-family:var(--serif); font-weight:400; font-size:20px!important; letter-spacing:-.01em; }
+[data-abrir-musica-louvor] img,[data-abrir-musica-louvor] > div:first-child:not([style*="flex:1"]){ border-radius:14px!important; box-shadow:0 10px 24px -10px rgba(0,0,0,.8); }

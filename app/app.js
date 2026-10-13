@@ -5340,10 +5340,9 @@ async function carregarListaEscalasLouvor(tipo) {
   }
 
   el.innerHTML = visiveis.map(e => `
-    <div class="card" data-abrir-escala-louvor="${e.id}" style="cursor:pointer;">
-      <b style="font-size:14.5px;">${e.titulo}</b>
-      <p class="hint" style="margin:2px 0 8px;">${formatarData(e.data)}${e.horario ? " · " + e.horario : ""}</p>
-      <span class="hint">👥 ${contagens[e.id] || 0} escalado(s)${!e.publicada ? " · 📝 rascunho" : ""}</span>
+    <div class="card cal-item c${(e.titulo || "").length % 5}" data-abrir-escala-louvor="${e.id}" style="cursor:pointer;">
+      <div class="dt"><b>${new Date(e.data + "T00:00:00").getDate()}</b><small>${["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"][new Date(e.data + "T00:00:00").getMonth()]}</small></div>
+      <div class="tx"><span>${e.titulo}</span><em>${formatarData(e.data)}${e.horario ? " · " + e.horario : ""}</em><em class="gold">👥 ${contagens[e.id] || 0} escalado(s)${!e.publicada ? " · 📝 rascunho" : ""}</em></div>
     </div>
   `).join("") || `<p class="hint">Nenhuma escala ${tipo === "proximas" ? "futura" : "anterior"}.</p>`;
   el.querySelectorAll("[data-abrir-escala-louvor]").forEach(c =>
