@@ -268,3 +268,33 @@ body.palavra-aberta{ overflow:hidden; }
 /* ---------- Contatos / diretório / mensagens ---------- */
 .contato-item{ border-radius:22px; padding:14px 16px; }
 .contato-item b,.contato-item .nome{ font-family:var(--serif); font-weight:400; font-size:20px; }
+
+/* ---------- Fotos: mosaico ---------- */
+.fotos-grid{ display:block!important; column-count:2; column-gap:10px; }
+.foto-item{ break-inside:avoid; margin-bottom:10px; border-radius:20px!important; border:1px solid rgba(255,255,255,.1); box-shadow:0 16px 36px -20px rgba(0,0,0,.9); cursor:pointer; }
+.foto-item img{ height:auto!important; min-height:110px; transition:transform .8s cubic-bezier(.22,1,.36,1); }
+.foto-item:nth-child(3n+1) img{ aspect-ratio:3/4; } .foto-item:nth-child(3n+2) img{ aspect-ratio:1; } .foto-item:nth-child(3n) img{ aspect-ratio:4/5; }
+@media (hover:hover){ .foto-item:hover img{ transform:scale(1.07); } }
+@media (min-width:900px){ .fotos-grid{ column-count:4; column-gap:14px; } }
+
+/* ---------- Livros ---------- */
+[data-abrir-livro]{ gap:16px!important; padding:16px!important; }
+[data-abrir-livro] > img{ width:76px!important; height:114px!important; border-radius:6px 12px 12px 6px!important; box-shadow:-6px 10px 22px -6px rgba(0,0,0,.9), inset 4px 0 6px rgba(255,255,255,.18)!important; transform:perspective(500px) rotateY(-9deg); transition:transform .6s cubic-bezier(.22,1,.36,1); }
+@media (hover:hover){ [data-abrir-livro]:hover > img{ transform:perspective(500px) rotateY(0) scale(1.06); } }
+[data-abrir-livro] b{ font-family:var(--serif); font-weight:400; font-size:21px!important; letter-spacing:-.01em; }
+[data-abrir-livro] div[style*="height:5px"]{ height:6px!important; background:rgba(255,255,255,.12)!important; }
+[data-abrir-livro] div[style*="height:5px"] > div{ background:linear-gradient(90deg,var(--gold),#ffd54a)!important; box-shadow:0 0 10px rgba(249,189,0,.6); }
+.badge-inline{ background:rgba(249,189,0,.14); color:var(--gold); border:1px solid rgba(249,189,0,.35); border-radius:99px; font-weight:700; }
+
+/* ---------- Painel administrativo e listas de pessoas ---------- */
+.admin-grid{ gap:12px!important; }
+.admin-grid-card{ padding:22px 12px!important; border-radius:24px!important; display:flex; flex-direction:column; align-items:center; gap:10px; }
+.admin-grid-card .icon{ width:28px!important; height:28px!important; padding:11px; box-sizing:content-box; border-radius:18px; background:linear-gradient(150deg,rgba(51,85,255,.5),rgba(0,38,183,.3)); stroke:#fff; box-shadow:0 10px 24px -10px rgba(51,85,255,.9), inset 0 1px 0 rgba(255,255,255,.2); transition:transform .5s cubic-bezier(.22,1,.36,1); }
+.admin-grid-card:nth-child(4n+2) .icon{ background:linear-gradient(150deg,rgba(249,189,0,.55),rgba(201,143,0,.3)); box-shadow:0 10px 24px -10px rgba(249,189,0,.8); }
+.admin-grid-card:nth-child(4n+3) .icon{ background:linear-gradient(150deg,rgba(255,122,99,.55),rgba(217,72,59,.3)); box-shadow:0 10px 24px -10px rgba(255,122,99,.8); }
+.admin-grid-card:nth-child(4n) .icon{ background:linear-gradient(150deg,rgba(39,209,155,.5),rgba(15,157,115,.3)); box-shadow:0 10px 24px -10px rgba(39,209,155,.8); }
+@media (hover:hover){ .admin-grid-card:hover .icon{ transform:translateY(-4px) rotate(-6deg) scale(1.08); } }
+.admin-painel-aba .section-label b{ font-size:26px; }
+.row-avatar{ gap:14px!important; }
+.avatar-ini{ box-shadow:0 0 0 2px var(--night), 0 0 0 4px rgba(249,189,0,.5); }
+.row-avatar .row-info span{ color:rgba(255,255,255,.62); }
