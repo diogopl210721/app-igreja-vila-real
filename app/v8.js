@@ -227,8 +227,9 @@ gl_FragColor=vec4(col,1.);}`;
 
   function wizard(cfg) {
     const form = $(cfg.form); if (!form || form.dataset.wz) return; form.dataset.wz = 1;
-    const kids = Array.from(form.children);
-    const marcas = cfg.passos.map(p => kids.indexOf(filhoDireto(form, p.inicio)));
+    const raiz = form.children.length === 1 && form.children[0].classList.contains("card") ? form.children[0] : form;
+    const kids = Array.from(raiz.children);
+    const marcas = cfg.passos.map(p => Math.max(0, kids.indexOf(filhoDireto(raiz, p.inicio)) - (p.recuo || 0)));
     const passos = cfg.passos.map((p, i) => {
       const box = document.createElement("div"); box.className = "wz-step";
       const fim = i + 1 < marcas.length ? marcas[i + 1] : kids.length;
@@ -241,11 +242,12 @@ gl_FragColor=vec4(col,1.);}`;
     const nav = document.createElement("div"); nav.className = "wz-nav";
     nav.innerHTML = `<button type="button" class="btn btn-ghost wz-voltar">Voltar</button><button type="button" class="btn btn-primary wz-seguir">Continuar</button>`;
     const alvo = form.closest(".card") ? form.closest(".card") : form;
-    alvo.parentElement.insertBefore(trilho, alvo); alvo.parentElement.insertBefore(prev, alvo);
-    passos.forEach(b => form.appendChild(b)); form.appendChild(nav);
+    alvo.parentElement.insertBefore(trilho, alvo); if (cfg.prev) alvo.parentElement.insertBefore(prev, alvo);
+    passos.forEach(b => raiz.appendChild(b)); raiz.appendChild(nav);
     // o botão de enviar fica no último passo; a navegação fica abaixo
     let atual = 0;
     const submit = form.querySelector('button[type="submit"]');
+    const pv = cfg.prev || {}; const val = id => { const e = id && $(id); return e ? e.value : ""; };
     function ir(n) {
       atual = Math.max(0, Math.min(passos.length - 1, n));
       passos.forEach((b, i) => b.classList.toggle("on", i === atual));
@@ -263,11 +265,12 @@ gl_FragColor=vec4(col,1.);}`;
     // pré-visualização
     const q = s => prev.querySelector(s);
     function atualizar() {
-      q(".pt").textContent = ($(cfg.prev.titulo).value || "").trim() || cfg.vazio;
-      const d = $(cfg.prev.data).value;
+      if (!cfg.prev) return;
+      q(".pt").textContent = val(pv.titulo).trim() || cfg.vazio;
+      const d = val(pv.data);
       if (d) { const dt = new Date(d + "T00:00:00"); q(".pd").textContent = dt.getDate(); q(".pm").textContent = MESES[dt.getMonth()]; } else { q(".pd").textContent = "--"; q(".pm").textContent = "DATA"; }
-      q(".ps").textContent = [$(cfg.prev.hora).value, $(cfg.prev.local).value].filter(Boolean).join(" · ");
-      const f = $(cfg.prev.img).files && $(cfg.prev.img).files[0];
+      q(".ps").textContent = [val(pv.hora), val(pv.local)].filter(Boolean).join(" · ");
+      const fe2 = pv.img && $(pv.img); const f = fe2 && fe2.files && fe2.files[0];
       const im = q(".pi");
       if (f) { im.src = URL.createObjectURL(f); im.style.display = "block"; } else im.style.display = "none";
     }
@@ -284,8 +287,53 @@ gl_FragColor=vec4(col,1.);}`;
     if (fe && !fe.dataset.wz) { const ref = filhoDireto(fe, "ev-local"); ["ev-banner", "btn-ev-ler-banner", "ev-status-ia"].forEach(id => { const n = filhoDireto(fe, id); if (n && ref) fe.insertBefore(n, ref); }); }
     wizard({ form: "form-evento", vazio: "Nome do seu evento", prev: { titulo: "ev-titulo", data: "ev-data", hora: "ev-horario", local: "ev-local", img: "ev-banner" },
       passos: [{ titulo: "O quê", inicio: "ev-titulo" }, { titulo: "Quando e onde", inicio: "ev-local" }, { titulo: "Detalhes", inicio: "ev-vagas-min" }] });
+    wizard({ form: "form-calendario-add", vazio: "Nome do compromisso", prev: { titulo: "cal-titulo", data: "cal-data", hora: "cal-horario", local: "cal-local", img: "cal-imagem" },
+      passos: [{ titulo: "O quê", inicio: "cal-titulo" }, { titulo: "Quando e onde", inicio: "cal-local" }, { titulo: "Extras", inicio: "cal-observacoes" }] });
+    wizard({ form: "form-louvor-escala", vazio: "Título da escala", prev: { titulo: "le-titulo", data: "le-data", hora: "le-horario" },
+      passos: [{ titulo: "Quando", inicio: "le-titulo" }, { titulo: "Opções", inicio: "le-dia-semana" }] });
+    wizard({ form: "form-cadastro",
+      passos: [{ titulo: "Você", inicio: "cad-nome" }, { titulo: "Endereço", inicio: "cad-endereco" }, { titulo: "Interesses", inicio: "cad-interesses-lista", recuo: 2 }, { titulo: "Igreja", inicio: "cad-batizado", recuo: 1 }] });
     wizard({ form: "form-lider-aviso", vazio: "Título do aviso", prev: { titulo: "lider-aviso-titulo", data: "lider-aviso-data", hora: "lider-aviso-horario", local: "lider-aviso-local", img: "lider-aviso-imagem" },
       passos: [{ titulo: "O quê", inicio: "lider-aviso-titulo" }, { titulo: "Quando e onde", inicio: "lider-aviso-data" }, { titulo: "Mídia e destino", inicio: "lider-aviso-imagem" }] });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
+})();
+
+/* ---------- camada de efeitos: cursor, botões magnéticos, inclinação 3D, barra de progresso ---------- */
+(function () {
+  const reduz = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fino = window.matchMedia("(hover:hover) and (pointer:fine)").matches;
+  if (reduz) return;
+  // barra de progresso da rolagem (da tela ativa)
+  const bar = document.createElement("div"); bar.className = "v8-prog"; document.body.appendChild(bar);
+  document.addEventListener("scroll", e => {
+    const el = e.target; if (!el || !el.classList || !el.classList.contains("scroll")) return;
+    const max = el.scrollHeight - el.clientHeight; bar.style.transform = `scaleX(${max > 0 ? el.scrollTop / max : 0})`;
+  }, { passive: true, capture: true });
+  if (!fino) return;
+  // cursor
+  const dot = document.createElement("div"), ring = document.createElement("div");
+  dot.className = "v8-dot"; ring.className = "v8-ring"; document.body.append(dot, ring);
+  document.documentElement.classList.add("v8-cursor");
+  let x = 0, y = 0, rx = 0, ry = 0;
+  document.addEventListener("pointermove", e => { x = e.clientX; y = e.clientY; dot.style.transform = `translate(${x}px,${y}px)`; });
+  (function loop() { rx += (x - rx) * .16; ry += (y - ry) * .16; ring.style.transform = `translate(${rx}px,${ry}px)`; requestAnimationFrame(loop); })();
+  const alvo = ".btn,.chip,.navitem,.quicklink,.ar,.card,.evento-card,.cal-dia,.cal-item,.pal-card,.mood,.voltar-btn,.admin-grid-card,.iconbtn,a,button";
+  document.addEventListener("pointerover", e => ring.classList.toggle("on", !!(e.target.closest && e.target.closest(alvo))));
+  // botões magnéticos
+  document.addEventListener("pointermove", e => {
+    const b = e.target.closest && e.target.closest(".btn-primary,.pc-go,.w-btn,.navitem,.nav-fab");
+    document.querySelectorAll(".v8-mag").forEach(m => { if (m !== b) { m.style.transform = ""; m.classList.remove("v8-mag"); } });
+    if (!b) return;
+    const r = b.getBoundingClientRect(); b.classList.add("v8-mag");
+    b.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * .18}px,${(e.clientY - r.top - r.height / 2) * .28}px)`;
+  });
+  // inclinação 3D leve nos cartões grandes
+  document.addEventListener("pointermove", e => {
+    const c = e.target.closest && e.target.closest(".pal-card,.devo-card,.culto-hero,.admin-grid-card");
+    document.querySelectorAll(".v8-tilt").forEach(t => { if (t !== c) { t.style.transform = ""; t.classList.remove("v8-tilt"); } });
+    if (!c) return;
+    const r = c.getBoundingClientRect(); c.classList.add("v8-tilt");
+    c.style.transform = `perspective(900px) rotateY(${((e.clientX - r.left) / r.width - .5) * 6}deg) rotateX(${(.5 - (e.clientY - r.top) / r.height) * 6}deg) translateY(-3px)`;
+  });
 })();
