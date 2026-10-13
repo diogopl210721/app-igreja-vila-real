@@ -1161,6 +1161,8 @@ async function carregarProximoCultoHome() {
   const { data: cultos } = await sb.from("igr_cultos").select("*").eq("igreja_id", state.igreja.id);
   const proximo = calcularProximoCulto(cultos);
   if (!proximo) { el.innerHTML = ""; return; }
+  const fundoHome = document.getElementById("home-bg");
+  if (fundoHome && proximo.culto.imagem_url) { fundoHome.style.setProperty("--hero-img", `url("${proximo.culto.imagem_url}")`); fundoHome.classList.add("com-foto"); }
   el.innerHTML = `
     ${renderizarCardProximoCulto(proximo)}
     <button type="button" class="btn btn-ghost" id="btn-home-ver-todos-cultos" style="margin-top:8px;">Ver todos os cultos →</button>
@@ -1447,7 +1449,7 @@ async function montarHomeMembro() {
   const primeiroNome = m.nome_completo.split(" ")[0];
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
-  document.getElementById("home-saudacao").textContent = `${saudacao}, ${primeiroNome} 👋`;
+  document.getElementById("home-saudacao").innerHTML = `<small>${saudacao},</small><b>${primeiroNome}</b>`;
 
   // devocional de hoje — gerado inteiramente pela IA, conforme o temperamento da pessoa
   document.getElementById("home-devo-titulo").textContent = "Seu devocional de hoje";

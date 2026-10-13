@@ -2,22 +2,32 @@
 (function () {
   const reduz = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // 1) Quando uma tela fica ativa, os blocos dela "sobem" um depois do outro
+  // 1) Revelação ligada à rolagem: cada bloco aparece quando entra na tela
+  let io = null;
   function revelar(tela) {
-    if (reduz || !tela) return;
+    if (!tela) return;
     const alvo = tela.querySelector(".scroll") || tela;
-    const blocos = Array.from(alvo.children).filter(el => el.offsetParent !== null || el.style.display !== "none");
+    const blocos = Array.from(alvo.children).filter(el => !el.classList.contains("home-bg"));
+    if (reduz || !("IntersectionObserver" in window)) { blocos.forEach(el => el.classList.add("rv-on")); return; }
+    if (io) io.disconnect();
+    io = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add("rv-on"); io.unobserve(e.target); }
+    }), { root: alvo.classList.contains("scroll") ? alvo : null, threshold: 0.08, rootMargin: "0px 0px -6% 0px" });
     blocos.forEach((el, i) => {
       el.classList.remove("rv-on");
       el.classList.add("rv");
-      el.style.setProperty("--i", Math.min(i, 14));
+      el.style.setProperty("--i", Math.min(i, 6));
+      io.observe(el);
     });
-    requestAnimationFrame(() => requestAnimationFrame(() => blocos.forEach(el => el.classList.add("rv-on"))));
   }
   const obs = new MutationObserver(muts => {
     for (const m of muts) {
       const t = m.target;
-      if (t.classList && t.classList.contains("screen") && t.classList.contains("active")) revelar(t);
+      if (t.classList && t.classList.contains("screen") && t.classList.contains("active")) {
+        t.style.setProperty("--sy", 0);
+        revelar(t);
+        document.querySelector(".bottomnav")?.classList.remove("escondida");
+      }
     }
   });
   function iniciar() {
@@ -26,6 +36,28 @@
     if (ativa) revelar(ativa);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
+
+  // 1b) Efeitos de rolagem: parallax do fundo da Home, barra superior que "acorda" e barra inferior que some ao descer
+  let ultimoY = 0, ticking = false;
+  document.addEventListener("scroll", e => {
+    const sc = e.target;
+    if (!sc || !sc.classList || !sc.classList.contains("scroll")) return;
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const y = sc.scrollTop;
+      const tela = sc.closest(".screen");
+      if (tela && !reduz) tela.style.setProperty("--sy", Math.max(0, y).toFixed(1));
+      document.querySelector(".appbar")?.classList.toggle("rolou", y > 12);
+      const nav = document.querySelector("#bottomnav");
+      if (nav && !reduz) {
+        if (y > ultimoY + 6 && y > 140) nav.classList.add("escondida");
+        else if (y < ultimoY - 6 || y < 60) nav.classList.remove("escondida");
+      }
+      ultimoY = y;
+    });
+  }, true);
 
   // 2) Onda (ripple) ao tocar em botões e atalhos
   document.addEventListener("pointerdown", e => {
