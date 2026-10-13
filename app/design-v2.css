@@ -1,0 +1,208 @@
+/* =====================================================================
+   DESIGN V2 — "Vidro + Degradê" com movimento intenso
+   Camada por cima do style.css (não apaga nada). Para voltar ao visual
+   antigo basta remover a linha <link ... design-v2.css> do index.html.
+   Tudo usa --brand / --coral da igreja, então cada igreja tem sua cor.
+   ===================================================================== */
+
+:root{
+  --bg:#F3F5FC;
+  --card:#FFFFFF;
+  --ink:#14172B;
+  --ink-soft:#5D647A;
+  --ink-faint:#9AA1B5;
+  --line:rgba(20,23,43,.07);
+  --r-card:22px;
+  --r-btn:16px;
+  --glass:rgba(255,255,255,.66);
+  --glass-line:rgba(255,255,255,.75);
+  --glass-shadow:0 18px 40px -22px color-mix(in srgb, var(--brand) 45%, rgba(20,23,43,.6)), 0 2px 6px rgba(20,23,43,.04);
+  --shadow:0 14px 30px -20px color-mix(in srgb, var(--brand) 40%, rgba(20,23,43,.55));
+  --grad-brand:linear-gradient(135deg, color-mix(in srgb, var(--brand) 88%, #fff), color-mix(in srgb, var(--brand) 68%, #8B5CF6));
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0E1120; }
+}
+
+/* ---------- fundo: malha de degradês suaves que respira ---------- */
+html,body{ background:var(--bg); }
+body::before,body::after{
+  content:""; position:fixed; z-index:0; pointer-events:none; border-radius:50%; filter:blur(70px); opacity:.55;
+}
+body::before{
+  width:360px; height:360px; top:-120px; left:-100px;
+  background:color-mix(in srgb, var(--brand) 38%, transparent);
+  animation:blobA 18s ease-in-out infinite alternate;
+}
+body::after{
+  width:320px; height:320px; bottom:-90px; right:-110px;
+  background:color-mix(in srgb, var(--coral) 34%, transparent);
+  animation:blobB 22s ease-in-out infinite alternate;
+}
+@keyframes blobA{ to{ transform:translate(90px,120px) scale(1.15); } }
+@keyframes blobB{ to{ transform:translate(-80px,-110px) scale(1.2); } }
+#app{ background:transparent; position:relative; z-index:1; }
+
+/* ---------- transição de tela ---------- */
+.screen.active{ animation:telaEntra .5s var(--ease-out) both; }
+@keyframes telaEntra{ from{ opacity:0; transform:translateY(18px) scale(.985); } to{ opacity:1; transform:none; } }
+
+/* ---------- revelação escalonada (aplicada pelo motion.js) ---------- */
+.rv{ opacity:0; transform:translateY(22px); }
+.rv.rv-on{ opacity:1; transform:none; transition:opacity .6s var(--ease-out), transform .7s var(--ease-out); transition-delay:calc(var(--i,0) * 55ms); }
+
+/* ---------- cartões de vidro ---------- */
+.card, .banner, .evento-card, .album-card, .contato-item, .admin-grid-card, .reacao-btn, .interesse-item, .grouppick{
+  background:var(--glass); -webkit-backdrop-filter:blur(18px) saturate(1.5); backdrop-filter:blur(18px) saturate(1.5);
+  border:1px solid var(--glass-line); border-radius:var(--r-card); box-shadow:var(--glass-shadow);
+  transition:transform .35s var(--ease-spring), box-shadow .35s var(--ease-out), border-color .25s;
+}
+.card:active, .evento-card:active, .album-card:active, .contato-item:active, .admin-grid-card:active{ transform:scale(.975); }
+@media (hover:hover){
+  .card:hover, .evento-card:hover, .album-card:hover, .admin-grid-card:hover{ transform:translateY(-3px); box-shadow:0 26px 46px -22px color-mix(in srgb, var(--brand) 55%, rgba(20,23,43,.6)); }
+}
+.card h3{ font-size:15px; letter-spacing:-.1px; }
+
+/* ---------- botões ---------- */
+.btn{ border-radius:var(--r-btn); position:relative; overflow:hidden; transition:transform .25s var(--ease-spring), box-shadow .3s, filter .2s; }
+.btn:active{ transform:scale(.96); }
+.btn-primary{
+  background:var(--grad-brand); color:#fff; font-weight:800; letter-spacing:.1px;
+  box-shadow:0 14px 26px -12px color-mix(in srgb, var(--brand) 80%, transparent), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.btn-primary::after{
+  content:""; position:absolute; top:0; left:-60%; width:40%; height:100%; transform:skewX(-20deg);
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation:brilho 4.5s ease-in-out infinite;
+}
+@keyframes brilho{ 0%,60%{ left:-60%; } 100%{ left:140%; } }
+.btn-ghost{ background:var(--glass); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border:1.5px solid var(--glass-line); box-shadow:0 8px 18px -14px rgba(20,23,43,.5); }
+.ripple-onda{ position:absolute; border-radius:50%; background:rgba(255,255,255,.55); transform:scale(0); animation:onda .65s ease-out forwards; pointer-events:none; }
+.btn-ghost .ripple-onda, .quicklink .ripple-onda{ background:color-mix(in srgb, var(--brand) 25%, transparent); }
+@keyframes onda{ to{ transform:scale(4); opacity:0; } }
+
+/* ---------- campos ---------- */
+.field input, .field select, .field textarea, textarea{
+  background:rgba(255,255,255,.7); border:1.5px solid var(--glass-line); border-radius:14px;
+  box-shadow:inset 0 1px 3px rgba(20,23,43,.05); transition:border-color .2s, box-shadow .3s, transform .25s var(--ease-spring);
+}
+.field input:focus, .field select:focus, .field textarea:focus{
+  border-color:var(--brand); background:#fff; transform:translateY(-1px);
+  box-shadow:0 0 0 4px color-mix(in srgb, var(--brand) 16%, transparent), 0 10px 22px -14px color-mix(in srgb, var(--brand) 60%, transparent);
+}
+
+/* ---------- títulos de seção ---------- */
+.section-label{ margin:26px 0 10px; }
+.section-label b{ font-size:12px; letter-spacing:1.2px; padding-left:0; color:var(--ink-soft); display:inline-flex; align-items:center; gap:8px; }
+.section-label b::before{ position:static; width:18px; height:4px; border-radius:4px; background:var(--grad-brand); }
+
+/* ---------- barra inferior flutuante (vidro) ---------- */
+.bottomnav{
+  left:12px; right:12px; bottom:calc(12px + var(--safe-bottom)); max-width:496px; padding:8px 6px;
+  border:1px solid var(--glass-line); border-radius:26px;
+  background:rgba(255,255,255,.93); -webkit-backdrop-filter:blur(24px) saturate(1.8); backdrop-filter:blur(24px) saturate(1.8);
+  box-shadow:0 22px 44px -18px color-mix(in srgb, var(--brand) 55%, rgba(20,23,43,.7)), inset 0 1px 0 rgba(255,255,255,.8);
+}
+.navitem{ position:relative; padding:7px 0 5px; border-radius:18px; transition:color .25s, transform .3s var(--ease-spring); }
+.navitem .icon{ width:21px; height:21px; transition:transform .4s var(--ease-spring); }
+.navitem.on{ color:var(--brand); }
+.navitem.on .icon{ transform:translateY(-2px) scale(1.18); }
+.navitem.on::before{
+  content:""; position:absolute; inset:0; border-radius:18px; z-index:-1;
+  background:color-mix(in srgb, var(--brand) 12%, transparent); animation:navPop .45s var(--ease-spring);
+}
+@keyframes navPop{ from{ transform:scale(.5); opacity:0; } }
+.navitem:active{ transform:scale(.9); }
+.scroll{ padding-bottom:calc(112px + var(--safe-bottom)); }
+.scroll.no-nav{ padding-bottom:24px; }
+
+/* ---------- topo / ícones ---------- */
+.iconbtn, .appbar-btn{ background:var(--glass); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border:1px solid var(--glass-line); border-radius:14px; box-shadow:0 8px 16px -12px rgba(20,23,43,.5); transition:transform .25s var(--ease-spring); }
+.iconbtn:active, .appbar-btn:active{ transform:scale(.88) rotate(-6deg); }
+.appbar{ background:var(--glass); -webkit-backdrop-filter:blur(20px) saturate(1.6); backdrop-filter:blur(20px) saturate(1.6); border-bottom:1px solid var(--glass-line); }
+.voltar-btn, .admin-aba-voltar{ background:var(--glass); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border:1px solid var(--glass-line); transition:transform .25s var(--ease-spring); }
+.voltar-btn:active, .admin-aba-voltar:active{ transform:translateX(-4px) scale(.96); }
+.badge.membro{ background:linear-gradient(135deg, var(--mint-soft), #fff); box-shadow:0 6px 14px -8px var(--mint); }
+
+/* ---------- atalhos (quicklinks) como "azulejos" ---------- */
+.quicklinks{ gap:10px 8px; }
+.quicklink{ position:relative; overflow:hidden; padding:11px 2px 9px; justify-content:flex-start; min-height:92px; border-radius:20px; background:var(--glass); border:1px solid var(--glass-line); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 12px 22px -18px color-mix(in srgb, var(--brand) 60%, rgba(20,23,43,.6)); transition:transform .35s var(--ease-spring), box-shadow .3s; }
+.quicklink:active{ transform:scale(.9); }
+.quicklink-ic{ width:48px; height:48px; border-radius:16px; transition:transform .45s var(--ease-spring); background:var(--grad-brand); }
+.quicklink:active .quicklink-ic{ transform:rotate(-10deg) scale(1.12); }
+.quicklink:nth-child(4n+2) .quicklink-ic{ background:linear-gradient(135deg, var(--coral), color-mix(in srgb, var(--coral) 55%, #ff6a5c)); box-shadow:0 10px 18px -10px var(--coral); }
+.quicklink:nth-child(4n+3) .quicklink-ic{ background:linear-gradient(135deg, #15C08A, #0E9F77); box-shadow:0 10px 18px -10px #15C08A; }
+.quicklink:nth-child(4n+4) .quicklink-ic{ background:linear-gradient(135deg, #8B5CF6, #6D3FE0); box-shadow:0 10px 18px -10px #8B5CF6; }
+.quicklink span, .quicklink{ color:var(--ink); }
+
+/* ---------- Home: saudação + selo de pontos ---------- */
+.greet-name{ font-size:26px; font-weight:800; letter-spacing:-.6px; background:linear-gradient(90deg, var(--ink), color-mix(in srgb, var(--brand) 70%, var(--ink))); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.greet-sub{ font-size:13.5px; }
+#home-minha-pontuacao .badge-inline{
+  font-size:12px; text-transform:none; letter-spacing:0; padding:9px 15px; color:#fff; background:var(--grad-brand);
+  box-shadow:0 12px 22px -12px color-mix(in srgb, var(--brand) 85%, transparent); position:relative; overflow:hidden;
+  animation:pulsaSuave 3.2s ease-in-out infinite;
+}
+@keyframes pulsaSuave{ 50%{ transform:scale(1.045); } }
+
+/* ---------- cartão do devocional: aurora animada ---------- */
+.devo-card{
+  border-radius:26px; padding:22px 20px 20px; position:relative; overflow:hidden; isolation:isolate;
+  background:radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--coral) 75%, transparent), transparent 55%), linear-gradient(140deg, var(--brand), color-mix(in srgb, var(--brand) 62%, #8B5CF6));
+  box-shadow:0 26px 44px -20px color-mix(in srgb, var(--brand) 80%, transparent);
+}
+.devo-card .pattern{
+  width:200px; height:200px; right:-60px; top:-70px; z-index:0;
+  background:radial-gradient(circle, rgba(255,255,255,.22), transparent 65%); animation:aurora 9s ease-in-out infinite alternate;
+}
+.devo-card::before{
+  content:""; position:absolute; width:180px; height:180px; left:-50px; bottom:-80px; z-index:0; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,255,.14), transparent 65%); animation:aurora 12s ease-in-out infinite alternate-reverse;
+}
+@keyframes aurora{ to{ transform:translate(-40px,30px) scale(1.3); } }
+.devo-card h3{ font-size:20px; letter-spacing:-.3px; }
+.devo-card .btn{ background:#fff; color:var(--brand); box-shadow:0 12px 22px -10px rgba(0,0,0,.4); }
+.devo-card .btn::after{ display:none; }
+
+/* ---------- humor do dia ---------- */
+.reacao-btn{ border-radius:18px; transition:transform .3s var(--ease-spring), background .25s, border-color .25s; }
+.reacao-btn:active{ transform:scale(.88); }
+.reacao-btn.on{ transform:translateY(-3px) scale(1.06); background:color-mix(in srgb, var(--brand) 14%, #fff); box-shadow:0 14px 22px -12px color-mix(in srgb, var(--brand) 70%, transparent); }
+.reacao-btn.on{ animation:saltinho .5s var(--ease-spring); }
+@keyframes saltinho{ 40%{ transform:translateY(-10px) scale(1.15); } }
+
+/* ---------- aniversariantes / chips / etc ---------- */
+.bday .circle{ box-shadow:0 0 0 2px #fff, 0 0 0 4px color-mix(in srgb, var(--gold) 70%, transparent), 0 10px 16px -8px var(--gold); }
+.chip{ background:var(--glass); transition:transform .25s var(--ease-spring), background .2s; }
+.chip:active{ transform:scale(.92); }
+.chip.on{ background:var(--grad-brand); box-shadow:0 10px 18px -10px var(--brand); }
+.status-pill, .badge-inline{ letter-spacing:.2px; }
+
+/* ---------- modal ---------- */
+.modal-overlay{ background:rgba(14,17,32,.45); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+.modal-overlay.open .modal-card{ animation:modalSobe .5s var(--ease-spring); }
+.modal-card{ border-radius:28px; background:rgba(255,255,255,.92); -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px); }
+@keyframes modalSobe{ from{ transform:translateY(40px) scale(.9); opacity:0; } }
+
+/* ---------- tela vazia ---------- */
+.empty{ padding:38px 16px; }
+.empty::before{ content:"✨"; display:block; font-size:34px; margin-bottom:8px; animation:flutua 3s ease-in-out infinite; }
+@keyframes flutua{ 50%{ transform:translateY(-8px); } }
+
+/* ---------- toast de pontos e confete (criados pelo motion.js) ---------- */
+.toast-pontos{
+  position:fixed; left:50%; top:calc(18px + var(--safe-top)); z-index:99998; transform:translate(-50%,-90px) scale(.8);
+  display:flex; align-items:center; gap:9px; padding:12px 20px; border-radius:999px; color:#fff; font-weight:800; font-size:15px;
+  background:var(--grad-brand); box-shadow:0 20px 34px -12px color-mix(in srgb, var(--brand) 85%, transparent);
+  animation:toastPontos 2.6s var(--ease-spring) forwards;
+}
+@keyframes toastPontos{ 12%,80%{ transform:translate(-50%,0) scale(1); } 100%{ transform:translate(-50%,-90px) scale(.8); opacity:0; } }
+.confete-peca{ position:fixed; z-index:99997; width:9px; height:14px; top:-20px; pointer-events:none; border-radius:2px; animation:cai linear forwards; }
+@keyframes cai{ to{ transform:translate3d(var(--dx), 105vh, 0) rotate(var(--rot)); opacity:.9; } }
+
+/* ---------- acessibilidade: respeitar quem desliga animações ---------- */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  .rv{ opacity:1; transform:none; }
+}

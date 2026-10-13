@@ -1150,7 +1150,8 @@ async function carregarMinhaPontuacaoHome() {
   if (minhaSolicitacao !== ultimaSolicitacaoPontuacaoHome) return; // uma chamada mais nova ja respondeu - descarta essa resposta atrasada
   if (!resultado || !resultado.pontos) { el.style.display = "none"; return; }
   el.style.display = "block";
-  el.innerHTML = `<button class="badge-inline" id="btn-home-minha-pontuacao" style="border:none;cursor:pointer;">🎮 ${resultado.pontos} pontos este mês — ${resultado.colocacao}º lugar</button>`;
+  el.innerHTML = `<button class="badge-inline" id="btn-home-minha-pontuacao" style="border:none;cursor:pointer;">🎮 <span id="home-pontos-num">${resultado.pontos}</span> pontos este mês — ${resultado.colocacao}º lugar</button>`;
+  if (window.animarNumero) window.animarNumero(document.getElementById("home-pontos-num"), resultado.pontos);
   document.getElementById("btn-home-minha-pontuacao").addEventListener("click", abrirEditarPerfil);
 }
 
@@ -3556,6 +3557,7 @@ async function darPontos(tipo, referencia_id) {
     igreja_id: state.igreja.id, membro_id: state.membro.id, tipo, pontos, referencia_id: referencia_id || null,
   });
   if (error) console.error(`Não deu pra dar ponto (tipo: ${tipo}):`, error);
+  else if (window.toastPontos) window.toastPontos(pontos);
 }
 
 // pra dar ponto a OUTRA pessoa que nao a logada agora (ex: quem indicou um visitante)
