@@ -71,3 +71,95 @@ body.palavra-aberta{ overflow:hidden; }
 @keyframes confV8{ to{ transform:translate(var(--dx,0),105vh) rotate(720deg); opacity:.9; } }
 @media (prefers-reduced-motion:reduce){ .pal-card::after,.pal-card .pc-eye i,#palavra .seal{ animation:none; } }
 .greet-name b{ padding-bottom:.14em; line-height:1.02; display:inline-block; }
+
+/* =====================================================================
+   V8 · camada global — todas as telas no mesmo padrão
+   ===================================================================== */
+/* ---------- títulos de página: serifa grande, palavra final em itálico dourado ---------- */
+.screen h2{ font-family:var(--serif); font-weight:300; font-size:clamp(34px,8.4vw,46px); line-height:1.02; letter-spacing:-.03em; font-variation-settings:"opsz" 144; margin:6px 0 8px; color:#fff; }
+.screen h2 em{ font-style:italic; color:var(--gold); }
+.screen > .scroll > p.hint:first-of-type, .screen h2 + p.hint{ font-family:var(--serif); font-style:italic; font-weight:300; font-size:17px; line-height:1.4; color:rgba(255,255,255,.7); }
+.voltar-btn,.admin-aba-voltar{ border-radius:99px; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); transition:transform .4s cubic-bezier(.22,1,.36,1), background .3s; }
+.voltar-btn:active{ transform:scale(.94); }
+@media (hover:hover){ .voltar-btn:hover{ transform:translateX(-3px); background:rgba(255,255,255,.14); } }
+
+/* ---------- cartões: vidro com fio dourado e brilho que segue o dedo/mouse ---------- */
+.card,.evento-card,.album-card,.contato-item,.admin-grid-card,.banner,.interesse-item,.prayer-item{ position:relative; overflow:hidden;
+  background:linear-gradient(160deg,rgba(255,255,255,.085),rgba(255,255,255,.025)); border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 18px 44px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  transition:transform .5s cubic-bezier(.22,1,.36,1), border-color .4s, box-shadow .5s; }
+.card::before,.evento-card::before,.album-card::before,.contato-item::before,.admin-grid-card::before,.prayer-item::before{ content:""; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .4s;
+  background:radial-gradient(260px circle at var(--mx,50%) var(--my,0%), rgba(249,189,0,.16), transparent 70%); }
+@media (hover:hover){
+  .card:hover,.evento-card:hover,.album-card:hover,.contato-item:hover,.admin-grid-card:hover{ transform:translateY(-4px); border-color:rgba(249,189,0,.4); box-shadow:0 30px 60px -28px rgba(0,0,0,.9); }
+  .card:hover::before,.evento-card:hover::before,.album-card:hover::before,.contato-item:hover::before,.admin-grid-card:hover::before,.prayer-item:hover::before{ opacity:1; }
+}
+.card h3{ font-family:var(--serif); font-weight:300; font-size:23px; letter-spacing:-.02em; font-variation-settings:"opsz" 72; }
+.card > *{ position:relative; }
+
+/* entrada suave de tudo que aparece (inclusive listas carregadas depois) */
+@keyframes rvIn{ from{ opacity:0; transform:translateY(22px) scale(.985); } to{ opacity:1; transform:none; } }
+.screen.active .card,.screen.active .prayer-item,.screen.active .evento-card,.screen.active .album-card,.screen.active .contato-item,.screen.active .admin-grid-card,.screen.active .banner,.screen.active .bday,.screen.active .quicklink,.screen.active .interesse-item{ animation:rvIn .8s cubic-bezier(.22,1,.36,1) both; }
+.screen.active .card:nth-child(2),.screen.active .quicklink:nth-child(2),.screen.active .admin-grid-card:nth-child(2){ animation-delay:.06s; }
+.screen.active .card:nth-child(3),.screen.active .quicklink:nth-child(3),.screen.active .admin-grid-card:nth-child(3){ animation-delay:.12s; }
+.screen.active .card:nth-child(4),.screen.active .quicklink:nth-child(4),.screen.active .admin-grid-card:nth-child(4){ animation-delay:.18s; }
+.screen.active .card:nth-child(n+5),.screen.active .quicklink:nth-child(n+5),.screen.active .admin-grid-card:nth-child(n+5){ animation-delay:.24s; }
+
+/* ---------- botões ---------- */
+.btn{ border-radius:99px; font-family:var(--fino); font-weight:700; letter-spacing:.2px; }
+.btn-primary{ background:linear-gradient(135deg,#1239e0,#0026B7); box-shadow:0 14px 34px -12px rgba(0,38,183,.9), inset 0 1px 0 rgba(255,255,255,.25); }
+.btn-primary::after{ content:""; position:absolute; inset:0; background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.22) 50%,transparent 65%); transform:translateX(-120%); transition:transform .8s; }
+@media (hover:hover){ .btn-primary:hover{ transform:translateY(-2px); } .btn-primary:hover::after{ transform:translateX(120%); } }
+.chip.on{ background:var(--gold); color:#241a00; }
+.field input,.field select,.field textarea,textarea{ border-radius:16px; }
+.field input:focus,.field select:focus,.field textarea:focus{ border-color:var(--gold); box-shadow:0 0 0 4px rgba(249,189,0,.14); }
+
+/* ---------- Home: ranking, aniversários, orações ---------- */
+#ranking-mes-lista .card:first-child{ background:linear-gradient(150deg,rgba(249,189,0,.22),rgba(249,189,0,.04)); border-color:rgba(249,189,0,.55); box-shadow:0 24px 60px -26px rgba(249,189,0,.5); }
+.row-avatar .row-info b{ font-family:var(--serif); font-weight:400; font-size:19px; }
+.bday-row{ gap:14px; }
+.bday .circle{ box-shadow:0 0 0 2px var(--night), 0 0 0 4px rgba(249,189,0,.7); }
+.bday .bday-data{ color:var(--gold); font-weight:700; }
+.prayer-item{ padding:16px 18px; border-radius:20px; margin-bottom:10px; display:flex; gap:12px; justify-content:space-between; align-items:flex-start; }
+.prayer-item p{ font-family:var(--serif); font-weight:300; font-size:18px; line-height:1.35; color:#fff; margin:0 0 6px; }
+.prayer-item span{ font-size:11.5px; color:rgba(255,255,255,.6); }
+.status-pill{ font:800 10px/1 var(--fino); letter-spacing:.14em; text-transform:uppercase; padding:6px 10px; border-radius:99px; flex:none; }
+#novo-pedido-texto{ font-family:var(--serif)!important; font-size:18px!important; font-weight:300; line-height:1.4; }
+
+/* ---------- rodapé DDS ---------- */
+.dds-copy{ font-family:var(--fino); }
+
+/* =====================================================================
+   DESKTOP — vira site: coluna larga, conteúdo centralizado, dock flutuante
+   ===================================================================== */
+@media (min-width:900px){
+  #app{ max-width:1180px; }
+  .scroll{ padding-left:clamp(32px,5vw,72px); padding-right:clamp(32px,5vw,72px); padding-top:26px; }
+  .scroll > *{ max-width:920px; margin-left:auto; margin-right:auto; }
+  .scroll > .hero-carousel,.scroll > .atalhos-rapidos,.scroll > .stories-row{ max-width:920px; }
+  .greet-name b{ font-size:96px; }
+  .greet-sub{ font-size:24px; }
+  .pal-card{ padding:34px 40px; border-radius:34px; }
+  .pal-card .pc-t{ font-size:46px; max-width:15em; letter-spacing:-1.2px; }
+  .pal-card .pc-s{ font-size:16px; }
+  .pal-card .pc-go{ padding:13px 24px; font-size:14px; }
+  .section-label b{ font-size:40px; }
+  .atalhos-rapidos{ display:grid!important; grid-template-columns:repeat(5,1fr); gap:14px; overflow:visible; }
+  .quicklinks{ display:grid!important; grid-template-columns:repeat(4,1fr); gap:14px; }
+  #home-avisos{ display:grid!important; grid-template-columns:repeat(2,1fr); gap:16px; overflow:visible; }
+  #ranking-mes-lista,#lista-pedidos-oracao{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  #ranking-mes-lista .card,.prayer-item{ margin:0; }
+  .admin-grid{ grid-template-columns:repeat(4,1fr)!important; }
+  .bottomnav{ max-width:640px; bottom:18px; }
+  .screen h2{ font-size:56px; }
+  .hero-boasvindas{ max-width:920px; }
+  #palavra .w-in{ max-width:760px; }
+  #palavra .moods{ grid-template-columns:repeat(3,1fr); }
+}
+@media (min-width:1280px){ #app{ max-width:1280px; } }
+#admin-titulo-painel{ font-family:var(--serif)!important; font-weight:300!important; font-size:34px!important; letter-spacing:-.02em; font-variation-settings:"opsz" 144; }
+.admin-grid-card,.quicklink,.ar{ font-family:var(--fino); font-weight:600; }
+/* títulos de página (spans antigos em Montserrat) → serifa editorial */
+.screen span[style*="Montserrat"]{ font-family:var(--serif)!important; font-weight:300!important; font-size:clamp(34px,9vw,46px)!important; line-height:1.02!important; letter-spacing:-.03em!important; font-variation-settings:"opsz" 144; color:#fff; margin:8px 0 6px!important; }
+.screen span[style*="Montserrat"] em{ font-style:italic; color:var(--gold); }
+@media (min-width:900px){ .screen span[style*="Montserrat"]{ font-size:56px!important; } #admin-titulo-painel{ font-size:40px!important; } }

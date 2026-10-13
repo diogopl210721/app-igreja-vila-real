@@ -28,7 +28,9 @@
     if (vila) {
       ov.classList.add("modo-logo");
       $(".intro-logo img", ov).src = "assets/igreja-arte.png";
-      $("#intro-sub").textContent = "Ministério Pr. José e Pra. Laura";
+      let un = ""; try { un = localStorage.getItem("igr_user_nome") || ""; } catch (e) {}
+      const hh = new Date().getHours(), sd = hh < 5 ? "Boa madrugada" : hh < 12 ? "Bom dia" : hh < 18 ? "Boa tarde" : "Boa noite";
+      $("#intro-sub").textContent = un ? `${sd}, ${un}.` : "Ministério Pr. José e Pra. Laura";
     } else {
       if (marca.logo) $(".intro-logo img", ov).src = marca.logo;
       else $(".intro-logo", ov).style.display = "none";

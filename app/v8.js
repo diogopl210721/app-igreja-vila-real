@@ -192,3 +192,27 @@ gl_FragColor=vec4(col,1.);}`;
     } catch (e) {}
   };
 })();
+
+/* brilho dourado que segue o mouse/dedo nos cartões */
+(function () {
+  document.addEventListener("pointermove", e => {
+    const c = e.target.closest && e.target.closest(".card,.evento-card,.album-card,.contato-item,.admin-grid-card,.prayer-item");
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    c.style.setProperty("--mx", (e.clientX - r.left) + "px");
+    c.style.setProperty("--my", (e.clientY - r.top) + "px");
+  }, { passive: true });
+})();
+
+/* palavra final dos títulos de página em itálico dourado */
+(function () {
+  function destacar() {
+    document.querySelectorAll('.screen span[style*="Montserrat"]').forEach(s => {
+      if (s.dataset.v8 || s.children.length) return;
+      const t = s.textContent.trim(); const p = t.split(/\s+/);
+      s.dataset.v8 = 1;
+      if (p.length > 1 && t.length < 40) { const u = p.pop(); s.innerHTML = p.join(" ") + " <em>" + u + "</em>"; }
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", destacar); else destacar();
+})();
