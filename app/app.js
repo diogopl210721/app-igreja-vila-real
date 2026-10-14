@@ -4155,7 +4155,7 @@ function renderGradeCalendario() {
     const inicio = new Date(ev.data + "T00:00:00");
     const fim = ev.data_fim ? new Date(ev.data_fim + "T00:00:00") : (ev.dia_semana ? fimDoMesVisivel : inicio);
     for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
-      const iso = d.toISOString().slice(0, 10);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       if (!diaBateComSemana(iso, ev.dia_semana)) continue; // pula dias que nao sao o dia da semana escolhido
       eventosPorDia[iso] = (eventosPorDia[iso] || 0) + 1;
     }
@@ -4164,7 +4164,7 @@ function renderGradeCalendario() {
   const primeiroDia = new Date(mesRef.getFullYear(), mesRef.getMonth(), 1);
   const ultimoDia = new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 0);
   const offset = primeiroDia.getDay();
-  const hojeStr = new Date().toISOString().slice(0, 10);
+  const _h = new Date(); const hojeStr = `${_h.getFullYear()}-${String(_h.getMonth() + 1).padStart(2, "0")}-${String(_h.getDate()).padStart(2, "0")}`;
 
   const celulas = [];
   for (let i = 0; i < offset; i++) celulas.push("");

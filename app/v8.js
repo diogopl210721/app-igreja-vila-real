@@ -279,6 +279,11 @@ gl_FragColor=vec4(col,1.);}`;
     const tela = form.closest(".screen");
     new MutationObserver(() => { if (tela.classList.contains("active")) { ir(0); atualizar(); } }).observe(tela, { attributes: true, attributeFilter: ["class"] });
     form.addEventListener("reset", () => setTimeout(() => { ir(0); atualizar(); })); ir(0); atualizar();
+    // trilho e prévia só aparecem junto com o formulário (que pode estar oculto)
+    const sinc = () => { const oculto = getComputedStyle(form).display === "none" || (alvo !== form && getComputedStyle(alvo).display === "none"); trilho.hidden = oculto; prev.hidden = oculto; };
+    new MutationObserver(sinc).observe(form, { attributes: true, attributeFilter: ["style", "class"] });
+    if (alvo !== form) new MutationObserver(sinc).observe(alvo, { attributes: true, attributeFilter: ["style", "class"] });
+    sinc();
   }
 
   function iniciar() {

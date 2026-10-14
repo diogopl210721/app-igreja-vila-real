@@ -245,3 +245,30 @@ html:not(.claro) .scroll > .btn-ghost .ic8{ color:var(--coral); }
 html:not(.claro) .cc-acoes .ic8{ color:var(--coral); }
 html.claro .home-bg .beam{ opacity:.2!important; }
 html.claro .home-bg .aurora i{ opacity:.35!important; }
+
+/* ===== v9.1 — atalhos do Explorar: azulejos coloridos, ícones com significado ===== */
+.quicklink{ --tc:#0026B7; --tc2:#3355ff; }
+.quicklink:nth-child(5n+2){ --tc:#c98f00; --tc2:#F9BD00; }
+.quicklink:nth-child(5n+3){ --tc:#d9483b; --tc2:#ff7a63; }
+.quicklink:nth-child(5n+4){ --tc:#0f9d73; --tc2:#27d19b; }
+.quicklink:nth-child(5n+5){ --tc:#6a3fd1; --tc2:#9a7bff; }
+.quicklink .quicklink-ic{ position:relative; width:54px; height:54px; border-radius:19px; display:grid; place-items:center; overflow:hidden;
+  background:linear-gradient(150deg,var(--tc2),var(--tc))!important; box-shadow:0 14px 24px -12px var(--tc), inset 0 1px 0 rgba(255,255,255,.45)!important; animation:none; }
+.quicklink .quicklink-ic::before{ content:""; position:absolute; width:140%; height:60%; left:-20%; top:-30%; background:rgba(255,255,255,.22); border-radius:50%; transform:rotate(-12deg); }
+.quicklink .quicklink-ic::after{ content:""; position:absolute; inset:0; background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%); transform:translateX(-130%); transition:transform .8s cubic-bezier(.22,1,.36,1); }
+.quicklink .quicklink-ic .icon, html.claro .quicklink .quicklink-ic .icon{ position:relative; z-index:1; width:26px; height:26px; stroke:#fff!important; color:#fff!important; stroke-width:1.7; filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))!important; transition:transform .5s cubic-bezier(.34,1.56,.64,1); }
+@media (hover:hover){ .quicklink:hover .quicklink-ic .icon{ transform:translateY(-2px) scale(1.14) rotate(-6deg); } .quicklink:hover .quicklink-ic::after{ transform:translateX(130%); } }
+.quicklink:active .quicklink-ic .icon{ transform:scale(.9); }
+.quicklink[data-nav="tela-camera-jerusalem"] .quicklink-ic{ animation:pulsaVivo 1.8s ease-in-out infinite; }
+
+/* menu lateral fechado não pode vazar sombra na borda */
+.drawer{ box-shadow:none!important; visibility:hidden; transition:transform .26s cubic-bezier(.32,.72,0,1), visibility 0s .26s; }
+.drawer.open{ box-shadow:30px 0 80px -20px rgba(0,0,0,.5)!important; visibility:visible; transition:transform .26s cubic-bezier(.32,.72,0,1), visibility 0s; }
+
+/* calendário: visual mais limpo */
+#cal-mes-titulo{ letter-spacing:-.01em!important; }
+.cal-dia{ font-variant-numeric:tabular-nums; }
+html.claro .cal-dia.hoje{ background:linear-gradient(160deg,#fff3c4,#ffe27a); border-color:#c98f00; }
+html.claro .cal-dia.tem:not(.hoje){ background:linear-gradient(160deg,#e9eeff,#d5deff); }
+.wz-trilho[hidden],.wz-prev[hidden]{ display:none!important; }
+.wz-p b{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
