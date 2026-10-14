@@ -1308,7 +1308,7 @@ async function enviarTrocarSenha(ev) {
     const { error } = await sb.from("igr_membros").update({ pin_hash }).eq("id", state.membro.id);
     if (error) { errEl.textContent = "Não deu pra trocar a senha: " + error.message; errEl.classList.add("show"); return; }
     ev.target.reset();
-    document.querySelectorAll('#form-trocar-senha .pin-box').forEach(b => b.value = "");
+    ["ep-nova-senha", "ep-nova-senha-confirmar"].forEach(id => { const e = document.getElementById(id); if (e) e.value = ""; });
     alert("Senha alterada com sucesso 💛");
     document.getElementById("form-trocar-senha").style.display = "none";
   } catch (e) {
@@ -1390,41 +1390,23 @@ function renderPillsParentes(pillsContainerId, selecionadosKey, inputId, sugesto
 async function enviarLoginTelefone(ev) {
   ev.preventDefault();
   const telefone = limparTelefone(document.getElementById("login-telefone").value);
-  if (!telefone) return;
-  if (!state.igreja) { document.getElementById("login-erro-tel").textContent = "Ainda carregando os dados da igreja. Tente de novo em instantes."; document.getElementById("login-erro-tel").classList.add("show"); return; }
-  const { data } = await sb.from("igr_membros").select("id").eq("igreja_id", state.igreja.id).eq("telefone", telefone).maybeSingle();
-  const errEl = document.getElementById("login-erro-tel");
-  errEl.classList.remove("show");
-  if (!data) {
-    errEl.textContent = "Não achamos esse telefone. Quer se cadastrar?";
-    errEl.classList.add("show");
-    return;
-  }
-  document.getElementById("login-passo-telefone").style.display = "none";
-  document.getElementById("login-passo-pin").style.display = "block";
-  document.getElementById("login-form-pin").dataset.telefone = telefone;
-  document.querySelector('[data-pin-group="login-senha"] .pin-box')?.focus();
-}
-
-async function enviarLoginPin(ev) {
-  ev.preventDefault();
-  const telefone = ev.target.dataset.telefone;
   const pin = document.getElementById("login-senha").value.trim();
-  const errEl = document.getElementById("login-erro-pin");
-  errEl.classList.remove("show");
-  if (!/^\d{4}$/.test(pin)) return;
-
+  const errTel = document.getElementById("login-erro-tel");
+  const errPin = document.getElementById("login-erro-pin");
+  errTel.classList.remove("show"); errPin.classList.remove("show");
+  if (!telefone) return;
+  if (!state.igreja) { errTel.textContent = "Ainda carregando os dados da igreja. Tente de novo em instantes."; errTel.classList.add("show"); return; }
+  if (!/^\d{4}$/.test(pin)) { errPin.textContent = "A senha tem 4 números."; errPin.classList.add("show"); return; }
+  const { data: existe } = await sb.from("igr_membros").select("id").eq("igreja_id", state.igreja.id).eq("telefone", telefone).maybeSingle();
+  if (!existe) { errTel.textContent = "Não achamos esse telefone. Quer se cadastrar?"; errTel.classList.add("show"); return; }
   const pin_hash = await sha256(pin + ":" + telefone);
   const { data, error } = await sb.from("igr_membros").select("*")
     .eq("igreja_id", state.igreja.id).eq("telefone", telefone).eq("pin_hash", pin_hash).maybeSingle();
-
   if (error || !data) {
-    errEl.textContent = "Senha incorreta. Tente de novo.";
-    errEl.classList.add("show");
-    const grupo = document.querySelector('[data-pin-group="login-senha"]');
-    grupo.querySelectorAll(".pin-box").forEach(b => b.value = "");
+    errPin.textContent = "Senha incorreta. Tente de novo.";
+    errPin.classList.add("show");
     document.getElementById("login-senha").value = "";
-    grupo.querySelector(".pin-box").focus();
+    document.getElementById("login-senha").focus();
     return;
   }
   sb.from("igr_membros").update({ ultimo_acesso: new Date().toISOString() }).eq("id", data.id).then(() => {});
@@ -8557,7 +8539,6 @@ async function iniciar() {
   document.getElementById("form-lider-aviso")?.addEventListener("submit", enviarAvisoLider);
   configurarPinBoxes();
   document.getElementById("login-form-telefone").addEventListener("submit", enviarLoginTelefone);
-  document.getElementById("login-form-pin").addEventListener("submit", enviarLoginPin);
   document.getElementById("form-novo-pedido").addEventListener("submit", enviarPedidoOracao);
 
   document.querySelectorAll("[data-nav]").forEach(btn => {

@@ -1,0 +1,90 @@
+/* V10: tipografia calma e didática, login padrão, abas em passos, ícones finos. */
+
+/* ---------- tipografia: serifa só em títulos, peso regular, sem tracking ---------- */
+:root{ --serif:'Fraunces','Instrument Serif',Georgia,serif; --fino:'Manrope',system-ui,sans-serif; }
+body{ font-size:15.5px; line-height:1.55; font-optical-sizing:auto; -webkit-font-smoothing:antialiased; }
+h1,h2,h3,.screen h2,.card h3,.section-label b,#admin-titulo-painel,.screen span[style*="Montserrat"],.screen h2[style*="Montserrat"]{
+  font-family:var(--serif)!important; font-weight:400!important; font-variation-settings:"SOFT" 50,"WONK" 0!important; font-optical-sizing:auto; letter-spacing:-.01em!important;
+}
+.screen h2,.screen span[style*="Montserrat"],.screen h2[style*="Montserrat"]{ font-size:clamp(26px,6.4vw,32px)!important; line-height:1.15!important; margin:4px 0 6px!important; }
+.screen > .scroll > p.hint:first-of-type, .screen h2 + p.hint{ font-family:var(--fino)!important; font-style:normal!important; font-weight:400!important; font-size:14.5px!important; line-height:1.55; }
+#admin-titulo-painel{ font-size:26px!important; }
+.greet-name b{ font-variation-settings:"SOFT" 50,"WONK" 0!important; font-weight:400!important; font-size:40px!important; letter-spacing:-.02em!important; line-height:1.1!important; }
+.greet-name small{ font-size:13px!important; letter-spacing:0!important; }
+.greet-sub{ font-family:var(--fino)!important; font-weight:400!important; font-size:15px!important; }
+.section-label b{ font-size:20px!important; }
+.card b,.card h3{ font-family:var(--serif)!important; font-weight:500!important; font-size:19px!important; letter-spacing:-.005em!important; line-height:1.25; }
+.card b + *, .card p{ font-size:14.5px; }
+.card .hint,.hint{ font-size:13.5px; line-height:1.55; letter-spacing:0; }
+.wz-prev-card .tx b,.cal-item .tx b,.evento-card .info b,.ev-v8 .info b{ font-size:17px!important; font-weight:500!important; letter-spacing:0!important; }
+
+/* rótulos e botões: frase normal, sem caixa-alta espaçada */
+.field label{ font-size:13px!important; font-weight:600!important; letter-spacing:0!important; text-transform:none!important; color:var(--ink-soft); margin-bottom:6px; }
+.btn{ font-size:14.5px!important; font-weight:600!important; letter-spacing:0!important; text-transform:none!important; }
+.quicklink,.admin-grid-card,.ar{ font-size:13px!important; font-weight:600!important; letter-spacing:0!important; text-transform:none!important; }
+.badge-inline,.status-pill,.wz-prev-eye,.devo-eyebrow,.pal-card .pc-eye,.verso-dia .vd-eyebrow,.explorar-grupo{ text-transform:none!important; letter-spacing:.01em!important; font-size:12px!important; font-weight:600!important; }
+.explorar-grupo{ font-family:var(--fino)!important; font-size:14px!important; margin:22px 0 10px!important; }
+.field input,.field select,.field textarea,textarea{ font-size:15px!important; font-weight:500; }
+@media (min-width:900px){
+  .screen h2,.screen span[style*="Montserrat"],.screen h2[style*="Montserrat"]{ font-size:38px!important; }
+  #admin-titulo-painel{ font-size:32px!important; }
+  .greet-name b{ font-size:56px!important; }
+  .section-label b{ font-size:24px!important; }
+}
+
+/* ---------- login/cadastro: senha normal ---------- */
+.login-form{ display:flex; flex-direction:column; gap:14px; }
+.login-form .field{ margin:0; }
+input.input-senha,.field input.input-senha{
+  width:100%!important; height:50px!important; aspect-ratio:auto!important; padding:0 16px!important; text-align:left!important;
+  font-size:16px!important; font-weight:500!important; letter-spacing:.35em!important; font-family:var(--fino)!important;
+}
+input.input-senha::placeholder{ letter-spacing:0; font-weight:400; }
+.pin-row{ display:block; }
+
+/* ---------- abas de preenchimento: passos didáticos ---------- */
+.wz-trilho{ display:block!important; margin:4px 0 18px; padding:16px 16px 14px; border-radius:22px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+html.claro .wz-trilho{ background:rgba(255,255,255,.75); border-color:rgba(11,16,48,.08); box-shadow:0 10px 30px -18px rgba(11,16,48,.25); }
+.wz-pills{ display:flex; align-items:center; gap:0; }
+.wz-trilho .wz-p{ flex:0 0 auto!important; display:flex; align-items:center; gap:0; padding:0!important; background:none!important; border:0!important; border-radius:0; cursor:pointer; }
+.wz-trilho .wz-p b{ display:none!important; }
+.wz-trilho .wz-p:not(:last-child){ flex:1 1 auto!important; }
+.wz-trilho .wz-p:not(:last-child)::after{ content:""; flex:1; height:2px; min-width:14px; margin:0 8px; border-radius:2px; background:rgba(128,128,150,.28); transition:background .4s; }
+.wz-trilho .wz-p.ok:not(:last-child)::after{ background:var(--gold); }
+.wz-trilho .wz-p i{ width:30px!important; height:30px!important; font:600 13px var(--fino)!important; font-style:normal; display:grid; place-items:center; border-radius:50%!important; background:rgba(128,128,150,.2)!important; color:var(--ink-soft)!important; transition:all .35s cubic-bezier(.22,1,.36,1); }
+.wz-trilho .wz-p.on i{ background:var(--gold)!important; color:#1a1300!important; box-shadow:0 0 0 5px rgba(249,189,0,.22); transform:scale(1.05); }
+.wz-trilho .wz-p.ok i{ background:var(--gold)!important; color:#1a1300!important; font-size:0!important; position:relative; }
+.wz-trilho .wz-p.ok i::after{ content:""; width:10px; height:6px; border-left:2px solid #1a1300; border-bottom:2px solid #1a1300; transform:rotate(-45deg) translate(1px,-1px); }
+.wz-barra{ height:3px; border-radius:3px; background:rgba(128,128,150,.2); margin:14px 0 12px; overflow:hidden; }
+.wz-barra u{ display:block; height:100%; width:0; border-radius:3px; background:linear-gradient(90deg,var(--gold),#ffd95e); transition:width .5s cubic-bezier(.22,1,.36,1); }
+.wz-leg{ display:grid; gap:2px; }
+.wz-leg small{ font:600 12px var(--fino); color:var(--gold-t,var(--gold)); letter-spacing:.01em; }
+.wz-leg strong{ font:500 21px/1.2 var(--serif); letter-spacing:-.01em; color:var(--ink); }
+.wz-leg em{ font:400 13.5px/1.5 var(--fino); font-style:normal; color:var(--ink-soft); }
+.wz-step.on{ animation:rvIn .5s cubic-bezier(.22,1,.36,1) both; }
+.wz-nav{ position:sticky; bottom:8px; gap:10px; margin-top:16px; }
+.wz-nav .btn{ display:flex; align-items:center; justify-content:center; height:50px; border-radius:16px; }
+.wz-nav .wz-voltar{ flex:0 0 36%; }
+.wz-prev-eye{ color:var(--gold-t,var(--gold)); }
+
+/* ---------- ícones de ação (emoji → traço fino) ---------- */
+.ic8{ stroke-width:1.5; }
+.ic8:only-child,.btn-icone-remover .ic8,.editar-grupo-icone .ic8{ margin:0; }
+.btn-icone-remover,.editar-grupo-icone{ display:inline-grid; place-items:center; border-radius:50%; font-size:14px; }
+.editar-grupo-icone .ic8{ width:16px; height:16px; }
+.btn-ghost[data-del] .ic8,.btn-ghost[data-remover-funcao] .ic8{ margin:0; color:#d6543f; }
+.editar-grupo-icone{ width:30px; height:30px; padding:0; border:1px solid rgba(128,128,150,.3); background:rgba(128,128,150,.12); color:var(--ink-soft); top:8px; right:8px; }
+.editar-grupo-icone[data-ver-como-lider]{ right:44px!important; }
+.editar-grupo-icone:hover{ color:var(--gold-t,var(--gold)); border-color:var(--gold); }
+.file-upload-btn{ text-transform:none!important; letter-spacing:0!important; font-weight:600!important; font-size:14px!important; display:inline-flex; align-items:center; gap:6px; }
+.wz-nav{ position:static!important; }
+.wz-nav .wz-voltar[style*="hidden"]{ display:none!important; }
+.hero-boasvindas .tag{ text-transform:none!important; letter-spacing:.01em!important; font-size:12.5px!important; font-weight:600!important; }
+.data-input-wrapper input,.data-input-wrapper input:focus{ border:0!important; background:transparent!important; box-shadow:none!important; height:auto!important; }
+.hero-boasvindas .ic8:first-child{ width:34px; height:34px; margin:0 0 6px; color:var(--gold); }
+@media (min-width:900px){ #tela-login .scroll > *, #tela-cadastro .scroll > * { } }
+@media (min-width:900px){
+  #tela-login .scroll > *{ max-width:440px!important; margin-left:auto!important; margin-right:auto!important; width:100%; }
+  #tela-login .scroll{ display:flex; flex-direction:column; justify-content:center; }
+  #tela-cadastro .scroll > *{ max-width:620px!important; margin-left:auto!important; margin-right:auto!important; }
+}

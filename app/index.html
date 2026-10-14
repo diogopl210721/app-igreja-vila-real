@@ -15,12 +15,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem("igr_tema")!=="escuro")document.documentElement.classList.add("claro")}catch(e){document.documentElement.classList.add("claro")}</script>
-<link rel="stylesheet" href="style.css?v=1791973900">
-<link rel="stylesheet" href="design-v5.css?v=1791973900">
-<link rel="stylesheet" href="design-v6.css?v=1791973900">
-<link rel="stylesheet" href="design-v7.css?v=1791973900">
-<link rel="stylesheet" href="design-v8.css?v=1791973900">
-<link rel="stylesheet" href="design-v9.css?v=1791973900">
+<link rel="stylesheet" href="style.css?v=1791974200">
+<link rel="stylesheet" href="design-v5.css?v=1791974200">
+<link rel="stylesheet" href="design-v6.css?v=1791974200">
+<link rel="stylesheet" href="design-v7.css?v=1791974200">
+<link rel="stylesheet" href="design-v8.css?v=1791974200">
+<link rel="stylesheet" href="design-v9.css?v=1791974200">
+<link rel="stylesheet" href="design-v10.css?v=1791974200">
 <link rel="preload" href="assets/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -67,6 +68,7 @@
     <symbol id="k-sparkle2" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 17v4M17 19h4"/></symbol>
     <symbol id="k-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
     <symbol id="k-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+    <symbol id="k-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12.5h9.4L17.5 7M10 11v5M14 11v5"/></symbol>
     <symbol id="k-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="k-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
     <symbol id="k-bible" viewBox="0 0 24 24"><path d="M6 3h11a2 2 0 0 1 2 2v15H8a2 2 0 0 1-2-2V3z"/><path d="M6 18a2 2 0 0 1 2-2h11"/><path d="M12.5 6v6M10.5 8h4"/></symbol>
@@ -895,32 +897,15 @@
     <div class="center-flow">
       <div class="wordmark" style="margin-bottom:26px;"><img src="assets/logo.png" alt="logo" style="width:34px;height:34px;"><span>Igreja</span></div>
       <h2>Entrar como membro</h2>
-      <p class="lead">Seu telefone e uma senha de 4 números. Simples e rápido.</p>
+      <p class="lead">Use seu telefone e a senha de 4 números.</p>
 
-      <form id="login-form-telefone">
-        <div id="login-passo-telefone">
-          <div class="field"><label>Número de telefone</label><input id="login-telefone" required placeholder="(41) 9 0000-0000"></div>
-          <p class="error-msg" id="login-erro-tel"></p>
-          <button class="btn btn-primary" type="submit">Continuar</button>
-        </div>
-      </form>
-
-      <form id="login-form-pin">
-        <div id="login-passo-pin" style="display:none;margin-top:6px;">
-          <div class="field">
-            <label>Sua senha de 4 números</label>
-            <div class="pin-row" data-pin-group="login-senha">
-              <input class="pin-box" inputmode="numeric" maxlength="1">
-              <input class="pin-box" inputmode="numeric" maxlength="1">
-              <input class="pin-box" inputmode="numeric" maxlength="1">
-              <input class="pin-box" inputmode="numeric" maxlength="1">
-            </div>
-            <input type="hidden" id="login-senha">
-          </div>
-          <p class="error-msg" id="login-erro-pin"></p>
-          <button class="btn btn-primary" type="submit">Entrar</button>
-          <p class="hint" style="text-align:center;margin-top:10px;">Esqueceu sua senha? Fale com um líder ou com a administração da igreja pra resetar.</p>
-        </div>
+      <form id="login-form-telefone" class="login-form" autocomplete="on">
+        <div class="field"><label for="login-telefone">Telefone</label><input id="login-telefone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(41) 9 0000-0000"></div>
+        <div class="field"><label for="login-senha">Senha</label><input type="password" id="login-senha" class="input-senha" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" placeholder="4 números" required></div>
+        <p class="error-msg" id="login-erro-tel"></p>
+        <p class="error-msg" id="login-erro-pin"></p>
+        <button class="btn btn-primary" type="submit">Entrar</button>
+        <p class="hint" style="text-align:center;margin-top:10px;">Esqueceu a senha? Fale com um líder ou com a administração da igreja pra resetar.</p>
       </form>
 
       <p class="hint" style="text-align:center;margin-top:16px;">Ainda não é cadastrado? <a class="linklike" data-nav="tela-cadastro">Cadastre-se</a></p>
@@ -961,23 +946,11 @@
         </div>
         <div class="field">
           <label>Crie uma senha de 4 números</label>
-          <div class="pin-row" data-pin-group="cad-senha">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-          </div>
-          <input type="hidden" id="cad-senha">
+          <input type="password" id="cad-senha" class="input-senha" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="4 números">
         </div>
         <div class="field">
           <label>Confirmar senha</label>
-          <div class="pin-row" data-pin-group="cad-senha-confirmar">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-          </div>
-          <input type="hidden" id="cad-senha-confirmar">
+          <input type="password" id="cad-senha-confirmar" class="input-senha" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="4 números">
         </div>
 
         <div class="section-label"><b>O que você gosta de fazer na igreja?</b></div>
@@ -1292,23 +1265,11 @@
       <form id="form-trocar-senha" style="display:none;margin-top:10px;">
         <div class="field">
           <label>Nova senha (4 números)</label>
-          <div class="pin-row" data-pin-group="ep-nova-senha">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-          </div>
-          <input type="hidden" id="ep-nova-senha">
+          <input type="password" id="ep-nova-senha" class="input-senha" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="4 números">
         </div>
         <div class="field">
           <label>Confirmar nova senha</label>
-          <div class="pin-row" data-pin-group="ep-nova-senha-confirmar">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-            <input class="pin-box" inputmode="numeric" maxlength="1">
-          </div>
-          <input type="hidden" id="ep-nova-senha-confirmar">
+          <input type="password" id="ep-nova-senha-confirmar" class="input-senha" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password" placeholder="4 números">
         </div>
         <p class="error-msg" id="ep-senha-erro"></p>
         <button class="btn btn-ghost" type="submit">Trocar senha</button>
@@ -2442,13 +2403,13 @@
 </div>
 
 <script src="config.js"></script>
-<script>window.APP_VERSION = "1791973900";</script>
-<script src="motion.js?v=1791973900"></script>
-<script src="app.js?v=1791973900"></script>
-<script src="v7.js?v=1791973900"></script>
-<script src="assets/gsap.min.js?v=1791973900"></script>
-<script src="v8.js?v=1791973900"></script>
-<script src="v9.js?v=1791973900"></script>
-<script src="stories.js?v=1791973900"></script>
+<script>window.APP_VERSION = "1791974200";</script>
+<script src="motion.js?v=1791974200"></script>
+<script src="app.js?v=1791974200"></script>
+<script src="v7.js?v=1791974200"></script>
+<script src="assets/gsap.min.js?v=1791974200"></script>
+<script src="v8.js?v=1791974200"></script>
+<script src="v9.js?v=1791974200"></script>
+<script src="stories.js?v=1791974200"></script>
 </body>
 </html>
