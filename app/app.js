@@ -3472,7 +3472,7 @@ function renderizarListaLivros(termoBusca) {
     const sinopseCurta = sinopse.length > 110 ? sinopse.slice(0, 110) + "…" : sinopse;
     return `
       <div class="card" data-abrir-livro="${l.id}" style="display:flex;gap:12px;cursor:pointer;">
-        <img src="${l.capa_url}" alt="${l.titulo}" style="width:60px;height:90px;object-fit:cover;border-radius:8px;flex:none;box-shadow:var(--shadow);">
+        <div class="capa-fb c${(l.titulo || "").length % 5}"><span>${l.titulo}</span>${l.capa_url ? `<img src="${l.capa_url}" alt="" onerror="this.remove()">` : ""}</div>
         <div style="flex:1;min-width:0;">
           <b style="font-size:14px;display:block;line-height:1.25;">${l.titulo}</b>
           ${l.autor ? `<span class="hint" style="margin:0;">${l.autor}</span>` : ""}
@@ -4193,14 +4193,32 @@ function renderGradeCalendario() {
     })
     .sort((a, b) => a.data.localeCompare(b.data));
   const legendaEl = document.getElementById("cal-legenda-mes");
+  const _iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const ABR = { domingo: "DOM", segunda: "SEG", terca: "TER", quarta: "QUA", quinta: "QUI", sexta: "SEX", sabado: "SÁB" };
+  const MA = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  // próxima ocorrência do compromisso dentro do mês visível (a partir de hoje, se for o mês atual)
+  const proximaOcorrencia = ev => {
+    const hojeIso = _iso(new Date());
+    const dias = new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 0).getDate();
+    let primeira = null;
+    for (let dd = 1; dd <= dias; dd++) {
+      const iso = `${mesStr}-${String(dd).padStart(2, "0")}`;
+      if (iso < ev.data || (ev.data_fim && iso > ev.data_fim) || !diaBateComSemana(iso, ev.dia_semana)) continue;
+      if (!primeira) primeira = iso;
+      if (iso >= hojeIso) return iso;
+    }
+    return primeira || (ev.data.slice(0, 7) === mesStr ? ev.data : `${mesStr}-01`);
+  };
   legendaEl.innerHTML = itensLegenda.map(ev => {
-    const diaExibir = ev.data.slice(0, 7) === mesStr ? new Date(ev.data + "T00:00:00").getDate() : 1;
     const infoDia = ev.dia_semana && DIA_SEMANA_INFO[ev.dia_semana];
-    const dt = new Date(ev.data + "T00:00:00");
-    const MA = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
-    return `<div data-legenda-dia="${ev.data.slice(0, 7) === mesStr ? ev.data : `${mesStr}-01`}" class="cal-item c${(ev.titulo || "").length % 5}">
-      <div class="dt"><b>${String(diaExibir).padStart(2, "0")}</b><small>${MA[ev.data.slice(0, 7) === mesStr ? dt.getMonth() : mesRef.getMonth()]}</small></div>
-      <div class="tx"><span>${ev.titulo}</span>${infoDia ? `<em>${infoDia.plural}</em>` : ""}${ev.local ? `<em>${ev.local}</em>` : ""}</div>
+    const alvo = proximaOcorrencia(ev);
+    const ad = new Date(alvo + "T00:00:00");
+    const tile = infoDia
+      ? `<b>${ABR[ev.dia_semana]}</b><small>TODA SEMANA</small>`
+      : `<b>${String(ad.getDate()).padStart(2, "0")}</b><small>${MA[ad.getMonth()]}</small>`;
+    return `<div data-legenda-dia="${alvo}" class="cal-item c${(ev.titulo || "").length % 5}">
+      <div class="dt${infoDia ? " rec" : ""}">${tile}</div>
+      <div class="tx"><span>${ev.titulo}</span>${infoDia ? `<em>${infoDia.plural}${ev.horario ? " · " + ev.horario : ""}</em>` : (ev.horario ? `<em>${ev.horario}</em>` : "")}${ev.local ? `<em>${ev.local}</em>` : ""}</div>
     </div>`;
   }).join("") || `<p class="hint" style="padding:6px 4px;">Nada marcado nesse mês.</p>`;
   legendaEl.querySelectorAll("[data-legenda-dia]").forEach(el => {
@@ -4220,17 +4238,22 @@ function abrirDiaCalendario(dataISO) {
   });
   const el = document.getElementById("calendario-lista");
   el.innerHTML = eventosDoDia.map(ev => `
-    <div class="card">
+    <div class="card dia-card c${(ev.titulo || "").length % 5}">
       ${ev.imagem_url ? `<img class="capa-thumb" src="${ev.imagem_url}" alt="" style="cursor:pointer;" data-ampliar-imagem="${ev.imagem_url}">` : ""}
-      <b style="font-size:14.5px;">${ev.titulo}</b>
-      <p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);">📍 ${ev.local}${ev.horario ? " · " + ev.horario : ""}</p>
-      ${(ev.data_fim && ev.data_fim !== ev.data) || ev.dia_semana ? `<p class="hint" style="margin:4px 0 0;">📅 ${formatarPeriodoCalendario(ev.data, ev.data_fim, ev.dia_semana)}</p>` : ""}
-      ${ev.igr_grupos?.nome ? `<span class="badge-inline" style="margin-top:6px;">${ev.igr_grupos.nome}</span>` : `<span class="badge-inline" style="margin-top:6px;">Igreja toda</span>`}
-      ${ev.observacoes ? `<p style="margin:6px 0 0;font-size:12.5px;">${ev.observacoes}</p>` : ""}
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        ${ev.aviso_id ? `<button class="btn btn-primary" data-abrir-aviso-calendario="${ev.aviso_id}" style="width:auto;padding:7px 14px;font-size:12px;">Ver aviso completo →</button>` : ""}
-        <button class="btn btn-ghost" data-add-agenda-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;">📲 Adicionar na minha agenda</button>
-        <button class="btn btn-ghost" data-compartilhar-calendario="${ev.id}" style="width:auto;padding:7px 14px;font-size:12px;">📤 Compartilhar</button>
+      <div class="dia-top">
+        <div class="dt hr"><b>${ev.horario || "—"}</b><small>HORÁRIO</small></div>
+        <div class="tx">
+          <b class="dia-tit">${ev.titulo}</b>
+          ${ev.local ? `<p class="dia-l">📍 ${ev.local}</p>` : ""}
+          ${(ev.data_fim && ev.data_fim !== ev.data) || ev.dia_semana ? `<p class="dia-l">📅 ${formatarPeriodoCalendario(ev.data, ev.data_fim, ev.dia_semana)}</p>` : ""}
+        </div>
+      </div>
+      <span class="badge-inline">${ev.igr_grupos?.nome || "Igreja toda"}</span>
+      ${ev.observacoes ? `<p class="dia-obs">${ev.observacoes}</p>` : ""}
+      <div class="dia-acoes">
+        ${ev.aviso_id ? `<button class="btn btn-primary" data-abrir-aviso-calendario="${ev.aviso_id}">Ver aviso completo →</button>` : ""}
+        <button class="btn btn-ghost" data-add-agenda-calendario="${ev.id}">📲 Adicionar na minha agenda</button>
+        <button class="btn btn-ghost" data-compartilhar-calendario="${ev.id}">📤 Compartilhar</button>
       </div>
     </div>
   `).join("") || `<div class="empty">Nada marcado pra esse dia.</div>`;

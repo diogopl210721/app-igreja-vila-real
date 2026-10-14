@@ -291,15 +291,15 @@ gl_FragColor=vec4(col,1.);}`;
     const fe = $("form-evento");
     if (fe && !fe.dataset.wz) { const ref = filhoDireto(fe, "ev-local"); ["ev-banner", "btn-ev-ler-banner", "ev-status-ia"].forEach(id => { const n = filhoDireto(fe, id); if (n && ref) fe.insertBefore(n, ref); }); }
     wizard({ form: "form-evento", vazio: "Nome do seu evento", prev: { titulo: "ev-titulo", data: "ev-data", hora: "ev-horario", local: "ev-local", img: "ev-banner" },
-      passos: [{ titulo: "O quê", inicio: "ev-titulo" }, { titulo: "Quando e onde", inicio: "ev-local" }, { titulo: "Detalhes", inicio: "ev-vagas-min" }] });
+      passos: [{ titulo: "O quê", inicio: "ev-titulo" }, { titulo: "Data e local", inicio: "ev-local" }, { titulo: "Detalhes", inicio: "ev-vagas-min" }] });
     wizard({ form: "form-calendario-add", vazio: "Nome do compromisso", prev: { titulo: "cal-titulo", data: "cal-data", hora: "cal-horario", local: "cal-local", img: "cal-imagem" },
-      passos: [{ titulo: "O quê", inicio: "cal-titulo" }, { titulo: "Quando e onde", inicio: "cal-local" }, { titulo: "Extras", inicio: "cal-observacoes" }] });
+      passos: [{ titulo: "O quê", inicio: "cal-titulo" }, { titulo: "Data e local", inicio: "cal-local" }, { titulo: "Extras", inicio: "cal-observacoes" }] });
     wizard({ form: "form-louvor-escala", vazio: "Título da escala", prev: { titulo: "le-titulo", data: "le-data", hora: "le-horario" },
       passos: [{ titulo: "Quando", inicio: "le-titulo" }, { titulo: "Opções", inicio: "le-dia-semana" }] });
     wizard({ form: "form-cadastro",
       passos: [{ titulo: "Você", inicio: "cad-nome" }, { titulo: "Endereço", inicio: "cad-endereco" }, { titulo: "Interesses", inicio: "cad-interesses-lista", recuo: 2 }, { titulo: "Igreja", inicio: "cad-batizado", recuo: 1 }] });
     wizard({ form: "form-lider-aviso", vazio: "Título do aviso", prev: { titulo: "lider-aviso-titulo", data: "lider-aviso-data", hora: "lider-aviso-horario", local: "lider-aviso-local", img: "lider-aviso-imagem" },
-      passos: [{ titulo: "O quê", inicio: "lider-aviso-titulo" }, { titulo: "Quando e onde", inicio: "lider-aviso-data" }, { titulo: "Mídia e destino", inicio: "lider-aviso-imagem" }] });
+      passos: [{ titulo: "O quê", inicio: "lider-aviso-titulo" }, { titulo: "Data e local", inicio: "lider-aviso-data" }, { titulo: "Mídia e destino", inicio: "lider-aviso-imagem" }] });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
 })();
