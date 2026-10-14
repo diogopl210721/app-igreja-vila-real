@@ -19,7 +19,7 @@
   rotulo();
 
   /* ---------- emojis → ícones ---------- */
-  const MAPA = { "📤": "k-share2", "🎮": "k-trophy", "🏅": "k-medal", "📍": "k-pin", "❓": "k-help", "📥": "k-download", "📢": "k-megaphone", "📝": "k-note", "🎨": "k-palette", "🔑": "k-lock", "➕": "k-plus", "✨": "k-sparkle2", "✏️": "k-note", "📅": "k-calendar", "🗓": "k-calendar", "💰": "k-coin", "📲": "k-calplus", "📋": "k-clipboard", "📄": "k-file", "🔍": "k-search", "👁": "k-eye", "📚": "k-books", "📖": "k-bible" };
+  const MAPA = { "📤": "k-share2", "🎮": "k-trophy", "🏅": "k-medal", "📍": "k-pin", "❓": "k-help", "📥": "k-download", "📢": "k-megaphone", "📝": "k-note", "🎨": "k-palette", "🔑": "k-lock", "➕": "k-plus", "✨": "k-sparkle2", "✏️": "k-note", "📅": "k-calendar", "🗓": "k-calendar", "💰": "k-coin", "📲": "k-calplus", "📋": "k-clipboard", "📄": "k-file", "🔍": "k-search", "👁": "k-eye", "📚": "k-books", "📖": "k-bible", "🚗": "k-nav", "👤": "i-user", "❤": "i-heart", "🔔": "i-bell", "🎙": "i-mic", "⚙": "i-settings", "📷": "i-camera" };
   const RE = new RegExp("(" + Object.keys(MAPA).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\uFE0F?", "g");
   const PULAR = "script,style,textarea,input,svg,#palavra,.moods,.reacao-btn,.reacao-row,.mood,.explorar-busca,[data-sem-ic]";
   function trocar(raiz) {

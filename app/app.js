@@ -348,7 +348,7 @@ function proximaOcorrencia(diaSemanaTexto, horarioTexto) {
   d.setHours(h, m, 0, 0);
   return d;
 }
-function gerarICS({ titulo, descricao, local, inicio, duracaoMin, semanal, alarmeMin }) {
+function gerarICS({ titulo, descricao, local, inicio, duracaoMin, semanal, alarmeMin, ate }) {
   const pad = n => String(n).padStart(2, "0");
   const fmt = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
   const fim = new Date(inicio.getTime() + (duracaoMin || 60) * 60000);
@@ -360,7 +360,7 @@ function gerarICS({ titulo, descricao, local, inicio, duracaoMin, semanal, alarm
   ];
   if (descricao) linhas.push(`DESCRIPTION:${descricao.replace(/\n/g, " ")}`);
   if (local) linhas.push(`LOCATION:${local.replace(/\n/g, " ")}`);
-  if (semanal) linhas.push("RRULE:FREQ=WEEKLY");
+  if (semanal) linhas.push("RRULE:FREQ=WEEKLY" + (ate ? `;UNTIL=${String(ate).replace(/-/g, "")}T235959` : ""));
   if (alarmeMin) {
     linhas.push("BEGIN:VALARM", `TRIGGER:-PT${alarmeMin}M`, "ACTION:AUDIO", "END:VALARM");
   }
@@ -374,9 +374,9 @@ function baixarICS(ics, nomeArquivo) {
   a.href = url; a.download = nomeArquivo; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
-function adicionarCultoAgenda(titulo, diaSemana, horario, local) {
+function adicionarCultoAgenda(titulo, diaSemana, horario, local, ate) {
   const inicio = proximaOcorrencia(diaSemana, horario);
-  const ics = gerarICS({ titulo, local, inicio, duracaoMin: 90, semanal: true });
+  const ics = gerarICS({ titulo, local, inicio, duracaoMin: 90, semanal: true, ate });
   baixarICS(ics, `${titulo.replace(/\s+/g, "-")}.ics`);
 }
 function adicionarEventoAgenda(titulo, dataStr, horario, local, descricao) {
@@ -386,8 +386,18 @@ function adicionarEventoAgenda(titulo, dataStr, horario, local, descricao) {
   const ics = gerarICS({ titulo, local, descricao, inicio, duracaoMin: 90 });
   baixarICS(ics, `${titulo.replace(/\s+/g, "-")}.ics`);
 }
-function adicionarCalendarioAgenda(titulo, dataStr, dataFimStr, horario, local, observacoes) {
+function adicionarCalendarioAgenda(titulo, dataStr, dataFimStr, horario, local, observacoes, diaSemana) {
   const [h, m] = (horario || "00:00").split(":").map(n => parseInt(n, 10) || 0);
+  // compromisso recorrente (ex.: "aos domingos"): começa na próxima ocorrência e repete toda semana até o fim do período
+  if (diaSemana && DIA_SEMANA_INFO[diaSemana]) {
+    let ref = new Date(); ref.setHours(0, 0, 0, 0);
+    const ini = new Date(dataStr + "T00:00:00"); if (ini > ref) ref = ini;
+    while (ref.getDay() !== DIA_SEMANA_INFO[diaSemana].numero) ref.setDate(ref.getDate() + 1);
+    ref.setHours(h, m, 0, 0);
+    const icsRec = gerarICS({ titulo, local, descricao: observacoes, inicio: ref, duracaoMin: 90, semanal: true, ate: dataFimStr || null, alarmeMin: 5 });
+    baixarICS(icsRec, `${titulo.replace(/\s+/g, "-")}.ics`);
+    return;
+  }
   const inicio = new Date(dataStr + "T00:00:00");
   inicio.setHours(h, m, 0, 0);
   let duracaoMin = 60;
@@ -661,7 +671,7 @@ async function carregarCultos() {
     if (!c) return;
     btn.addEventListener("click", () => {
       if (c.data) adicionarEventoAgenda(c.titulo, c.data, c.horario, c.local, "");
-      else adicionarCultoAgenda(c.titulo, c.dia_semana, c.horario, c.local);
+      else adicionarCultoAgenda(c.titulo, c.dia_semana, c.horario, c.local, c.data_fim);
     });
   });
 }
@@ -4132,7 +4142,14 @@ async function carregarCalendario() {
 
   const { data } = await sb.from("igr_calendario_eventos").select("*, igr_grupos(nome)")
     .eq("igreja_id", state.igreja.id).order("data").order("horario");
-  state.calendarioEventos = data || [];
+  // junta duplicados exatos (ex.: um compromisso lançado à mão + o mesmo vindo do culto)
+  const _vistos = new Map();
+  (data || []).forEach(ev => {
+    const k = [ev.titulo, ev.data, ev.data_fim, ev.dia_semana, ev.horario, ev.local, ev.igreja_id].join("|");
+    const ja = _vistos.get(k);
+    if (!ja || (!ja.culto_id && ev.culto_id)) _vistos.set(k, ev);
+  });
+  state.calendarioEventos = [..._vistos.values()];
 
   if (!state.calendarioMesAtual) {
     const hoje = new Date();
@@ -4265,7 +4282,7 @@ function abrirDiaCalendario(dataISO) {
   el.querySelectorAll("[data-add-agenda-calendario]").forEach(btn => {
     btn.addEventListener("click", () => {
       const ev = eventosDoDia.find(e => e.id === btn.dataset.addAgendaCalendario);
-      if (ev) adicionarCalendarioAgenda(ev.titulo, ev.data, ev.data_fim, ev.horario, ev.local, ev.observacoes);
+      if (ev) adicionarCalendarioAgenda(ev.titulo, ev.data, ev.data_fim, ev.horario, ev.local, ev.observacoes, ev.dia_semana);
     });
   });
   el.querySelectorAll("[data-compartilhar-calendario]").forEach(btn => {

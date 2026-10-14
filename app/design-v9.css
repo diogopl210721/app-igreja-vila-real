@@ -290,3 +290,27 @@ p.reflect:not(#devo-texto-completo)::first-letter{ float:none!important; font-si
 .dia-card .badge-inline{ margin-top:12px; } .dia-card .dia-obs{ margin:10px 0 0; font-size:13px; }
 .dia-card .dia-acoes{ display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
 .dia-card .dia-acoes .btn{ width:auto; padding:9px 14px; font-size:12.5px; }
+/* listas do admin: título em cima, ações embaixo (não espremer no celular) */
+@media (max-width:640px){
+  .card > div[style*="justify-content:space-between"]{ flex-wrap:wrap; }
+  .card > div[style*="justify-content:space-between"] > div:first-child{ flex:1 1 100%; min-width:0; }
+  .card > div[style*="justify-content:space-between"] > div[style*="flex:none"]{ flex:1 1 100%!important; display:flex!important; flex-wrap:wrap; }
+  .card > div[style*="justify-content:space-between"] > div[style*="flex:none"] .btn{ flex:1 1 auto; justify-content:center; }
+}
+
+.contato-sub-links{ display:flex; gap:10px; }
+.contato-sub-links a{ flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 10px; border-radius:16px; font:700 13px var(--fino); color:var(--brand)!important; background:linear-gradient(160deg,rgba(255,255,255,.95),rgba(255,255,255,.65)); border:1px solid rgba(11,16,48,.1); box-shadow:0 10px 20px -14px rgba(11,16,48,.4); text-decoration:none; }
+html:not(.claro) .contato-sub-links a{ color:var(--gold)!important; background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.14); }
+
+/* desktop: conteúdo alinhado numa coluna única (título, textos e listas na mesma linha) */
+@media (min-width:900px){
+  .scroll{ padding-left:max(clamp(32px,5vw,72px), calc((100% - 920px)/2))!important; padding-right:max(clamp(32px,5vw,72px), calc((100% - 920px)/2))!important; }
+  .scroll > *{ max-width:none!important; margin-left:0!important; margin-right:0!important; }
+  #tela-devocional-detalhe .scroll > *{ max-width:720px!important; }
+  #calendario-view-mes{ display:grid!important; grid-template-columns:minmax(0,520px) minmax(0,1fr); column-gap:48px; align-items:start; }
+  #calendario-view-mes > :nth-child(-n+3){ grid-column:1; }
+  #calendario-view-mes > .section-label{ grid-column:2; grid-row:1; margin-top:0!important; }
+  #calendario-view-mes > #cal-legenda-mes{ grid-column:2; grid-row:2 / span 3; }
+  #cal-mes-titulo{ font-size:44px!important; }
+}
+#calendario-view-mes[style*="display: none"], #calendario-view-mes[style*="display:none"]{ display:none!important; }
