@@ -125,12 +125,39 @@
   }
   document.addEventListener("avisos-prontos", () => setTimeout(avisosNoCarrossel, 30));
 
+  /* ---------- card "Hoje" (calendário do dia) no carrossel ---------- */
+  async function cardHoje() {
+    const car = $("hero-carousel"), st = ST(), db = SB(); if (!car || !st || !db || !st.igreja) return;
+    let itens = [];
+    try {
+      const { data } = await db.from("igr_calendario_eventos").select("*").eq("igreja_id", st.igreja.id).order("horario");
+      const d = agora(), iso = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+      const vistos = new Map();
+      (data || []).forEach(ev => { const k = [ev.titulo, ev.data, ev.data_fim, ev.dia_semana, ev.horario, ev.local].join("|"); if (!vistos.has(k)) vistos.set(k, ev); });
+      itens = [...vistos.values()].filter(ev => {
+        const semLimite = !ev.data_fim && ev.dia_semana, fim = ev.data_fim || ev.data;
+        return iso >= ev.data && (semLimite || iso <= fim) && diaBateComSemana(iso, ev.dia_semana);
+      }).sort((a, b) => String(a.horario || "").localeCompare(String(b.horario || "")));
+    } catch (e) { return; }
+    car.querySelectorAll(".slide-hoje").forEach(s => s.remove());
+    const d = agora(), DIAS = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+    const mostrar = itens.slice(0, 3).map(ev => `<li><b>${escH(ev.horario || "—")}</b><span>${escH(ev.titulo)}</span></li>`).join("");
+    const s = document.createElement("div"); s.className = "slide slide-hoje";
+    s.innerHTML = `<button type="button" class="hoje-mini"><span class="av-top"><span class="av-d">HOJE</span><em>${DIAS[d.getDay()]}</em></span>
+      <span class="hj-dia"><b>${d.getDate()}</b> ${MESES[d.getMonth()]}</span>
+      ${itens.length ? `<ul>${mostrar}</ul>${itens.length > 3 ? `<small>+${itens.length - 3} no calendário</small>` : ""}` : `<span class="av-t">Nada marcado hoje · ver calendário</span>`}</button>`;
+    s.firstChild.onclick = () => { mostrarTela("tela-calendario"); carregarCalendario(); };
+    const culto = Array.from(car.querySelectorAll(".slide")).find(x => x.querySelector(".home-culto"));
+    car.insertBefore(s, culto ? culto.nextSibling : car.firstChild);
+  }
+
   function iniciar() {
     const orig = window.v8Home;
     window.v8Home = async function (m) {
       if (orig) { try { await orig(m); } catch (e) {} }
       carregarPalavra().then(pintarPalavra);
       carregarAnivHoje(m);
+      cardHoje();
     };
   }
   document.addEventListener("click", e => {

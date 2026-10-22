@@ -68,3 +68,14 @@ html.claro .av-mini{ background:#fff; border-color:rgba(11,16,48,.1); box-shadow
 html.claro .av-d{ background:rgba(11,16,48,.08); }
 @media (min-width:900px){ .av-mini{ height:170px; } }
 .greet-box #home-minha-pontuacao{ right:18px!important; } @media (min-width:900px){ .greet-box #home-minha-pontuacao{ right:0!important; } }
+.hoje-mini{ flex:1; display:flex; flex-direction:column; gap:3px; width:100%; height:150px; padding:12px; text-align:left; border-radius:20px; border:1px solid rgba(249,189,0,.5); background:linear-gradient(160deg,rgba(249,189,0,.2),rgba(249,189,0,.04)); color:var(--ink); font-family:var(--fino); cursor:pointer; overflow:hidden; }
+.hoje-mini .av-d{ background:var(--gold); color:#1a1300; }
+.hoje-mini .hj-dia{ font:400 15px var(--serif); text-transform:lowercase; color:var(--ink-soft); }
+.hoje-mini .hj-dia b{ font:500 30px/1 var(--serif); color:var(--ink); margin-right:4px; }
+.hoje-mini ul{ list-style:none; margin:4px 0 0; padding:0; display:grid; gap:3px; }
+.hoje-mini li{ display:flex; gap:7px; font:500 12px/1.3 var(--fino); }
+.hoje-mini li b{ flex:none; color:var(--gold-t,var(--gold)); font-weight:700; }
+.hoje-mini li span{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.hoje-mini small{ font:500 11px var(--fino); color:var(--ink-soft); }
+html.claro .hoje-mini{ background:linear-gradient(160deg,#fff3c6,#fff); border-color:rgba(154,107,0,.4); box-shadow:0 10px 26px -18px rgba(11,16,48,.4); }
+@media (min-width:900px){ .hoje-mini{ height:170px; } }
