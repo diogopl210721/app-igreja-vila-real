@@ -105,6 +105,26 @@
     } catch (e) { console.error("anivhoje", e); box.hidden = true; }
   }
 
+  /* ---------- avisos como cards compactos no carrossel ---------- */
+  const escH = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const MES3 = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  function avisosNoCarrossel() {
+    const car = $("hero-carousel"), st = ST(); if (!car || !st) return;
+    const lista = st.avisosHomeCache || [];
+    car.querySelectorAll(".slide-aviso").forEach(s => s.remove());
+    const ref = Array.from(car.querySelectorAll(".slide")).find(s => s.querySelector(".tile-ao-vivo"));
+    lista.forEach(a => {
+      const d = a.publicado_em ? new Date(String(a.publicado_em).slice(0, 10) + "T00:00:00") : null;
+      const s = document.createElement("div"); s.className = "slide slide-aviso";
+      s.innerHTML = `<button type="button" class="av-mini${a.link_destino ? " dest" : ""}" data-av="${escH(a.id)}">
+        <span class="av-top"><span class="av-d">${d ? MES3[d.getMonth()] + " " + d.getDate() : "Aviso"}</span><em>${a.link_destino ? "Em destaque" : (a.grupo_id ? "Do grupo" : "Aviso")}</em></span>
+        <b>${escH(a.titulo)}</b><span class="av-t">${escH(a.texto || "")}</span></button>`;
+      s.firstChild.onclick = () => { if (a.link_destino) mostrarTela(a.link_destino); else abrirAvisoDetalhe(a.id, "tela-membro-home"); };
+      car.insertBefore(s, ref || null);
+    });
+  }
+  document.addEventListener("avisos-prontos", () => setTimeout(avisosNoCarrossel, 30));
+
   function iniciar() {
     const orig = window.v8Home;
     window.v8Home = async function (m) {
