@@ -65,6 +65,6 @@
     });
   }
 
-  function iniciar() { iniciarNav(); montarVerso(); rodape(); }
+  function iniciar() { iniciarNav(); rodape(); } /* a palavra do dia agora é a do v11 */
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
 })();

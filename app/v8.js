@@ -167,7 +167,7 @@ gl_FragColor=vec4(col,1.);}`;
   function garantirCard() {
     let c = $("#palavra-card");
     if (c) return c;
-    const sub = $("#aniv-hoje") || $("#tela-membro-home .greet-sub");
+    const sub = $("#tela-membro-home .greet-sub");
     if (!sub) return null;
     c = document.createElement("button");
     c.id = "palavra-card"; c.type = "button"; c.className = "pal-card";

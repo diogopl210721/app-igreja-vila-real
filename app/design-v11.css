@@ -23,3 +23,25 @@ html.claro .aniv-hoje{ background:linear-gradient(135deg,#fff3c6,#fffaf0); borde
 .ah-p small{ font:500 11.5px var(--fino); color:var(--ink-soft); }
 @media (min-width:900px){ .pdd blockquote{ font-size:23px; } .pdd,.aniv-hoje{ max-width:760px; } }
 .ah-f > *{ box-shadow:none!important; width:100%!important; height:100%!important; margin:0!important; }
+
+/* ---------- Home: cards que rolam, compactos (como no exemplo) ---------- */
+#home-stories{ display:none!important; }
+.hero-carousel{ gap:10px!important; margin:6px -18px 0!important; padding:4px 18px 8px!important; }
+.hero-carousel .slide{ flex:0 0 46%!important; min-height:150px!important; scroll-snap-align:start!important; transform:none!important; opacity:1!important; }
+.hero-carousel .home-culto .culto-hero,.hero-carousel .devo-card,.hero-carousel .foto-tile{ min-height:150px!important; height:150px; padding:12px!important; border-radius:20px!important; }
+.hero-carousel .culto-hero h3{ font-size:24px!important; line-height:1.05!important; margin:0 0 4px!important; }
+.hero-carousel .culto-pill,.hero-carousel .culto-hero .culto-pill{ font-size:10px!important; padding:4px 8px!important; letter-spacing:.02em!important; }
+.hero-carousel .culto-quando,.hero-carousel .culto-local,.hero-carousel .culto-hero small{ font-size:11.5px!important; margin:0 0 2px!important; }
+.hero-carousel .culto-hero .btn-share,.hero-carousel .culto-hero [class*="share"]{ transform:scale(.8); }
+.hero-carousel .devo-card h3{ font-size:17px!important; line-height:1.15!important; margin:4px 0!important; }
+.hero-carousel .devo-card p,.hero-carousel .devo-card .pattern{ display:none!important; }
+.hero-carousel .devo-card .btn{ padding:8px 14px!important; font-size:12.5px!important; }
+.hero-carousel .foto-tile .tile-titulo{ padding-top:36px!important; font-size:20px!important; }
+.hero-carousel .foto-tile .tile-sub{ font-size:11px!important; }
+.hero-dots{ margin:0 0 10px!important; }
+.atalhos-rapidos{ margin-top:4px!important; }
+.pdd,.aniv-hoje{ margin:18px 0 4px; }
+@media (min-width:900px){ .hero-carousel .slide{ flex:0 0 300px!important; min-height:170px!important; } .hero-carousel .home-culto .culto-hero,.hero-carousel .devo-card,.hero-carousel .foto-tile{ height:170px; } }
+.hero-carousel{ scroll-padding-left:18px; }
+.hero-carousel .culto-pill{ white-space:nowrap; }
+.hero-carousel .culto-hero .culto-pill{ max-width:calc(100% - 38px); overflow:hidden; text-overflow:ellipsis; }
