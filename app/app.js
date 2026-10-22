@@ -1489,11 +1489,12 @@ async function montarHomeMembro() {
   }
 
   // acesso ao painel administrativo (concedido pelo admin master) — mesmo login do membro, sem senha separada
-  const btnPainelMidia = document.getElementById("btn-painel-midia");
-  const temAcessoPainel = (m.papeis_especiais || []).length > 0;
-  if (btnPainelMidia) {
-    btnPainelMidia.style.display = temAcessoPainel ? "block" : "none";
-    btnPainelMidia.onclick = () => abrirPainelEspecial(m.papeis_especiais || []);
+  // membros com acesso especial entram no painel pelo item "Administração" do menu (sem senha separada)
+  const drawerAdmin = document.getElementById("drawer-admin");
+  if (drawerAdmin) {
+    const temAcessoPainel = (m.papeis_especiais || []).length > 0;
+    if (temAcessoPainel) { drawerAdmin.removeAttribute("data-nav"); drawerAdmin.onclick = () => abrirPainelEspecial(m.papeis_especiais || []); }
+    else { drawerAdmin.setAttribute("data-nav", "tela-admin-login"); drawerAdmin.onclick = null; }
   }
 
   const quicklinkCelula = document.getElementById("quicklink-celula");

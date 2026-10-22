@@ -15,13 +15,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem("igr_tema")!=="escuro")document.documentElement.classList.add("claro")}catch(e){document.documentElement.classList.add("claro")}</script>
-<link rel="stylesheet" href="style.css?v=1791974200">
-<link rel="stylesheet" href="design-v5.css?v=1791974200">
-<link rel="stylesheet" href="design-v6.css?v=1791974200">
-<link rel="stylesheet" href="design-v7.css?v=1791974200">
-<link rel="stylesheet" href="design-v8.css?v=1791974200">
-<link rel="stylesheet" href="design-v9.css?v=1791974200">
-<link rel="stylesheet" href="design-v10.css?v=1791974200">
+<link rel="stylesheet" href="style.css?v=1792663022">
+<link rel="stylesheet" href="design-v5.css?v=1792663022">
+<link rel="stylesheet" href="design-v6.css?v=1792663022">
+<link rel="stylesheet" href="design-v7.css?v=1792663022">
+<link rel="stylesheet" href="design-v8.css?v=1792663022">
+<link rel="stylesheet" href="design-v9.css?v=1792663022">
+<link rel="stylesheet" href="design-v10.css?v=1792663022">
+<link rel="stylesheet" href="design-v11.css?v=1792663022">
 <link rel="preload" href="assets/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -235,8 +236,7 @@
     <div class="drawer-lista">
       <button class="drawer-item" id="drawer-inicio" data-nav="tela-visitante" data-close-drawer><span class="di-ic c0"><svg class="icon"><use href="#i-home"/></svg></span><span class="di-tx"><b>Início</b><small>Página principal</small></span></button>
       <button class="drawer-item" data-nav="tela-login" data-close-drawer><span class="di-ic c1"><svg class="icon"><use href="#i-user"/></svg></span><span class="di-tx"><b>Entrar</b><small>Sou membro</small></span></button>
-      <button class="drawer-item" data-nav="tela-diretorio" data-close-drawer><span class="di-ic c3"><svg class="icon"><use href="#k-handheart"/></svg></span><span class="di-tx"><b>Mão Amiga</b><small>Quem pode ajudar</small></span></button>
-      <button class="drawer-item" data-nav="tela-admin-login" data-close-drawer><span class="di-ic c4"><svg class="icon"><use href="#i-settings"/></svg></span><span class="di-tx"><b>Administração</b><small>Acesso da liderança</small></span></button>
+      <button class="drawer-item" id="drawer-admin" data-nav="tela-admin-login" data-close-drawer><span class="di-ic c4"><svg class="icon"><use href="#i-settings"/></svg></span><span class="di-tx"><b>Administração</b><small>Acesso da liderança</small></span></button>
     </div>
     <button class="drawer-tema" id="btn-tema" type="button" aria-label="Trocar aparência"><span class="dt-ic"><svg class="icon"><use href="#k-sun"/></svg></span><span class="dt-tx"><b>Aparência</b><small id="tema-rotulo">Claro</small></span><span class="dt-sw"><i></i></span></button>
     <p class="dds-copy">© 2026 · <a href="https://ddsinovacao.com.br" target="_blank" rel="noopener">DDS Inovação</a><small>Todos os direitos reservados</small></p>
@@ -1060,6 +1060,18 @@
       <p class="greet-sub">Que bom te ver por aqui hoje.</p>
       <div id="home-minha-pontuacao" style="display:none;margin-top:8px;"></div>
 
+      <section class="pdd" id="palavra-dia" hidden>
+        <span class="pdd-eye"><svg class="icon"><use href="#i-sparkle"/></svg>Palavra do dia <i>·</i> <span id="pdd-data"></span></span>
+        <blockquote id="pdd-texto"></blockquote>
+        <div class="pdd-rod"><cite id="pdd-ref"></cite>
+          <button type="button" class="pdd-share" id="pdd-compartilhar"><svg class="icon"><use href="#i-share"/></svg>Compartilhar</button></div>
+      </section>
+
+      <section class="aniv-hoje" id="aniv-hoje" hidden>
+        <span class="pdd-eye"><svg class="icon"><use href="#k-sparkle2"/></svg><span id="aniv-hoje-tit">Hoje é aniversário!</span></span>
+        <div class="ah-lista" id="aniv-hoje-lista"></div>
+      </section>
+
       <div id="home-stories" class="stories-row" aria-label="Destaques"></div>
 
       <div class="hero-carousel" id="hero-carousel">
@@ -1119,7 +1131,6 @@
         <span style="font-size:20px;">🎉</span>
         <div class="txt"><b>Você ganhou um novo acesso!</b><span id="acesso-novo-texto"></span></div>
       </div>
-      <button class="btn btn-ghost" id="btn-painel-midia" style="display:none;margin-top:10px;">🔑 Abrir Painel Administrativo</button>
 
 
       <div class="section-label"><b>Aniversariantes do mês</b></div>
@@ -2403,13 +2414,14 @@
 </div>
 
 <script src="config.js"></script>
-<script>window.APP_VERSION = "1791974200";</script>
-<script src="motion.js?v=1791974200"></script>
-<script src="app.js?v=1791974200"></script>
-<script src="v7.js?v=1791974200"></script>
-<script src="assets/gsap.min.js?v=1791974200"></script>
-<script src="v8.js?v=1791974200"></script>
-<script src="v9.js?v=1791974200"></script>
-<script src="stories.js?v=1791974200"></script>
+<script>window.APP_VERSION = "1792663022";</script>
+<script src="motion.js?v=1792663022"></script>
+<script src="app.js?v=1792663022"></script>
+<script src="v7.js?v=1792663022"></script>
+<script src="assets/gsap.min.js?v=1792663022"></script>
+<script src="v8.js?v=1792663022"></script>
+<script src="v9.js?v=1792663022"></script>
+<script src="v11.js?v=1792663022"></script>
+<script src="stories.js?v=1792663022"></script>
 </body>
 </html>

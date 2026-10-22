@@ -1,0 +1,25 @@
+/* V11: palavra do dia e aniversariantes de hoje na Home */
+.pdd,.aniv-hoje{ position:relative; margin:14px 0 6px; padding:20px 20px 16px; border-radius:24px; overflow:hidden; border:1px solid rgba(255,255,255,.12); background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02)); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); animation:rvIn .6s cubic-bezier(.22,1,.36,1) both; }
+.pdd[hidden],.aniv-hoje[hidden]{ display:none!important; }
+.pdd::before{ content:"“"; position:absolute; right:14px; top:-18px; font:400 120px/1 var(--serif); color:var(--gold); opacity:.14; pointer-events:none; }
+html.claro .pdd,html.claro .aniv-hoje{ background:linear-gradient(160deg,#fff,rgba(255,255,255,.7)); border-color:rgba(11,16,48,.08); box-shadow:0 14px 34px -22px rgba(11,16,48,.35); }
+.pdd-eye{ display:flex; align-items:center; gap:7px; font:600 12.5px var(--fino); color:var(--gold-t,var(--gold)); }
+.pdd-eye .icon{ width:15px; height:15px; stroke:currentColor; }
+.pdd-eye i{ font-style:normal; opacity:.6; }
+.pdd blockquote{ margin:10px 0 12px; font:400 19px/1.5 var(--serif); letter-spacing:-.005em; color:var(--ink); }
+.pdd-rod{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.pdd cite{ font:600 13.5px var(--fino); font-style:normal; color:var(--ink-soft); }
+.pdd-share{ display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 16px; border-radius:99px; border:0; background:var(--gold); color:#1a1300; font:700 13.5px var(--fino); cursor:pointer; transition:transform .25s; }
+.pdd-share:active{ transform:scale(.96); }
+.pdd-share .icon{ width:16px; height:16px; stroke:#1a1300; }
+.aniv-hoje{ background:linear-gradient(135deg,rgba(249,189,0,.2),rgba(249,189,0,.05)); border-color:rgba(249,189,0,.5); }
+html.claro .aniv-hoje{ background:linear-gradient(135deg,#fff3c6,#fffaf0); border-color:rgba(154,107,0,.45); }
+.ah-lista{ display:flex; gap:16px; overflow-x:auto; padding:12px 2px 2px; scrollbar-width:none; }
+.ah-lista::-webkit-scrollbar{ display:none; }
+.ah-p{ flex:none; display:flex; flex-direction:column; align-items:center; gap:3px; min-width:78px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--fino); color:var(--ink); }
+.ah-f{ width:64px; height:64px; border-radius:50%; display:grid; place-items:center; overflow:hidden; box-shadow:0 0 0 3px var(--gold), 0 10px 22px -8px rgba(249,189,0,.7); background:rgba(255,255,255,.1); }
+.ah-f img{ width:100%; height:100%; object-fit:cover; }
+.ah-p b{ margin-top:6px; font:600 14px var(--fino); }
+.ah-p small{ font:500 11.5px var(--fino); color:var(--ink-soft); }
+@media (min-width:900px){ .pdd blockquote{ font-size:23px; } .pdd,.aniv-hoje{ max-width:760px; } }
+.ah-f > *{ box-shadow:none!important; width:100%!important; height:100%!important; margin:0!important; }
