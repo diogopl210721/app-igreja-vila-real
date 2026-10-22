@@ -110,7 +110,7 @@
   const MES3 = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
   function avisosNoCarrossel() {
     const car = $("hero-carousel"), st = ST(); if (!car || !st) return;
-    const lista = st.avisosHomeCache || [];
+    const lista = (st.avisosHomeCache || []).filter(a => !/camera|ao-vivo|aovivo/i.test(a.link_destino || "")); // o card "Ao vivo" já existe no carrossel
     car.querySelectorAll(".slide-aviso").forEach(s => s.remove());
     const ref = Array.from(car.querySelectorAll(".slide")).find(s => s.querySelector(".tile-ao-vivo"));
     lista.forEach(a => {
