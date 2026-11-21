@@ -7154,7 +7154,7 @@ async function exportarMembrosCSV() {
 
 // nomes amigaveis das secoes do painel admin, usados na tela de Acessos especiais
 const SECOES_ADMIN_INFO = {
-  lideres: "👤 Líderes", membros: "👤 Membros", visitantes: "❤️ Visitantes",
+  lideres: "👤 Líderes", membros: "👤 Membros", rol: "📋 Rol de membros", visitantes: "❤️ Visitantes",
   cultos: "📖 Cultos", avisos: "🔔 Avisos", pastor: "🎙️ Pastor", estudos: "✨ Estudos",
   fotos: "📷 Fotos", igreja: "⚙️ Igreja", oracao: "🙏 Oração", eventos: "➕ Eventos", calendario: "📅 Calendário",
   livros: "📚 Livros",
@@ -7271,6 +7271,7 @@ function abrirSecaoAdmin(secao) {
   });
   const cargas = {
     lideres: carregarPainelAdmin, membros: carregarMembrosAdminGrupos, visitantes: carregarVisitantesAdmin,
+    rol: () => window.carregarRolAdmin && window.carregarRolAdmin(),
     acessos: carregarAcessosAtuais,
     cultos: carregarCultosAdmin, avisos: carregarAvisosAdmin,
     pastor: carregarPastorAdmin, estudos: carregarEsbocosAdmin,
