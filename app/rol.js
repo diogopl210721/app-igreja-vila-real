@@ -89,32 +89,41 @@
     if ($("rol-css")) return;
     const st = document.createElement("style"); st.id = "rol-css";
     st.textContent = `
-    .rol-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:2px 0 12px}
-    .rol-tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center}
-    .rol-tile b{display:block;font-family:'Montserrat',sans-serif;font-size:20px;color:var(--gold-t,#E8B000);line-height:1.1}
-    .rol-tile span{display:block;font-size:10px;font-weight:600;color:var(--ink-soft);margin-top:3px}
-    .rol-acoes{display:flex;gap:10px;margin:12px 0 6px}
-    .rol-acoes .btn{flex:1;width:auto;margin:0}
-    .rol-item{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:8px;overflow:hidden}
+    .rol-acoes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 14px}
+    .rol-acoes .btn{width:auto;margin:0;min-height:46px}
+    .rol-acoes .btn[disabled]{opacity:.7}
+    .rol-busca{display:block;width:100%;min-height:44px;margin:0 0 8px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 16px 'Inter',sans-serif;box-sizing:border-box}
+    .rol-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+    .rol-chips::-webkit-scrollbar{display:none}
+    .rol-chips button{flex:none;min-height:36px;padding:0 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);font:700 13px 'Inter',sans-serif;cursor:pointer}
+    .rol-chips button[aria-pressed="true"]{background:var(--gold-t,#F9BD00);border-color:var(--gold-t,#F9BD00);color:#10132b}
+    .rol-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:14px 0 12px}
+    .rol-tile{padding:10px 6px;border-radius:16px;background:var(--card);border:1px solid var(--line);text-align:center}
+    .rol-tile:first-child{background:radial-gradient(120% 140% at 100% 0%,rgba(249,189,0,.26),transparent 60%),var(--card);border-color:rgba(249,189,0,.4)}
+    .rol-tile b{display:block;font:600 26px/1 'Fraunces',Georgia,serif;color:var(--ink);font-variant-numeric:lining-nums tabular-nums}
+    .rol-tile:first-child b{color:var(--gold-t,#E8B000)}
+    .rol-tile span{display:block;margin-top:4px;font-size:11px;font-weight:600;color:var(--ink-soft)}
+    .rol-item{background:var(--card);border:1px solid var(--line);border-radius:18px;margin-bottom:6px;overflow:hidden}
+    .rol-item[open]{border-color:rgba(249,189,0,.45)}
     .rol-item summary{list-style:none;display:flex;align-items:center;gap:11px;padding:10px 12px;cursor:pointer}
     .rol-item summary::-webkit-details-marker{display:none}
-    .rol-av{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:none;background:rgba(249,189,0,.16)}
+    .rol-av{width:42px;height:42px;border-radius:50%;object-fit:cover;flex:none;background:rgba(249,189,0,.16)}
     .rol-av.ini{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--gold-t,#E8B000)}
     .rol-info{flex:1;min-width:0}
-    .rol-info b{display:block;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rol-info span{display:block;font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rol-info b{display:block;font-size:15px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rol-info span{display:block;margin-top:2px;font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .rol-tags{display:flex;flex-direction:column;gap:3px;align-items:flex-end;flex:none}
-    .rol-tags .badge-inline{margin:0}
-    .rol-tag-bat{color:#3DDBA7!important;background:rgba(61,219,167,.14)!important}
-    html.claro .rol-tag-bat{color:#15805C!important;background:rgba(21,128,92,.12)!important}
-    .rol-seta{flex:none;color:var(--ink-faint);font-size:12px;transition:transform .15s}
-    .rol-item[open] .rol-seta{transform:rotate(90deg)}
-    .rol-det{padding:2px 14px 12px 63px;display:grid;gap:7px}
-    .rol-det div{font-size:12.5px;color:var(--ink);line-height:1.35}
-    .rol-det dt{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-soft)}
-    .rol-det dd{margin:0;word-break:break-word}
-    .rol-det a{color:var(--gold-t,#E8B000);font-weight:600;text-decoration:none}
-    @media (max-width:360px){.rol-tiles{grid-template-columns:repeat(2,1fr)}}`;
+    .rol-tags i{font:700 10.5px 'Inter',sans-serif;font-style:normal;padding:3px 8px;border-radius:99px}
+    .t-lider{background:rgba(249,189,0,.18);color:var(--gold-t,#E8B000)}
+    .t-bat{background:rgba(60,190,120,.14);color:#4cc68a}
+    html.claro .t-bat{color:#15805C;background:rgba(21,128,92,.12)}
+    .rol-det{margin:0;padding:4px 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+    .rol-det div{min-width:0}
+    .rol-det dt{font-size:11px;font-weight:600;color:var(--ink-soft)}
+    .rol-det dd{margin:2px 0 0;font-size:13.5px;font-weight:600;line-height:1.35;color:var(--ink);overflow-wrap:anywhere}
+    .rol-det dd a{color:inherit;text-decoration:none}
+    a.rol-zap{grid-column:1 / -1;justify-self:start;padding:9px 13px;border-radius:12px;background:rgba(37,211,102,.14);color:#25b85f;font:700 13px 'Inter',sans-serif;text-decoration:none}
+    @media (max-width:340px){.rol-det{grid-template-columns:1fr}}`;
     document.head.appendChild(st);
   }
 
@@ -133,7 +142,7 @@
     const termo = semAcento($("rol-busca").value.trim()), dig = $("rol-busca").value.replace(/\D/g, "");
     const g = $("rol-filtro-grupo").value, t = $("rol-filtro-tipo").value, mesAtual = new Date().getMonth();
     R.visiveis = R.linhas.filter(l => {
-      if (termo && !(semAcento(l.nome).includes(termo) || (dig.length >= 3 && l.telRaw.replace(/\D/g, "").includes(dig)))) return false;
+      if (termo && !(semAcento(l.nome).includes(termo) || l.num.includes(dig) && dig.length >= 1 && /^\d+$/.test(termo) || (dig.length >= 3 && l.telRaw.replace(/\D/g, "").includes(dig)))) return false;
       if (g && !l.grupoIds.has(g)) return false;
       if (t === "lideres" && l.lider !== "Sim") return false;
       if (t === "batizados" && l.batizado !== "Sim") return false;
@@ -146,39 +155,30 @@
   }
 
   function iniciais(nome) { const p = cap(nome).split(/\s+/).filter(Boolean); return ((p[0] || "?")[0] + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase(); }
-  function linkTel(l) {
-    const d = l.telRaw.replace(/\D/g, ""); if (!d) return "";
-    const wa = d.length <= 11 ? "55" + d : d;
-    return `<a href="tel:+${wa}">${esc(l.tel)}</a> · <a href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>`;
-  }
   function itemHtml(l) {
+    const d = l.telRaw.replace(/\D/g, ""), wa = d.length >= 10 ? (d.length <= 11 ? "55" + d : d) : "";
     const det = [
-      ["Telefone", linkTel(l)],
-      ["E-mail", l.email ? `<a href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : ""],
-      ["Endereço", esc(l.endereco)],
-      ["Profissão", esc(l.profissao)],
+      ["Telefone", esc(l.tel)],
       ["Nascimento", l.nasc ? `${dBR(l.nasc)}${l.idade != null ? ` · ${l.idade} anos` : ""}` : ""],
-      ["Gênero · estado civil", esc([l.genero, l.estado].filter(Boolean).join(" · "))],
-      ["Também participa de", esc(l.outros)],
-      ["Batismo", l.batizado === "Sim" ? esc(["Batizado(a)", l.dataBat ? dBR(l.dataBat) : "", l.porQuem ? "por " + l.porQuem : ""].filter(Boolean).join(" · ")) : "Ainda não batizado(a)"],
-      ["Membro desde", dBR(l.desde)],
-      ["Último acesso ao app", dBR(l.acesso)],
+      ["E-mail", l.email ? `<a href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : ""],
+      ["Gênero", esc(l.genero)], ["Estado civil", esc(l.estado)], ["Profissão", esc(l.profissao)],
+      ["Endereço", esc(l.endereco)], ["Também participa de", esc(l.outros)],
+      ["Batismo", l.batizado === "Sim" ? esc([l.dataBat ? dBR(l.dataBat) : "", l.porQuem ? "por " + l.porQuem : ""].filter(Boolean).join(" ") || "Sim") : "Ainda não"],
+      ["Membro desde", dBR(l.desde)], ["Último acesso ao app", dBR(l.acesso) || "Nunca"],
     ].filter(([, v]) => v);
-    const sub = [l.grupo, l.idade != null ? l.idade + " anos" : ""].filter(Boolean).join(" · ") || "Sem grupo";
     return `<details class="rol-item"><summary>
         ${l.foto ? `<img class="rol-av" src="${esc(l.foto)}" alt="" loading="lazy">` : `<div class="rol-av ini">${esc(iniciais(l.nome))}</div>`}
-        <div class="rol-info"><b>${esc(l.nome)}</b><span>${esc(sub)}</span></div>
-        <div class="rol-tags">${l.lider === "Sim" ? `<span class="badge-inline">Líder</span>` : ""}${l.batizado === "Sim" ? `<span class="badge-inline rol-tag-bat">Batizado</span>` : ""}</div>
-        <span class="rol-seta">▶</span>
+        <div class="rol-info"><b>${esc(l.nome)}</b><span>${esc(l.num)}${l.grupo ? " · " + esc(l.grupo) : ""}</span></div>
+        <div class="rol-tags">${l.lider === "Sim" ? `<i class="t-lider">Líder</i>` : ""}${l.batizado === "Sim" ? `<i class="t-bat">Batizado</i>` : ""}</div>
       </summary>
-      <dl class="rol-det">${det.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl></details>`;
+      <dl class="rol-det">${det.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}${wa ? `<a class="rol-zap" href="https://wa.me/${wa}" target="_blank" rel="noopener">Conversar no WhatsApp</a>` : ""}</dl></details>`;
   }
 
   function desenhar() {
     const v = R.visiveis, idades = v.map(l => l.idade).filter(x => x != null);
     $("rol-resumo").innerHTML = [
-      [v.length, "Membros"], [v.filter(l => l.batizado === "Sim").length, "Batizados"], [v.filter(l => l.lider === "Sim").length, "Líderes"],
-      [idades.length ? Math.round(idades.reduce((s, x) => s + x, 0) / idades.length) : "—", "Idade média"],
+      [v.length, v.length === 1 ? "membro" : "membros"], [v.filter(l => l.batizado === "Sim").length, "batizados"], [v.filter(l => l.lider === "Sim").length, "líderes"],
+      [idades.length ? Math.round(idades.reduce((s, x) => s + x, 0) / idades.length) : "—", "idade média"],
     ].map(([n, t]) => `<div class="rol-tile"><b>${n}</b><span>${t}</span></div>`).join("");
     const filtro = descFiltro();
     $("rol-contagem").textContent = filtro ? `Mostrando ${v.length} de ${R.linhas.length} membros · ${filtro}. Os arquivos exportados levam só esta lista.` : `${R.linhas.length} membros cadastrados. Toque num nome para ver os dados.`;
@@ -190,7 +190,7 @@
     let t = null;
     $("rol-busca").addEventListener("input", () => { clearTimeout(t); t = setTimeout(filtrar, 180); });
     $("rol-filtro-grupo").addEventListener("change", filtrar);
-    $("rol-filtro-tipo").addEventListener("change", filtrar);
+    $("rol-chips").addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return; $("rol-filtro-tipo").value = b.dataset.t; $("rol-chips").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); filtrar(); });
     $("rol-btn-pdf").addEventListener("click", ev => exportar(ev.currentTarget, "pdf"));
     $("rol-btn-excel").addEventListener("click", ev => exportar(ev.currentTarget, "excel"));
   }
@@ -202,9 +202,9 @@
       await buscarDados();
       const sel = $("rol-filtro-grupo"), atual = sel.value;
       const lista = [...R.grupos.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
-      sel.innerHTML = `<option value="">Todos</option>` + lista.map(g => `<option value="${esc(g.id)}">${esc(g.nome)}</option>`).join("");
+      const op = dep => lista.filter(g => (g.tipo === "departamento") === dep).map(g => `<option value="${esc(g.id)}">${esc(g.nome)}</option>`).join("");
+      sel.innerHTML = `<option value="">Todos os grupos e departamentos</option><optgroup label="Grupos">${op(false)}</optgroup><optgroup label="Departamentos">${op(true)}</optgroup>`;
       if (atual && R.grupos.has(atual)) sel.value = atual;
-      $("rol-filtro-tipo").innerHTML = Object.entries(TIPOS).map(([k, n]) => `<option value="${k}">${n}</option>`).join("");
       filtrar();
     } catch (e) {
       console.error("Rol de membros:", e);
