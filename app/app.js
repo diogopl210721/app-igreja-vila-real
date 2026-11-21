@@ -7164,7 +7164,10 @@ const SECOES_ADMIN_INFO = {
 function montarGridAdmin() {
   const secoesPermitidas = state.adminPapel === "geral" ? null : (state.adminSecoes || []);
   document.querySelectorAll("#admin-grid [data-secao]").forEach(card => {
-    card.style.display = (secoesPermitidas === null || secoesPermitidas.includes(card.dataset.secao)) ? "flex" : "none";
+    const sec = card.dataset.secao;
+    // o Rol de membros acompanha a seção Membros (quem já vê Membros vê o Rol)
+    const ok = secoesPermitidas === null || secoesPermitidas.includes(sec) || (sec === "rol" && secoesPermitidas.includes("membros"));
+    card.style.display = ok ? "flex" : "none";
   });
   document.querySelectorAll(".admin-painel-aba").forEach(sec => sec.style.display = "none");
   document.getElementById("admin-grid").style.display = "grid";

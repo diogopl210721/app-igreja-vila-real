@@ -15,14 +15,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Caveat:wght@600;700&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
 <script>try{if(localStorage.getItem("igr_tema")!=="escuro")document.documentElement.classList.add("claro")}catch(e){document.documentElement.classList.add("claro")}</script>
-<link rel="stylesheet" href="style.css?v=1795277505">
-<link rel="stylesheet" href="design-v5.css?v=1795277505">
-<link rel="stylesheet" href="design-v6.css?v=1795277505">
-<link rel="stylesheet" href="design-v7.css?v=1795277505">
-<link rel="stylesheet" href="design-v8.css?v=1795277505">
-<link rel="stylesheet" href="design-v9.css?v=1795277505">
-<link rel="stylesheet" href="design-v10.css?v=1795277505">
-<link rel="stylesheet" href="design-v11.css?v=1795277505">
+<link rel="stylesheet" href="style.css?v=1795281948">
+<link rel="stylesheet" href="design-v5.css?v=1795281948">
+<link rel="stylesheet" href="design-v6.css?v=1795281948">
+<link rel="stylesheet" href="design-v7.css?v=1795281948">
+<link rel="stylesheet" href="design-v8.css?v=1795281948">
+<link rel="stylesheet" href="design-v9.css?v=1795281948">
+<link rel="stylesheet" href="design-v10.css?v=1795281948">
+<link rel="stylesheet" href="design-v11.css?v=1795281948">
+<link rel="stylesheet" href="carteirinha.css?v=1795281948">
 <link rel="preload" href="assets/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
@@ -1051,6 +1052,7 @@
         <button class="quicklink" data-nav="tela-calendario"><span class="quicklink-ic"><svg class="icon"><use href="#k-calendar"/></svg></span>Calendário</button>
         <button class="quicklink" data-nav="tela-grupos-lista"><span class="quicklink-ic"><svg class="icon"><use href="#k-people"/></svg></span>Grupos</button>
         <button class="quicklink" id="quicklink-celula" style="display:none;"><span class="quicklink-ic"><svg class="icon"><use href="#k-people"/></svg></span><span id="quicklink-celula-texto">Meu Grupo</span></button>
+        <button class="quicklink" data-abrir-carteirinha data-fechar-explorar><span class="quicklink-ic"><svg class="icon"><use href="#i-user"/></svg></span>Carteirinha</button>
         <button class="quicklink" data-nav="tela-sobre-igreja"><span class="quicklink-ic"><svg class="icon"><use href="#k-church"/></svg></span>Sobre a igreja</button>
         <button class="quicklink" data-nav="tela-contatos"><span class="quicklink-ic"><svg class="icon"><use href="#i-phone"/></svg></span>Contatos</button>
       </div>
@@ -1229,6 +1231,8 @@
       </div>
       <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:19px;display:block;margin-bottom:4px;">Meu perfil</span>
       <p class="hint" style="margin-bottom:16px;">Mantenha seus dados atualizados.</p>
+
+      <button type="button" class="ct-entrada" data-abrir-carteirinha><span class="i">🪪</span><span><b>Minha carteirinha de membro</b><small>Gerar e baixar em PNG ou PDF</small></span></button>
 
       <div class="card" id="ep-minha-pontuacao" style="display:none;margin-bottom:16px;border:1.5px solid var(--brand-soft);">
         <p class="hint" style="margin:0;">🎮 Sua pontuação este mês</p>
@@ -2437,15 +2441,16 @@
 </div>
 
 <script src="config.js"></script>
-<script>window.APP_VERSION = "1795277505";</script>
-<script src="motion.js?v=1795277505"></script>
-<script src="app.js?v=1795277505"></script>
-<script src="v7.js?v=1795277505"></script>
-<script src="assets/gsap.min.js?v=1795277505"></script>
-<script src="v8.js?v=1795277505"></script>
-<script src="v9.js?v=1795277505"></script>
-<script src="v11.js?v=1795277505"></script>
-<script src="stories.js?v=1795277505"></script>
-<script src="rol.js?v=1795277505"></script>
+<script>window.APP_VERSION = "1795281948";</script>
+<script src="motion.js?v=1795281948"></script>
+<script src="app.js?v=1795281948"></script>
+<script src="v7.js?v=1795281948"></script>
+<script src="assets/gsap.min.js?v=1795281948"></script>
+<script src="v8.js?v=1795281948"></script>
+<script src="v9.js?v=1795281948"></script>
+<script src="v11.js?v=1795281948"></script>
+<script src="stories.js?v=1795281948"></script>
+<script src="carteirinha.js?v=1795281948"></script>
+<script src="rol.js?v=1795281948"></script>
 </body>
 </html>
